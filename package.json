@@ -1,0 +1,59 @@
+{
+    "name": "cmake-server",
+    "displayName": "cmake-server",
+    "description": "CMake based Language Server.",
+    "version": "0.0.1",
+    "publisher": "go2sh",
+    "engines": {
+        "vscode": "^1.28.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "workspaceContains:CMakeLists.txt"
+    ],
+    "main": "./out/extension",
+    "contributes": {
+        "commands": [
+            {
+                "command": "cmake-server.configureCurrentWorkspace",
+                "title": "Configure current workspace",
+                "category": "Build"
+            },
+            {
+                "command": "cmake-server.buildCurrentTarget",
+                "title": "Build current target",
+                "category": "Build"
+            },
+            {
+                "command": "cmake-server.configureWorkspace",
+                "title": "Configure workspace",
+                "category": "Build"
+            },
+            {
+                "command": "cmake-server.buildTarget",
+                "title": "Build target",
+                "category": "Build"
+            }
+        ]
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "postinstall": "node ./node_modules/vscode/bin/install",
+        "test": "npm run compile && node ./node_modules/vscode/bin/test"
+    },
+    "devDependencies": {
+        "@types/mocha": "^2.2.42",
+        "@types/node": "^8.10.25",
+        "tslint": "^5.8.0",
+        "typescript": "^2.6.1",
+        "vscode": "^1.1.21"
+    },
+    "dependencies": {
+        "vscode-languageclient": "^5.1.1",
+        "vscode-languageserver": "^5.1.0"
+    }
+}

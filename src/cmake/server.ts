@@ -1,0 +1,48 @@
+import * as protocol from './protocol';
+import { Connection, createConnection } from './connection';
+
+interface CMakeServer {
+    listen(): void;
+    onHello(handler: (msg: protocol.HelloMessage) => void): void;
+    onProgress(handler: (msg: protocol.ProgressMessage) => void): void;
+    onSignal(handler: (msg: protocol.SignalMessage) => void): void;
+    onMessage(handler: (msg: protocol.DisplayMessage) => void): void;
+    configure(args: string[]): Promise<protocol.Reply>;
+    compute(): Promise<protocol.Reply>;
+    handshake(version: protocol.Version, sourceDirectory: string, buildDirectory: string, generator: string): Promise<protocol.Reply>;
+}
+
+function createCMakeServer(input: NodeJS.ReadableStream, output: NodeJS.WritableStream): CMakeServer {
+    let connection: Connection = createConnection(input, output);
+
+    let server: CMakeServer = {
+        listen(): void {
+            connection.listen();
+        },
+        onHello: (handler) => connection.onMessage("hello", handler),
+        onProgress: (handler) => connection.onMessage("progress", handler),
+        onSignal: (handler) => connection.onMessage("signal", handler),
+        onMessage: (handler) => connection.onMessage("message", handler),
+        configure(arg: string[]): Promise<protocol.Reply> {
+            return connection.sendRequest("configure", { cacheArguments: arg });
+        },
+        compute(): Promise<protocol.Reply> {
+            return connection.sendRequest("compute", {});
+        },
+        handshake(version: protocol.Version, sourceDirectory: string, buildDirectory: string, generator: string): Promise<protocol.Reply> {
+            let args = {
+                protocolVersion: version,
+                sourceDirectory: sourceDirectory,
+                buildDirectory: buildDirectory,
+                generator: generator,
+                platform: "",
+                toolset: ""
+            };
+            return connection.sendRequest("handshake", args);
+        }
+    };
+
+    return server;
+}
+
+export { createCMakeServer, CMakeServer };
