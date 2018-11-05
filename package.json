@@ -11,14 +11,14 @@
         "Other"
     ],
     "activationEvents": [
-        "workspaceContains:CMakeLists.txt"
+        "workspaceContains:**/CMakeLists.txt"
     ],
     "main": "./out/extension",
     "contributes": {
         "commands": [
             {
-                "command": "cmake-server.configureCurrentWorkspace",
-                "title": "Configure current workspace",
+                "command": "cmake-server.configureCurrentProject",
+                "title": "Configure current project",
                 "category": "Build"
             },
             {
