@@ -37,6 +37,17 @@ export class CMakeClient implements vscode.Disposable {
         this._diagnostics = vscode.languages.createDiagnosticCollection(name + "-cmake")
         this._buildConsole = vscode.window.createOutputChannel("Build (" + name + ")");
 
+        this._startServer();
+    }
+
+    configure() {
+        this._server.configure([]);
+    }
+    build() {
+        this._server.compute();
+    }
+
+    private _startServer() {
         let pipeName: string;
         if (process.platform === "win32") {
             pipeName = "\\\\?\\pipe\\" + name + "-" + process.pid + "-cmake";
@@ -46,6 +57,7 @@ export class CMakeClient implements vscode.Disposable {
         if (this._context) {
             pipeName = pipeName;
         }
+        
         this._process = child_process.execFile("cmake", ["-E", "server", "--pipe=" + pipeName, "--experimental"]);
         this._socket = new net.Socket();
         this._server = createCMakeServer(this._socket, this._socket);
@@ -59,6 +71,7 @@ export class CMakeClient implements vscode.Disposable {
         }, 1000);
 
         this._server.onMessage((msg) => this._onMessage(msg.message));
+        this._server.
         this._server.onHello((msg) => {
             this._server.handshake(
                 msg.supportedProtocolVersions[0],
@@ -66,13 +79,6 @@ export class CMakeClient implements vscode.Disposable {
                 this._buildDirectory,
                 this._generator);
         });
-    }
-
-    configure() {
-        this._server.configure([]);
-    }
-    build() {
-        this._server.compute();
     }
 
     private _onMessage(msg: string) {
