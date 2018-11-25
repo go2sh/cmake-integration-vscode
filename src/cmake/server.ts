@@ -7,8 +7,9 @@ interface CMakeServer {
     onProgress(handler: (msg: protocol.ProgressMessage) => void): void;
     onSignal(handler: (msg: protocol.SignalMessage) => void): void;
     onMessage(handler: (msg: protocol.DisplayMessage) => void): void;
-    configure(args: string[]): Promise<protocol.Reply>;
-    compute(): Promise<protocol.Reply>;
+    configure(args: string[]): Promise<void>;
+    compute(): Promise<void>;
+    codemodel() : Promise<protocol.CodeModel>;
     handshake(version: protocol.Version, sourceDirectory: string, buildDirectory: string, generator: string): Promise<protocol.Reply>;
 }
 
@@ -23,11 +24,14 @@ function createCMakeServer(input: NodeJS.ReadableStream, output: NodeJS.Writable
         onProgress: (handler) => connection.onMessage("progress", handler),
         onSignal: (handler) => connection.onMessage("signal", handler),
         onMessage: (handler) => connection.onMessage("message", handler),
-        configure(arg: string[]): Promise<protocol.Reply> {
-            return connection.sendRequest("configure", { cacheArguments: arg });
+        async configure(arg: string[]): Promise<void> {
+            return connection.sendRequest<void>("configure", { cacheArguments: arg });
         },
-        compute(): Promise<protocol.Reply> {
-            return connection.sendRequest("compute", {});
+        async compute(): Promise<void> {
+            return connection.sendRequest<void>("compute", {});
+        },
+        async codemodel() : Promise<protocol.CodeModel> {
+            return connection.sendRequest<protocol.CodeModel>("codemodel", {});
         },
         handshake(version: protocol.Version, sourceDirectory: string, buildDirectory: string, generator: string): Promise<protocol.Reply> {
             let args = {

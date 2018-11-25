@@ -15,7 +15,7 @@
         "onCommand:cmake-server.configureCurrentProject",
         "onCommand:cmake-server.buildCurrentTarget",
         "onCommand:cmake-server.configureProject",
-        "onCommand:cmake-server.buildTarget",
+        "onCommand:cmake-server.buildTarget"
     ],
     "main": "./out/extension",
     "contributes": {

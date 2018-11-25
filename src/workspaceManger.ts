@@ -8,6 +8,12 @@ export class WorkspaceManager implements vscode.Disposable {
     private _clients: Map<string, CMakeClient> = new Map<string, CMakeClient>();
     private _workspaceWatcher: Map<vscode.WorkspaceFolder, vscode.FileSystemWatcher> = new Map();
 
+    private _projectItem : vscode.StatusBarItem;
+    private _buildTypeItem : vscode.StatusBarItem;
+    private _targetItem : vscode.StatusBarItem;
+
+    private _currentProject : string;
+
     constructor(context: vscode.ExtensionContext) {
         this._context = context;
         this._events.push(vscode.workspace.onDidChangeWorkspaceFolders((event) => {
@@ -24,6 +30,36 @@ export class WorkspaceManager implements vscode.Disposable {
         for (let folder of vscode.workspace.workspaceFolders || []) {
             this._watchFolder(folder);
         }
+
+        this._projectItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left,12);
+        this._buildTypeItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left,11);
+        this._targetItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left,10);
+
+        this._currentProject = this._context.workspaceState.get("currentProject","");
+    }
+
+    private get _currentClient() : CMakeClient | undefined {
+        for (const a of this._clients.values()) {
+            if (a.projects.indexOf(this._currentProject) >= 0) {
+                return a;
+            }
+        }
+        return undefined;
+    }
+    
+    private _updateStatusBar() {
+        if (this._currentClient) {
+            this._projectItem.text = this._currentClient.project;
+            this._projectItem.show();
+            this._buildTypeItem.text = this._currentClient.buildType;
+            this._buildTypeItem.show();
+            this._targetItem.text = this._currentClient.target;
+            this._targetItem.show();
+        } else {
+            this._projectItem.hide();
+            this._buildTypeItem.hide();
+            this._targetItem.hide();
+        }
     }
 
     private _createServer(uri: vscode.Uri) {
@@ -32,8 +68,18 @@ export class WorkspaceManager implements vscode.Disposable {
         }
         let sourcePath = path.dirname(uri.fsPath);
         let buildPath = path.join(sourcePath, vscode.workspace.getConfiguration("cmake-server", uri).get("buildDirectory", "build"));
-        let client = new CMakeClient(this._context, sourcePath, buildPath, "Visual Studio 15 2017");
+        let client = new CMakeClient(this._context, sourcePath, buildPath, "Ninja");
         this._clients.set(sourcePath, client);
+        client.onModelChange((e) => this._onModelChange(e));
+    }
+
+    private _onModelChange(e : CMakeClient) {
+        if (this._currentClient === undefined) {
+            this._currentProject = e.projects[0];
+        }
+        if (this._currentClient === e) {
+            this._updateStatusBar();
+        }
     }
 
     private _watchFolder(folder: vscode.WorkspaceFolder) {
@@ -56,7 +102,11 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     configureCurrentProject() {
-        this._clients.values().next().value.configure();
+        this._clients.values().next().value.generate();
+    }
+
+    buildCurrentTarget() {
+        this._clients.values().next().value.build();
     }
 
     dispose(): void {

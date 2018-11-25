@@ -2,7 +2,7 @@ import * as protocol from './protocol';
 
 interface Connection {
     listen() : void;
-    sendRequest(type: string, params : any): Promise<protocol.Reply>;
+    sendRequest<T>(type: string, params : any): Promise<T>;
     onMessage(type: string, handler : (msg : any) => void) : void;
 }
 
@@ -66,7 +66,7 @@ function createConnection(input : NodeJS.ReadableStream, output : NodeJS.Writabl
                 }
             });
         },
-        sendRequest(type: string, params: any): Promise<any> {
+        async sendRequest<T>(type: string, params: any): Promise<T> {
             let request: protocol.Request = { type: type, cookie: sequenceNumber.toString(), ...params };
             sequenceNumber++;
             let promise = new Promise<any>((resolve, reject) => {
