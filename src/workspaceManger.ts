@@ -32,8 +32,12 @@ export class WorkspaceManager implements vscode.Disposable {
         }
 
         this._projectItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left,12);
-        this._buildTypeItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left,11);
-        this._targetItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left,10);
+        this._targetItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left,11);
+        this._buildTypeItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left,10);
+
+        this._projectItem.command = "cmake-server.selectProject";
+        this._targetItem.command = "cmake-server.selectTarget";
+        this._buildTypeItem.command = "cmake-server.selectBuildType";
 
         this._currentProject = this._context.workspaceState.get("currentProject","");
     }
@@ -106,7 +110,21 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     buildCurrentTarget() {
-        this._clients.values().next().value.build();
+        if (this._currentClient) {
+            this._currentClient.build();
+        }
+    }
+
+    async selectProject() {
+        let projects : string [] = [];
+        for(const client of this._clients.values()) {
+            projects = projects.concat(client.projects);
+        }
+        let project = await vscode.window.showQuickPick(projects);
+        if (project) {
+            this._currentProject = project;
+            this._updateStatusBar();
+        }
     }
 
     dispose(): void {

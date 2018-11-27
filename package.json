@@ -39,6 +39,10 @@
                 "command": "cmake-server.buildTarget",
                 "title": "Build target",
                 "category": "Build"
+            },
+            {
+                "command": "cmake-server.selectProject",
+                "title": "Select CMake Project"
             }
         ]
     },

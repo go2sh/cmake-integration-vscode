@@ -30,6 +30,7 @@ export class CMakeClient implements vscode.Disposable {
     private _model: protocol.CodeModel | undefined;
     private _state: ServerState = ServerState.STOPPED;
 
+    private _console : vscode.OutputChannel;
 
     private _onModelChange : vscode.EventEmitter<CMakeClient> = new vscode.EventEmitter();
     readonly onModelChange : vscode.Event<CMakeClient> = this._onModelChange.event;
@@ -51,6 +52,7 @@ export class CMakeClient implements vscode.Disposable {
         this._target = this._context.workspaceState.get(this._project + "-target","");
         this._buildType = this._context.workspaceState.get(this._project + "-buildType", "");
 
+        this._console = vscode.window.createOutputChannel("CMake ("+this.name+")");
         this._process = child_process.execFile("cmake", ["-E", "server", "--pipe=" + this.pipeName, "--experimental"]);
         this._socket = new net.Socket();
         this._server = createCMakeServer(this._socket, this._socket);
@@ -61,7 +63,6 @@ export class CMakeClient implements vscode.Disposable {
         if (this._state < ServerState.RUNNING) { return; }
         await this._server.configure([]);
         this._state = ServerState.CONFIGURED;
-
     }
 
     async generate() {
@@ -78,8 +79,12 @@ export class CMakeClient implements vscode.Disposable {
     async build() {
         let buildProc = child_process.execFile("cmake", ["--build", this._buildDirectory]);
 
-        buildProc.stdout.on("data", (chunk) => console.log(chunk.toString()));
-        buildProc.stderr.on("data", (chunk) => console.log(chunk.toString()));
+        let b : Buffer = new Buffer(4096);
+        buildProc.stdout.on("data", (chunk) => {
+            this._console.appendLine(chunk.toString());
+            let s = chunk.toString();
+        });
+        buildProc.stderr.on("data", (chunk) => this._console.appendLine(chunk.toString()));
 
         return new Promise((resolve, reject) => {
             buildProc.on("error", (err) => {
@@ -115,6 +120,16 @@ export class CMakeClient implements vscode.Disposable {
         }
     }
 
+    public get buildTypes() : string[] {
+        if (this._model === undefined) {
+            return [];
+        } else {
+            let types = new Set<string>(["Debug", "Release", "RelWithDebInfo", "MinSizeRel"]);
+            this._model.configurations.forEach((value) => types.add(value.name));
+            return Array<string>(...types.values());
+        }
+    }
+
     private _project : string = "";
     public get project() : string {
         return this._project;
@@ -143,8 +158,7 @@ export class CMakeClient implements vscode.Disposable {
     private _updateValues() {
         this.project = this.projects.find((value) => value === this.project) ||  this.projects[0] || "";
         this.target = this.targets.find((value) => value === this.target) || this.targets[0] || "";
-        this.buildType = "all";
-        
+        this.buildType = this.buildTypes.find((value) => value === this.buildType) || this.buildTypes[0] || "";
     }
     
     public get name(): string {
@@ -180,7 +194,7 @@ export class CMakeClient implements vscode.Disposable {
 
         this._server.onMessage((msg) => this._onMessage(msg.message));
         this._server.onProgress((msg) => {
-
+            console.log(msg);
         });
         this._server.onSignal((msg) => {
 
@@ -198,6 +212,7 @@ export class CMakeClient implements vscode.Disposable {
     }
 
     private _onMessage(msg: string) {
+        this._console.appendLine(msg);
     }
 
     dispose() {

@@ -13,6 +13,13 @@ export function activate(context: vscode.ExtensionContext) {
     disposables.push(vscode.commands.registerCommand("cmake-server.configureCurrentProject", () => {
         manager.configureCurrentProject();
     }));
+    disposables.push(vscode.commands.registerCommand("cmake-server.buildCurrentTarget", () => {
+        manager.buildCurrentTarget();
+    }))
+    disposables.push(
+        vscode.commands.registerCommand(
+            "cmake-server.selectProject", 
+            async () => await manager.selectProject()));
 }
 
 // this method is called when your extension is deactivated
