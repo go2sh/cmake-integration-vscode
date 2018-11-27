@@ -44,8 +44,8 @@ export class CMakeClient implements vscode.Disposable {
     ) {
         this._context = context;
         //this._folder = {name: "asd", uri: vscode.Uri.parse(""), index: 0};//folder;
-        this._sourceDirectory = sourceDirectory;
-        this._buildDirectory = buildDirectory;
+        this._sourceDirectory = sourceDirectory.replace(/\\/g,"/");
+        this._buildDirectory = buildDirectory.replace(/\\/g,"/");
         this._generator = generator;
 
         this._project = this._context.workspaceState.get(this.name + "-project", "");
@@ -79,10 +79,8 @@ export class CMakeClient implements vscode.Disposable {
     async build() {
         let buildProc = child_process.execFile("cmake", ["--build", this._buildDirectory]);
 
-        let b : Buffer = new Buffer(4096);
-        buildProc.stdout.on("data", (chunk) => {
-            this._console.appendLine(chunk.toString());
-            let s = chunk.toString();
+        buildProc.stdout.pipe(new LineTransform()).on("data", (chunk : string) => {
+            this._console.appendLine(chunk);
         });
         buildProc.stderr.on("data", (chunk) => this._console.appendLine(chunk.toString()));
 
