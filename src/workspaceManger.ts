@@ -72,7 +72,7 @@ export class WorkspaceManager implements vscode.Disposable {
         }
         let sourcePath = path.dirname(uri.fsPath);
         let buildPath = path.join(sourcePath, vscode.workspace.getConfiguration("cmake-server", uri).get("buildDirectory", "build"));
-        let client = new CMakeClient(this._context, sourcePath, buildPath, "Ninja");
+        let client = new CMakeClient(this._context, sourcePath, buildPath, vscode.workspace.getConfiguration("cmake-server", uri).get("generator","Ninja"));
         this._clients.set(sourcePath, client);
         client.onModelChange((e) => this._onModelChange(e));
     }
@@ -120,11 +120,45 @@ export class WorkspaceManager implements vscode.Disposable {
         for(const client of this._clients.values()) {
             projects = projects.concat(client.projects);
         }
-        let project = await vscode.window.showQuickPick(projects);
+        let project = await vscode.window.showQuickPick(projects,{
+            placeHolder: this._currentProject
+        });
         if (project) {
             this._currentProject = project;
             this._updateStatusBar();
         }
+        this._updateStatusBar();
+    }
+
+    async selectTarget() {
+        if (this._currentClient === undefined) {
+            await this.selectProject();
+        }
+        if (this._currentClient) {
+            let target = await vscode.window.showQuickPick(this._currentClient.targets, {
+                placeHolder: this._currentClient.target
+            });
+            if (target) {
+                this._currentClient.target = target;
+            }
+        }
+        this._updateStatusBar();
+    }
+
+    async selectBuildType() {
+        if (this._currentClient === undefined) {
+            await this.selectProject();
+            await this.selectTarget();
+        }
+        if (this._currentClient) {
+            let buildType = await vscode.window.showQuickPick(this._currentClient.buildTypes, {
+                placeHolder: this._currentClient.buildType
+            });
+            if (buildType) {
+                this._currentClient.buildType = buildType;
+            }
+        }
+        this._updateStatusBar();
     }
 
     dispose(): void {

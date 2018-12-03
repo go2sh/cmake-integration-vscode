@@ -79,10 +79,8 @@ export class CMakeClient implements vscode.Disposable {
     async build() {
         let buildProc = child_process.execFile("cmake", ["--build", this._buildDirectory]);
 
-        let b : Buffer = new Buffer(4096);
         buildProc.stdout.on("data", (chunk) => {
             this._console.appendLine(chunk.toString());
-            let s = chunk.toString();
         });
         buildProc.stderr.on("data", (chunk) => this._console.appendLine(chunk.toString()));
 
@@ -178,8 +176,8 @@ export class CMakeClient implements vscode.Disposable {
             this._process = child_process.execFile("cmake", ["-E", "server", "--pipe=" + this.pipeName, "--experimental"]);
             this._socket = new net.Socket();
             this._server = createCMakeServer(this._socket, this._socket);
-        })
-        this._process.kill()
+        });
+        this._process.kill();
     }
 
     private _connectServer() {
@@ -207,6 +205,8 @@ export class CMakeClient implements vscode.Disposable {
                 this._generator).then((value) => {
                     this._state = ServerState.RUNNING;
                     this.generate();
+                }).catch((e : protocol.ErrorMessage) => {
+                    vscode.window.showErrorMessage("Handshake with cmake server failed: " + e);
                 });
         });
     }

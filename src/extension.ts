@@ -15,11 +15,25 @@ export function activate(context: vscode.ExtensionContext) {
     }));
     disposables.push(vscode.commands.registerCommand("cmake-server.buildCurrentTarget", () => {
         manager.buildCurrentTarget();
-    }))
+    }));
     disposables.push(
         vscode.commands.registerCommand(
             "cmake-server.selectProject", 
-            async () => await manager.selectProject()));
+            async () => await manager.selectProject()
+        )
+    );
+    disposables.push(
+        vscode.commands.registerCommand(
+            "cmake-server.selectTarget",
+            async () => await manager.selectTarget()
+        )
+    );
+    disposables.push(
+        vscode.commands.registerCommand(
+            "cmake-server.selectBuildType",
+            async () => await manager.selectBuildType()
+        )
+    );
 }
 
 // this method is called when your extension is deactivated

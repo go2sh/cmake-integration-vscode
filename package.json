@@ -43,8 +43,57 @@
             {
                 "command": "cmake-server.selectProject",
                 "title": "Select CMake Project"
+            },
+            {
+                "command": "cmake-server.selectTarget",
+                "title": "Select CMake Target"
+            },
+            {
+                "command": "cmake-server.selectBuildType",
+                "title": "Select CMake Build Type"
             }
-        ]
+        ],
+        "configuration": {
+            "type": "object",
+            "title": "CMake Configuration",
+            "properties": {
+                "cmake-server.buildTypes": {
+                    "type": "array",
+                    "description": "Add additional Build Types",
+                    "title": "Additional Build Types",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "cmake-server.generator": {
+                    "type":"string",
+                    "title": "Build System Generator",
+                    "description": "Select a build system generator",
+                    "enum": [
+                        "Ninja",
+                        "Unix Makefiles",
+                        "Borland Makefiles",
+                        "MSYS Makefiles",
+                        "MinGW Makefiles",
+                        "NMake Makefiles",
+                        "NMake Makefiles JOM",
+                        "Watcom WMake",
+                        "Visual Studio 6",
+                        "Visual Studio 7",
+                        "Visual Studio 7 .NET 2003",
+                        "Visual Studio 8 2005",
+                        "Visual Studio 9 2008",
+                        "Visual Studio 10 2010",
+                        "Visual Studio 11 2012",
+                        "Visual Studio 12 2013",
+                        "Visual Studio 14 2015",
+                        "Visual Studio 15 2017",
+                        "Xcode",
+                        "Green Hills MULTI"
+                    ]
+                }
+            }
+        }
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",
