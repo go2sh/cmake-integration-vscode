@@ -62,7 +62,15 @@ export class CMakeClient implements vscode.Disposable {
 
     async configure() {
         if (this._state < ServerState.RUNNING) { return; }
-        await this._server.configure([]);
+        let args: string[] = [];
+        let cacheEntries = vscode.workspace.getConfiguration("cmake-server").get<any>("cacheEntries", {});
+        for (let entry in cacheEntries) {
+            args.push("-D " + entry + "=" + cacheEntries[entry]);
+        }
+        if (!this.isConfigurationGenerator) {
+            args.push("-D CMAKE_BUILD_TYPE=" + this.buildType);
+        }
+        await this._server.configure(args);
         this._state = ServerState.CONFIGURED;
     }
 
@@ -78,7 +86,13 @@ export class CMakeClient implements vscode.Disposable {
     }
 
     async build() {
-        let buildProc = child_process.execFile("cmake", ["--build", this._buildDirectory]);
+        let args: string[] = [];
+        args.push("--build", this._buildDirectory);
+        args.push("--target", this.target);
+        if (this.isConfigurationGenerator) {
+            args.push("--config", this.buildType);
+        }
+        let buildProc = child_process.execFile("cmake", args);
 
         buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
             this._console.appendLine(chunk);
@@ -100,13 +114,18 @@ export class CMakeClient implements vscode.Disposable {
         } else {
             let vals: string[] = [];
             return this._model.configurations.reduce(
-                (arr, elm) => arr.concat(elm.projects.reduce(
-                    (arr, elm) => {
-                        if (elm.name === this.project) {
-                            return arr.concat(elm.targets.reduce((arr, elm) => arr.concat(elm.name), arr));
-                        }
-                        return arr;
-                    }, arr)), vals);
+                (arr, elm) => {
+                    if (elm.name === this.buildType) {
+                        return arr.concat(elm.projects.reduce((arr, elm) => {
+                            if (elm.name === this.project) {
+                                return arr.concat(elm.targets.reduce((arr, elm) => arr.concat(elm.name), arr));
+                            }
+                            return arr;
+                        }, arr));
+                    }
+                    return arr;
+                }, vals
+            );
         }
     }
 
@@ -114,8 +133,12 @@ export class CMakeClient implements vscode.Disposable {
         if (this._model === undefined) {
             return [];
         } else {
-            return this._model.configurations.reduce((arr, elm) =>
-                arr.concat(elm.projects.map((value) => value.name)), [] as string[]);
+            return this._model.configurations.reduce((arr, elm) => {
+                if (elm.name === this.buildType) {
+                    return arr.concat(elm.projects.map((value) => value.name));
+                }
+                return arr;
+            }, [] as string[]);
         }
     }
 
@@ -123,8 +146,13 @@ export class CMakeClient implements vscode.Disposable {
         if (this._model === undefined) {
             return [];
         } else {
-            let types = new Set<string>(["Debug", "Release", "RelWithDebInfo", "MinSizeRel"]);
-            this._model.configurations.forEach((value) => types.add(value.name));
+            let types = new Set<string>();
+            if (this._model.configurations.length === 1 && this._model.configurations[0].name === "") {
+                ["Debug", "Release", "RelWithDebInfo", "MinSizeRel"].forEach(types.add);
+                vscode.workspace.getConfiguration("cmake-server").get<string[]>("buildTypes", []).forEach(types.add);
+            } else {
+                this._model.configurations.forEach((value) => types.add(value.name));
+            }
             return Array<string>(...types.values());
         }
     }
@@ -154,10 +182,14 @@ export class CMakeClient implements vscode.Disposable {
         this._context.workspaceState.update(this.name + "-target", v);
     }
 
+    public get isConfigurationGenerator(): boolean {
+        return this._generator.match(/^Visual Studio/) !== null;
+    }
+
     private _updateValues() {
+        this.buildType = this.buildTypes.find((value) => value === this.buildType) || this.buildTypes[0] || "";
         this.project = this.projects.find((value) => value === this.project) || this.projects[0] || "";
         this.target = this.targets.find((value) => value === this.target) || this.targets[0] || "";
-        this.buildType = this.buildTypes.find((value) => value === this.buildType) || this.buildTypes[0] || "";
     }
 
     public get name(): string {
@@ -196,7 +228,7 @@ export class CMakeClient implements vscode.Disposable {
             console.log(msg);
         });
         this._server.onSignal((msg) => {
-
+            console.log(msg);
         });
         this._server.onHello((msg) => {
             this._server.handshake(

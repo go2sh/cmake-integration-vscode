@@ -93,7 +93,13 @@
                     ]
                 }
             }
-        }
+        },
+        "keybindings":[
+            {
+                "command": "cmake-server.buildCurrentTarget",
+                "key": "F7"
+            }
+        ]
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",

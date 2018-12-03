@@ -106,7 +106,9 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     configureCurrentProject() {
-        this._clients.values().next().value.generate();
+        if (this._currentClient) {
+            this._currentClient.generate();
+        }
     }
 
     buildCurrentTarget() {
