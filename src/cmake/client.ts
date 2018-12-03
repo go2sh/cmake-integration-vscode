@@ -6,6 +6,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { CMakeServer, createCMakeServer } from './server';
 import * as protocol from './protocol';
+import { LineTransform } from '../helpers/stream';
 
 enum ServerState {
     STOPPED,
@@ -17,7 +18,7 @@ enum ServerState {
 
 export class CMakeClient implements vscode.Disposable {
 
-   // private _folder: vscode.WorkspaceFolder;
+    // private _folder: vscode.WorkspaceFolder;
     private _sourceDirectory: string;
     private _buildDirectory: string;
     private _generator: string;
@@ -30,10 +31,10 @@ export class CMakeClient implements vscode.Disposable {
     private _model: protocol.CodeModel | undefined;
     private _state: ServerState = ServerState.STOPPED;
 
-    private _console : vscode.OutputChannel;
+    private _console: vscode.OutputChannel;
 
-    private _onModelChange : vscode.EventEmitter<CMakeClient> = new vscode.EventEmitter();
-    readonly onModelChange : vscode.Event<CMakeClient> = this._onModelChange.event;
+    private _onModelChange: vscode.EventEmitter<CMakeClient> = new vscode.EventEmitter();
+    readonly onModelChange: vscode.Event<CMakeClient> = this._onModelChange.event;
 
     constructor(
         context: vscode.ExtensionContext,
@@ -44,15 +45,15 @@ export class CMakeClient implements vscode.Disposable {
     ) {
         this._context = context;
         //this._folder = {name: "asd", uri: vscode.Uri.parse(""), index: 0};//folder;
-        this._sourceDirectory = sourceDirectory;
-        this._buildDirectory = buildDirectory;
+        this._sourceDirectory = sourceDirectory.replace(/\\/g, "/");
+        this._buildDirectory = buildDirectory.replace(/\\/g, "/");
         this._generator = generator;
 
         this._project = this._context.workspaceState.get(this.name + "-project", "");
-        this._target = this._context.workspaceState.get(this._project + "-target","");
+        this._target = this._context.workspaceState.get(this._project + "-target", "");
         this._buildType = this._context.workspaceState.get(this._project + "-buildType", "");
 
-        this._console = vscode.window.createOutputChannel("CMake ("+this.name+")");
+        this._console = vscode.window.createOutputChannel("CMake (" + this.name + ")");
         this._process = child_process.execFile("cmake", ["-E", "server", "--pipe=" + this.pipeName, "--experimental"]);
         this._socket = new net.Socket();
         this._server = createCMakeServer(this._socket, this._socket);
@@ -79,8 +80,8 @@ export class CMakeClient implements vscode.Disposable {
     async build() {
         let buildProc = child_process.execFile("cmake", ["--build", this._buildDirectory]);
 
-        buildProc.stdout.on("data", (chunk) => {
-            this._console.appendLine(chunk.toString());
+        buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
+            this._console.appendLine(chunk);
         });
         buildProc.stderr.on("data", (chunk) => this._console.appendLine(chunk.toString()));
 
@@ -109,16 +110,16 @@ export class CMakeClient implements vscode.Disposable {
         }
     }
 
-    public get projects() : string[] {
+    public get projects(): string[] {
         if (this._model === undefined) {
             return [];
         } else {
-            return this._model.configurations.reduce((arr, elm) => 
+            return this._model.configurations.reduce((arr, elm) =>
                 arr.concat(elm.projects.map((value) => value.name)), [] as string[]);
         }
     }
 
-    public get buildTypes() : string[] {
+    public get buildTypes(): string[] {
         if (this._model === undefined) {
             return [];
         } else {
@@ -128,24 +129,24 @@ export class CMakeClient implements vscode.Disposable {
         }
     }
 
-    private _project : string = "";
-    public get project() : string {
+    private _project: string = "";
+    public get project(): string {
         return this._project;
     }
-    public set project(v : string) {
+    public set project(v: string) {
         this._project = v;
     }
-    
-    private _buildType : string = "";
-    public get buildType() : string {
+
+    private _buildType: string = "";
+    public get buildType(): string {
         return this._buildType;
     }
-    public set buildType(v : string) {
+    public set buildType(v: string) {
         this._buildType = v;
     }
-    
-    private _target: string ;
-    public get target(): string  {
+
+    private _target: string;
+    public get target(): string {
         return this._target;
     }
     public set target(v: string) {
@@ -154,11 +155,11 @@ export class CMakeClient implements vscode.Disposable {
     }
 
     private _updateValues() {
-        this.project = this.projects.find((value) => value === this.project) ||  this.projects[0] || "";
+        this.project = this.projects.find((value) => value === this.project) || this.projects[0] || "";
         this.target = this.targets.find((value) => value === this.target) || this.targets[0] || "";
         this.buildType = this.buildTypes.find((value) => value === this.buildType) || this.buildTypes[0] || "";
     }
-    
+
     public get name(): string {
         return path.basename(this._sourceDirectory);
     }
@@ -170,7 +171,7 @@ export class CMakeClient implements vscode.Disposable {
             return path.join(os.tmpdir(), this.name + "-" + process.pid + "-cmake.sock");
         }
     }
-    
+
     private _restartServer() {
         this._process.on('exit', (code, signal) => {
             this._process = child_process.execFile("cmake", ["-E", "server", "--pipe=" + this.pipeName, "--experimental"]);
@@ -205,7 +206,7 @@ export class CMakeClient implements vscode.Disposable {
                 this._generator).then((value) => {
                     this._state = ServerState.RUNNING;
                     this.generate();
-                }).catch((e : protocol.ErrorMessage) => {
+                }).catch((e: string) => {
                     vscode.window.showErrorMessage("Handshake with cmake server failed: " + e);
                 });
         });
