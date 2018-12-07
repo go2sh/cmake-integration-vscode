@@ -1,4 +1,19 @@
-import * as protocol from './protocol';
+interface Message {
+    type: string;
+}
+
+interface Request extends Message {
+    cookie: string;
+}
+
+interface Reply extends Message {
+    cookie: string;
+    inReplyTo: string;
+}
+
+interface Error extends Reply {
+    errorMessage: string;
+}
 
 interface Connection {
     listen() : void;
@@ -17,14 +32,14 @@ function createConnection(input : NodeJS.ReadableStream, output : NodeJS.Writabl
     let messageHandler : { [name : string]: (msg : any) => void } = Object.create(null);
     let buffer : string = "";
 
-    function handleMessage(msg : protocol.Message) {
+    function handleMessage(msg : Message) {
         if (msg.type === "reply" || msg.type === "error") {
-            let reply = msg as protocol.Reply;
+            let reply = msg as Reply;
             let replyPromise = replyMap[reply.cookie];
             if (replyPromise) {
                 delete replyMap[reply.cookie];
                 if (msg.type === "error") {
-                    replyPromise.reject((reply as protocol.ErrorMessage).errorMessage);
+                    replyPromise.reject((reply as Error).errorMessage);
                 } else {
                     replyPromise.resolve(reply);
                 }
@@ -41,7 +56,7 @@ function createConnection(input : NodeJS.ReadableStream, output : NodeJS.Writabl
         }
     }
 
-    function writeMessage(request: protocol.Request) {
+    function writeMessage(request: Request) {
         output.write("[== \"CMake Server\" ==[\n");
         output.write(JSON.stringify(request));
         output.write("\n");
@@ -67,7 +82,7 @@ function createConnection(input : NodeJS.ReadableStream, output : NodeJS.Writabl
             });
         },
         async sendRequest<T>(type: string, params: any): Promise<T> {
-            let request: protocol.Request = { type: type, cookie: sequenceNumber.toString(), ...params };
+            let request: Request = { type: type, cookie: sequenceNumber.toString(), ...params };
             sequenceNumber++;
             let promise = new Promise<any>((resolve, reject) => {
                 try {

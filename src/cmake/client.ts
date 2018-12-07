@@ -4,108 +4,105 @@ import * as child_process from 'child_process';
 import * as process from 'process';
 import * as os from 'os';
 import * as path from 'path';
-import { CMakeServer, createCMakeServer } from './server';
 import * as protocol from './protocol';
 import { LineTransform } from '../helpers/stream';
+import { ProblemMatcher, getProblemMatchers } from '../helpers/problemMatcher';
 
-enum ServerState {
+enum ClientState {
     STOPPED,
     CONNECTED,
     RUNNING,
     CONFIGURED,
-    GENERATED
+    GENERATED,
+    BUILDING
 }
 
 export class CMakeClient implements vscode.Disposable {
 
-    // private _folder: vscode.WorkspaceFolder;
-    private _sourceDirectory: string;
-    private _buildDirectory: string;
-    private _generator: string;
-    private _context: vscode.ExtensionContext;
-
-    private _process: child_process.ChildProcess;
-    private _socket: net.Socket;
-    private _server: CMakeServer;
+    private _process: child_process.ChildProcess | undefined;
+    private _connection: protocol.CMakeProtocolConnection | undefined;
 
     private _model: protocol.CodeModel | undefined;
-    private _state: ServerState = ServerState.STOPPED;
+    private _state: ClientState = ClientState.STOPPED;
+    private _hello: Promise<protocol.Hello> | undefined;
 
     private _console: vscode.OutputChannel;
+    private _diagnostics: vscode.DiagnosticCollection;
 
     private _onModelChange: vscode.EventEmitter<CMakeClient> = new vscode.EventEmitter();
     readonly onModelChange: vscode.Event<CMakeClient> = this._onModelChange.event;
+    
+    private _sourceDirectory: string;
+    private _buildDirectory: string;
+    private _generator: string;
+    private _extraGenerator: string | undefined;
+    private _platform: string | undefined;
+    private _toolset: string | undefined;
+
+    private _project: string;
+    private _buildType: string;
+    private _target: string;
 
     constructor(
-        context: vscode.ExtensionContext,
-        //folder: vscode.WorkspaceFolder,
-        sourceDirectory: string,
-        buildDirectory: string,
-        generator: string
+        private _uri : vscode.Uri,
+        private _context: vscode.ExtensionContext
     ) {
-        this._context = context;
-        //this._folder = {name: "asd", uri: vscode.Uri.parse(""), index: 0};//folder;
-        this._sourceDirectory = sourceDirectory.replace(/\\/g, "/");
-        this._buildDirectory = buildDirectory.replace(/\\/g, "/");
-        this._generator = generator;
+        this._sourceDirectory = path.dirname(this._uri.fsPath).replace(/\\/g, "/");
+        this._buildDirectory = path.join(this._sourceDirectory, vscode.workspace.getConfiguration("cmake-server", this._uri).get("buildDirectory", "build")).replace(/\\/g, "/");
+        this._generator = vscode.workspace.getConfiguration("cmake-server", this._uri).get("generator", "Ninja");
 
         this._project = this._context.workspaceState.get(this.name + "-project", "");
         this._target = this._context.workspaceState.get(this._project + "-target", "");
         this._buildType = this._context.workspaceState.get(this._project + "-buildType", "");
 
+        this._matchers = getProblemMatchers();
+        this._diagnostics = vscode.languages.createDiagnosticCollection(this.name);
+
         this._console = vscode.window.createOutputChannel("CMake (" + this.name + ")");
-        this._process = child_process.execFile("cmake", ["-E", "server", "--pipe=" + this.pipeName, "--experimental"]);
-        this._socket = new net.Socket();
-        this._server = createCMakeServer(this._socket, this._socket);
-        this._connectServer();
     }
 
-    async configure() {
-        if (this._state < ServerState.RUNNING) { return; }
-        let args: string[] = [];
-        let cacheEntries = vscode.workspace.getConfiguration("cmake-server").get<any>("cacheEntries", {});
-        for (let entry in cacheEntries) {
-            args.push("-D " + entry + "=" + cacheEntries[entry]);
+    public get projects(): string[] {
+        if (this._model === undefined) {
+            return [];
+        } else {
+            return this._model.configurations.reduce((arr, elm) => {
+                if (elm.name === this.buildType) {
+                    return arr.concat(elm.projects.map((value) => value.name));
+                }
+                return arr;
+            }, [] as string[]);
         }
-        if (!this.isConfigurationGenerator) {
-            args.push("-D CMAKE_BUILD_TYPE=" + this.buildType);
-        }
-        await this._server.configure(args);
-        this._state = ServerState.CONFIGURED;
     }
 
-    async generate() {
-        if (this._state < ServerState.RUNNING) { return; }
-        if (this._state === ServerState.RUNNING) {
-            await this._server.configure([]);
-        }
-        await this._server.compute();
-        this._model = await this._server.codemodel();
-        this._updateValues();
-        this._onModelChange.fire(this);
+    public get project(): string {
+        return this._project;
+    }
+    public set project(v: string) {
+        this._project = v;
+        this._context.workspaceState.update(this.name + "-project", v);
     }
 
-    async build() {
-        let args: string[] = [];
-        args.push("--build", this._buildDirectory);
-        args.push("--target", this.target);
-        if (this.isConfigurationGenerator) {
-            args.push("--config", this.buildType);
+    public get buildTypes(): string[] {
+        if (this._model === undefined) {
+            return [];
+        } else {
+            let types = new Set<string>();
+            if (this._model.configurations.length === 1 && this._model.configurations[0].name === "") {
+                ["Debug", "Release", "RelWithDebInfo", "MinSizeRel"].forEach(types.add);
+                vscode.workspace.getConfiguration("cmake-server").get<string[]>("buildTypes", []).forEach(types.add);
+            } else {
+                this._model.configurations.forEach((value) => types.add(value.name));
+            }
+            return Array<string>(...types.values());
         }
-        let buildProc = child_process.execFile("cmake", args);
+    }
 
-        buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
-            this._console.appendLine(chunk);
-        });
-        buildProc.stderr.on("data", (chunk) => this._console.appendLine(chunk.toString()));
-
-        return new Promise((resolve, reject) => {
-            buildProc.on("error", (err) => {
-                vscode.window.showErrorMessage("Failed to run build process.", err.message);
-                reject(err);
-            });
-            buildProc.on("exit", (code, signal) => resolve());
-        });
+    public get buildType(): string {
+        return this._buildType;
+    }
+    public set buildType(v: string) {
+        this._buildType = v;
+        this._context.workspaceState.update(this.project + "-buildType", v);
     }
 
     public get targets(): string[] {
@@ -129,67 +126,16 @@ export class CMakeClient implements vscode.Disposable {
         }
     }
 
-    public get projects(): string[] {
-        if (this._model === undefined) {
-            return [];
-        } else {
-            return this._model.configurations.reduce((arr, elm) => {
-                if (elm.name === this.buildType) {
-                    return arr.concat(elm.projects.map((value) => value.name));
-                }
-                return arr;
-            }, [] as string[]);
-        }
-    }
-
-    public get buildTypes(): string[] {
-        if (this._model === undefined) {
-            return [];
-        } else {
-            let types = new Set<string>();
-            if (this._model.configurations.length === 1 && this._model.configurations[0].name === "") {
-                ["Debug", "Release", "RelWithDebInfo", "MinSizeRel"].forEach(types.add);
-                vscode.workspace.getConfiguration("cmake-server").get<string[]>("buildTypes", []).forEach(types.add);
-            } else {
-                this._model.configurations.forEach((value) => types.add(value.name));
-            }
-            return Array<string>(...types.values());
-        }
-    }
-
-    private _project: string = "";
-    public get project(): string {
-        return this._project;
-    }
-    public set project(v: string) {
-        this._project = v;
-    }
-
-    private _buildType: string = "";
-    public get buildType(): string {
-        return this._buildType;
-    }
-    public set buildType(v: string) {
-        this._buildType = v;
-    }
-
-    private _target: string;
     public get target(): string {
         return this._target;
     }
     public set target(v: string) {
         this._target = v;
-        this._context.workspaceState.update(this.name + "-target", v);
+        this._context.workspaceState.update(this.project + "-target", v);
     }
 
     public get isConfigurationGenerator(): boolean {
         return this._generator.match(/^Visual Studio/) !== null;
-    }
-
-    private _updateValues() {
-        this.buildType = this.buildTypes.find((value) => value === this.buildType) || this.buildTypes[0] || "";
-        this.project = this.projects.find((value) => value === this.project) || this.projects[0] || "";
-        this.target = this.targets.find((value) => value === this.target) || this.targets[0] || "";
     }
 
     public get name(): string {
@@ -204,53 +150,206 @@ export class CMakeClient implements vscode.Disposable {
         }
     }
 
-    private _restartServer() {
-        this._process.on('exit', (code, signal) => {
-            this._process = child_process.execFile("cmake", ["-E", "server", "--pipe=" + this.pipeName, "--experimental"]);
-            this._socket = new net.Socket();
-            this._server = createCMakeServer(this._socket, this._socket);
-        });
-        this._process.kill();
+    async start() {
+        if (this._state >= ClientState.RUNNING) {
+            return;
+        }
+
+        await this._createConnection();
+        
+        let msg = await this._hello!;
+        let handshake: protocol.Handshake = {
+            sourceDirectory: this._sourceDirectory,
+            buildDirectory: this._buildDirectory,
+            protocolVersion: msg.supportedProtocolVersions[0],
+            generator: this._generator,
+            extraGenerator: this._extraGenerator,
+            platform: this._platform,
+            toolset: this._toolset
+        };
+        await this._connection!.handshake(handshake);
+
+        if (vscode.workspace.getConfiguration("cmake-server").get("configureOnStart", true)) {
+            await this.generate();
+            await this.updateModel();
+        }
     }
 
-    private _connectServer() {
-        // Wait some time until cmake server is spawned
-        setTimeout(() => {
-            this._socket.connect(this.pipeName);
-            this._socket.on('connect', () => {
-                this._server.listen();
-                this._state = ServerState.CONNECTED;
+    async stop() {
+        if (this._state === ClientState.STOPPED) {
+            return;
+        }
+        await new Promise((resolve) => {
+            this._process!.once('exit', () => resolve());
+            this._process!.kill();
+        });
+    }
+
+    async configure() {
+        this._checkReady();
+
+        let args: string[] = [];
+        let cacheEntries = vscode.workspace.getConfiguration("cmake-server").get<any>("cacheEntries", {});
+        for (let entry in cacheEntries) {
+            args.push("-D " + entry + "=" + cacheEntries[entry]);
+        }
+
+        if (!this.isConfigurationGenerator) {
+            args.push("-D CMAKE_BUILD_TYPE=" + this.buildType);
+        }
+
+        await this._connection!.configure(args);
+        this._state = ClientState.CONFIGURED;
+    }
+
+    async generate() {
+        this._checkReady();
+        if (this._state === ClientState.RUNNING) {
+            await this.configure();
+        }
+        await this._connection!.compute();
+        this._state = ClientState.GENERATED;
+    }
+
+    async updateModel() {
+        this._checkReady();
+        if (this._state < ClientState.GENERATED) {
+            vscode.window.showErrorMessage("Cannot query code model: Build system not ready.");
+        }
+        this._model = await this._connection!.codemodel();
+        this._updateValues();
+        this._onModelChange.fire(this);
+    }
+
+    async build(target?: string) {
+        if (this._state < ClientState.GENERATED) {
+            throw new Error("Build system not generated yet.");
+        }
+        if (this._state === ClientState.BUILDING) {
+            return;
+        }
+
+        if (target === undefined) {
+            target = this.target;
+        }
+        this._matchers.forEach((value) => value.clear());
+
+        let args: string[] = [];
+        args.push("--build", this._buildDirectory);
+        args.push("--target", target);
+        if (this.isConfigurationGenerator) {
+            args.push("--config", this.buildType);
+        }
+        let buildProc = child_process.execFile("cmake", args);
+        this._state = ClientState.BUILDING;
+
+        buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
+            this._console.appendLine(chunk);
+            this._handleBuildLine(chunk);
+        });
+        buildProc.stderr.pipe(new LineTransform()).on("data", (chunk: string) => {
+            this._console.appendLine(chunk);
+            this._handleBuildLine(chunk);
+        });
+
+        return new Promise((resolve, reject) => {
+            buildProc.on("error", (err) => {
+                this._state = ClientState.GENERATED;
+                reject(err);
             });
-        }, 1000);
-
-        this._server.onMessage((msg) => this._onMessage(msg.message));
-        this._server.onProgress((msg) => {
-            console.log(msg);
+            buildProc.on("exit", (code, signal) => {
+                this._diagnostics.set(
+                    this._matchers.reduce((previous, current) =>
+                        previous.concat(current.getDiagnostics()),
+                        [] as [vscode.Uri, vscode.Diagnostic[] | undefined][])
+                );
+                this._state = ClientState.GENERATED;
+                resolve();
+            });
         });
-        this._server.onSignal((msg) => {
-            console.log(msg);
-        });
-        this._server.onHello((msg) => {
-            this._server.handshake(
-                msg.supportedProtocolVersions[0],
-                this._sourceDirectory,
-                this._buildDirectory,
-                this._generator).then((value) => {
-                    this._state = ServerState.RUNNING;
-                    this.generate();
-                }).catch((e: string) => {
-                    vscode.window.showErrorMessage("Handshake with cmake server failed: " + e);
-                });
-        });
-    }
-
-    private _onMessage(msg: string) {
-        this._console.appendLine(msg);
     }
 
     dispose() {
-        this._process.kill();
-        this._restartServer();
+        this.stop();
     }
 
+    private _updateValues() {
+        this.buildType = this.buildTypes.find((value) => value === this.buildType) || this.buildTypes[0] || "";
+        this.project = this.projects.find((value) => value === this.project) || this.projects[0] || "";
+        this.target = this.targets.find((value) => value === this.target) || this.targets[0] || "";
+    }
+
+    private _checkReady() {
+        if (this._state === ClientState.BUILDING) {
+            throw new Error("Build in progress.");
+        }
+        if (this._state < ClientState.RUNNING) {
+            throw new Error("Not connected to CMake Server.");
+        }
+    }
+
+    private _createConnection(): Promise<void> {
+        let socket = new net.Socket();
+        let connection = protocol.createProtocolConnection(socket, socket);
+
+        connection.onMessage((msg: protocol.Display) => this._onMessage(msg));
+        connection.onSignal((data: protocol.Signal) => this._onSignal(data));
+        this._hello = new Promise((resolve) => {
+            connection.onHello((msg) => {
+                this._state = ClientState.RUNNING;
+                resolve(msg);
+            });
+        });
+
+        this._process = child_process.execFile("cmake", ["-E", "server", "--pipe=" + this.pipeName, "--experimental"]);
+        this._connection = connection;
+
+        return new Promise((resolve, reject) => {
+            let errorHandler = (err : Error) => {
+                this._state = ClientState.STOPPED;
+                this._process = undefined;
+                reject(err);
+            };
+            this._process!.on("error", errorHandler);
+            // Wait some time until cmake server is spawned, the server creates the pipe
+            setTimeout(() => {
+                socket.connect(this.pipeName);
+                socket.on('error', errorHandler);
+                socket.on('connect', () => {
+                    // Remove promise handlers
+                    socket.removeListener('error', errorHandler);
+                    this._process!.removeListener('error', errorHandler);
+
+                    socket.on("close", () => {
+                        this._state = ClientState.STOPPED;
+                        if (this._process) {
+                            this._process.kill();
+                        }
+                    });
+                    this._process!.on("exit", (code, signal) => {
+                        this._state = ClientState.STOPPED;
+                        this._process = undefined;
+                    });
+                    connection.listen();
+                    this._state = ClientState.CONNECTED;
+                    resolve();
+                });
+            }, 500);
+        });
+    }
+
+    private _onSignal(data: protocol.Signal): any {
+        
+    }
+
+    private _onMessage(msg: protocol.Display) {
+        this._console.appendLine(msg.message);
+    }
+
+    private _matchers: ProblemMatcher[];
+    private _handleBuildLine(line: string) {
+        for (let matcher of this._matchers) {
+            matcher.match(line);
+        }
+    }
 }

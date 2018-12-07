@@ -10,12 +10,24 @@ export function activate(context: vscode.ExtensionContext) {
     manager = new WorkspaceManager(context);
     disposables = [];
 
-    disposables.push(vscode.commands.registerCommand("cmake-server.configureCurrentProject", () => {
-        manager.configureCurrentProject();
-    }));
-    disposables.push(vscode.commands.registerCommand("cmake-server.buildCurrentTarget", () => {
-        manager.buildCurrentTarget();
-    }));
+    disposables.push(
+        vscode.commands.registerCommand(
+            "cmake-server.configureCurrentProject", 
+            async () => await manager.configureCurrentProject()
+        )
+    );
+    disposables.push(
+        vscode.commands.registerCommand(
+            "cmake-server.buildCurrentTarget", 
+            async () => await manager.buildCurrentTarget()
+        )
+    );
+    disposables.push(
+        vscode.commands.registerCommand(
+            "cmake-server.buildTarget",
+            async () => await manager.buildTarget()
+        )
+    );
     disposables.push(
         vscode.commands.registerCommand(
             "cmake-server.selectProject", 

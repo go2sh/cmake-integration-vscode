@@ -21,18 +21,23 @@
     "contributes": {
         "commands": [
             {
+                "command": "cmake-server.configureProject",
+                "title": "Configure a project",
+                "category": "Configure"
+            },
+            {
                 "command": "cmake-server.configureCurrentProject",
                 "title": "Configure current project",
+                "category": "Configure"
+            },
+            {
+                "command": "cmake-server.buildTarget",
+                "title": "Build a target",
                 "category": "Build"
             },
             {
                 "command": "cmake-server.buildCurrentTarget",
                 "title": "Build current target",
-                "category": "Build"
-            },
-            {
-                "command": "cmake-server.configureProject",
-                "title": "Configure workspace",
                 "category": "Build"
             },
             {
@@ -57,13 +62,11 @@
             "type": "object",
             "title": "CMake Configuration",
             "properties": {
-                "cmake-server.buildTypes": {
-                    "type": "array",
-                    "description": "Add additional Build Types",
-                    "title": "Additional Build Types",
-                    "items": {
-                        "type": "string"
-                    }
+                "cmake-server.configureOnStart": {
+                    "type":"boolean",
+                    "title": "Configure on server start",
+                    "description": "Configure the project when a server is started (e.g. on open, on add)",
+                    "default": "true"
                 },
                 "cmake-server.generator": {
                     "type":"string",
@@ -90,7 +93,33 @@
                         "Visual Studio 15 2017",
                         "Xcode",
                         "Green Hills MULTI"
-                    ]
+                    ],
+                    "default": "Ninja"
+                },
+                "cmake-server.buildTypes": {
+                    "type": "array",
+                    "description": "Add additional Build Types (Configurations)",
+                    "title": "Additional Build Types",
+                    "items": {
+                        "type": "string"
+                    },
+                    "scope": "resource"
+                },
+                "cmake-server.configureEnviroment": {
+                    "type":"object",
+                    "title": "Configuration Environment",
+                    "description": "Additional environment variables for the configuration process.",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "cmake-server.buildEnvironment": {
+                    "type":"object",
+                    "title": "Build Environment",
+                    "description": "Additional environment variables for the build process.",
+                    "additionalProperties": {
+                        "type": "string"
+                    } 
                 }
             }
         },
@@ -98,6 +127,10 @@
             {
                 "command": "cmake-server.buildCurrentTarget",
                 "key": "F7"
+            },
+            {
+                "command": "cmake-server.buildTarget",
+                "key": "shift+F7"
             }
         ]
     },

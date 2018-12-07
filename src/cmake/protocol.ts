@@ -1,46 +1,31 @@
-interface Message {
-    type: string;
-}
-
-interface Request extends Message {
-    cookie: string;
-}
-
-interface Reply extends Message {
-    cookie: string;
-    inReplyTo: string;
-}
-
-interface ErrorMessage extends Reply {
-    errorMessage: string;
-}
+import {createConnection, Connection} from './connection';
 
 interface Version {
     major: number;
     minor: number;
 }
 
-interface HelloMessage extends Message {
+interface Hello {
     supportedProtocolVersions: Version[];
 }
 
-interface ProgressMessage extends Reply {
+interface Progress {
     progressMessage: string;
     progressMinimum: number;
     progressMaximum: number;
     progressCount: number;
 }
 
-interface DisplayMessage extends Reply {
+interface Display  {
     title: string;
     message: string;
 }
 
-interface SignalMessage extends Reply {
+interface Signal {
     name: string;
 }
 
-interface HandshakeMessage extends Request {
+interface Handshake {
     protocolVersion: Version;
     sourceDirectory: string;
     buildDirectory: string;
@@ -64,6 +49,7 @@ interface Path {
     path: string;
     isSystem: boolean;
 }
+
 interface FileGroup {
     language: string;
     compileFlags: string;
@@ -71,6 +57,7 @@ interface FileGroup {
     defines: string[];
     sources: string[];
 }
+
 interface Target {
     name: string;
     type: TargetType;
@@ -87,26 +74,66 @@ interface Target {
     sysroot: string;
     fileGroups: FileGroup[];
 }
+
 interface Project {
     name: string;
     sourceDirectory: string;
     buildDirectory: string;
     targets: Target[];
 }
+
 interface Configuration {
     name: string;
     projects: Project[];
 }
+
 interface CodeModel {
     configurations: Configuration[];
 }
 
-interface CodeModelReply extends CodeModel, Reply {
-
+interface CMakeProtocolConnection {
+    listen(): void;
+    onHello(handler: (data : Hello) => void): void;
+    onProgress(handler: (data : Progress) => void): void;
+    onSignal(handler: (data: Signal) => void): void;
+    onMessage(handler: (data: Display) => void): void;
+    configure(args: string[]): Promise<void>;
+    compute(): Promise<void>;
+    codemodel(): Promise<CodeModel>;
+    handshake(data : Handshake): Promise<void>;
 }
 
+function createProtocolConnection(input: NodeJS.ReadableStream, output: NodeJS.WritableStream): CMakeProtocolConnection {
+    let connection: Connection = createConnection(input, output);
+
+    let result: CMakeProtocolConnection = {
+        listen(): void {
+            connection.listen();
+        },
+        onHello: (handler) => connection.onMessage("hello", handler),
+        onProgress: (handler) => connection.onMessage("progress", handler),
+        onSignal: (handler) => connection.onMessage("signal", handler),
+        onMessage: (handler) => connection.onMessage("message", handler),
+        async configure(arg: string[]): Promise<void> {
+            return connection.sendRequest<void>("configure", { cacheArguments: arg });
+        },
+        async compute(): Promise<void> {
+            return connection.sendRequest<void>("compute", {});
+        },
+        async codemodel(): Promise<CodeModel> {
+            return connection.sendRequest<CodeModel>("codemodel", {});
+        },
+        handshake(data : Handshake): Promise<void> {
+            return connection.sendRequest("handshake", data);
+        }
+    };
+
+    return result;
+}
+
+
 export {
-    Message, Request, Reply, ErrorMessage, Version, HelloMessage,
-    ProgressMessage, DisplayMessage, SignalMessage, HandshakeMessage,
-    Path, FileGroup, TargetType, Target, Project, Configuration, CodeModel, CodeModelReply
+    Version, Hello, Progress, Display, Signal, Handshake,
+    Path, FileGroup, TargetType, Target, Project, Configuration, CodeModel,
+    CMakeProtocolConnection, createProtocolConnection
 };
