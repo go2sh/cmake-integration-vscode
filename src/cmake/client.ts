@@ -214,7 +214,7 @@ export class CMakeClient implements vscode.Disposable {
     async updateModel() {
         this._checkReady();
         if (this._state < ClientState.GENERATED) {
-            vscode.window.showErrorMessage("Cannot query code model: Build system not ready.");
+            throw new Error("Build system not generated yet.");
         }
         this._model = await this._connection!.codemodel();
         this._updateValues();
@@ -229,18 +229,20 @@ export class CMakeClient implements vscode.Disposable {
             return;
         }
 
-        if (target === undefined) {
-            target = this.target;
-        }
-        this._matchers.forEach((value) => value.clear());
-
         let args: string[] = [];
         args.push("--build", this._buildDirectory);
-        args.push("--target", target);
+        if (target) {
+            args.push("--target", target);
+        }
         if (this.isConfigurationGenerator) {
             args.push("--config", this.buildType);
         }
-        let buildProc = child_process.execFile("cmake", args);
+        let env = vscode.workspace.getConfiguration("cmake-server").get("buildEnvironment", {});
+
+        this._matchers.forEach((value) => value.clear());
+        let buildProc = child_process.execFile("cmake", args, {
+            env: env
+        });
         this._state = ClientState.BUILDING;
 
         buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
@@ -294,6 +296,7 @@ export class CMakeClient implements vscode.Disposable {
 
         connection.onMessage((msg: protocol.Display) => this._onMessage(msg));
         connection.onSignal((data: protocol.Signal) => this._onSignal(data));
+        connection.onProgress((progress: protocol.Progress) => this._onProgress(progress));
         this._hello = new Promise((resolve) => {
             connection.onHello((msg) => {
                 this._state = ClientState.RUNNING;
@@ -336,6 +339,9 @@ export class CMakeClient implements vscode.Disposable {
                 });
             }, 500);
         });
+    }
+    private _onProgress(progress: protocol.Progress): void {
+        
     }
 
     private _onSignal(data: protocol.Signal): any {

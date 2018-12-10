@@ -1,6 +1,11 @@
 import * as vscode from 'vscode';
 import { CMakeClient } from './cmake/client';
 
+interface ProjectContext {
+    client: CMakeClient;
+    project : string;
+}
+
 export class WorkspaceManager implements vscode.Disposable {
     private _context: vscode.ExtensionContext;
     private _events: vscode.Disposable[] = [];
@@ -11,7 +16,10 @@ export class WorkspaceManager implements vscode.Disposable {
     private _buildTypeItem: vscode.StatusBarItem;
     private _targetItem: vscode.StatusBarItem;
 
-    private _currentProject: string;
+    private __currentProject: ProjectContext | undefined;
+    private get _currentProject() {
+        return this.__currentProject;
+    }
 
     constructor(context: vscode.ExtensionContext) {
         this._context = context;
@@ -37,20 +45,11 @@ export class WorkspaceManager implements vscode.Disposable {
         this._projectItem.command = "cmake-server.selectProject";
         this._targetItem.command = "cmake-server.selectTarget";
         this._buildTypeItem.command = "cmake-server.selectBuildType";
-
-        this._currentProject = this._context.workspaceState.get("currentProject", "");
     }
 
     private get _currentClient(): CMakeClient | undefined {
-        for (const a of this._clients.values()) {
-            if (a.projects.indexOf(this._currentProject) >= 0) {
-                return a;
-            }
-        }
-        if (this._clients.size > 0) {
-            let client = this._clients.values().next().value;
-            this._currentProject = client.project;
-            return client;
+        if (this._currentProject) {
+            return this._currentProject.client;
         }
         return undefined;
     }
@@ -73,10 +72,25 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     private _onModelChange(e: CMakeClient) {
-        if (this._currentClient === undefined) {
-            this._currentProject = e.projects[0];
+        if (this._currentProject === undefined) {
+            let client : CMakeClient | undefined;
+            let project : string | undefined;
+
+            // Try to load workspace state
+            project = this._context.workspaceState.get("currentProject")
+            if (project) {
+                client = this._getClientByProject(project);
+            }
+            // Load default project
+            if (client === undefined) {
+                client = e;
+                project = e.project;
+            }
+            this._currentProject = {client: client!, project: project!};
+            this._updateStatusBar();
         }
-        if (this._currentClient === e) {
+        if (this._currentProject && this._currentProject.client === e) {
+            this._currentProject.project = e.project;
             this._updateStatusBar();
         }
     }
@@ -183,13 +197,37 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     async selectProject() {
-        let projects: string[] = [];
+        let projects: ProjectContext[] = [];
         for (const client of this._clients.values()) {
-            projects = projects.concat(client.projects);
+            projects = projects.concat(client.projects.map((value) => {
+                return { client: client, project: value} as ProjectContext;
+            }));
         }
-        let project = await vscode.window.showQuickPick(projects, {
-            placeHolder: this._currentProject
+        interface ProjectContextItem extends vscode.QuickPickItem {
+            context : ProjectContext;
+        };
+        let projectPick = vscode.window.createQuickPick<ProjectContextItem>();
+        projectPick.items = projects.map((value) => {
+            return {
+                context: value,
+                label: value.project,
+                description: value.client.name
+            } as ProjectContextItem;
         });
+
+        let project = await new Promise<ProjectContext|undefined>((resolve) => {
+            let accepted = false;
+            projectPick.onDidAccept((e) => {
+                accepted = true;
+                resolve(projectPick.selectedItems[0].context);
+            });
+            projectPick.onDidHide((e) => {
+                if (!accepted) {
+                    resolve(undefined);
+                }
+            });
+        });
+        
         if (project) {
             this._currentProject = project;
             this._updateStatusBar();

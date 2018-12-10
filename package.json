@@ -1,8 +1,9 @@
 {
-    "name": "cmake-server",
-    "displayName": "cmake-server",
-    "description": "CMake based Language Server.",
+    "name": "cmake-integration-vscode",
+    "displayName": "CMake Integration",
+    "description": "CMake integration for Visual Studio Code.",
     "version": "0.0.1",
+    "license": "GPLv3",
     "publisher": "go2sh",
     "engines": {
         "vscode": "^1.28.0"
@@ -41,8 +42,8 @@
                 "category": "Build"
             },
             {
-                "command": "cmake-server.buildTarget",
-                "title": "Build target",
+                "command": "cmake-server.buildAll",
+                "title": "Build all",
                 "category": "Build"
             },
             {
@@ -60,16 +61,16 @@
         ],
         "configuration": {
             "type": "object",
-            "title": "CMake Configuration",
+            "title": "CMake Integration",
             "properties": {
                 "cmake-server.configureOnStart": {
-                    "type":"boolean",
+                    "type": "boolean",
                     "title": "Configure on server start",
                     "description": "Configure the project when a server is started (e.g. on open, on add)",
                     "default": "true"
                 },
                 "cmake-server.generator": {
-                    "type":"string",
+                    "type": "string",
                     "title": "Build System Generator",
                     "description": "Select a build system generator",
                     "enum": [
@@ -106,7 +107,7 @@
                     "scope": "resource"
                 },
                 "cmake-server.configureEnviroment": {
-                    "type":"object",
+                    "type": "object",
                     "title": "Configuration Environment",
                     "description": "Additional environment variables for the configuration process.",
                     "additionalProperties": {
@@ -114,16 +115,55 @@
                     }
                 },
                 "cmake-server.buildEnvironment": {
-                    "type":"object",
+                    "type": "object",
                     "title": "Build Environment",
                     "description": "Additional environment variables for the build process.",
                     "additionalProperties": {
                         "type": "string"
-                    } 
+                    }
+                },
+                "cmake-server.targetDependencies": {
+                    "type": "array",
+                    "title": "Target Dependencies",
+                    "description": "Additional dependencies between diffenrent projects and targets",
+                    "scope": "resource",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "project": { "type": "string" },
+                            "target": { "type": "string" },
+                            "dependencies": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "project": { "type": "string" },
+                                        "target": { "type": "string" }
+                                    },
+                                    "required": ["project"]
+                                }
+                            }
+                        },
+                        "required": ["project", "dependencies"]
+                    }
+                },
+                "cmake-server.buildAllTargets": {
+                    "type":"array",
+                    "title": "Build all targets",
+                    "description": "Custom list of targets for build all command.",
+                    "scope": "resource",
+                    "items": {
+                        "type":"object",
+                        "properties": {
+                            "project": { "type": "string" },
+                            "target": { "type":"string" }
+                        },
+                        "required": ["project"]
+                    }
                 }
             }
         },
-        "keybindings":[
+        "keybindings": [
             {
                 "command": "cmake-server.buildCurrentTarget",
                 "key": "F7"
@@ -148,8 +188,5 @@
         "typescript": "^2.6.1",
         "vscode": "^1.1.21"
     },
-    "dependencies": {
-        "vscode-languageclient": "^5.1.1",
-        "vscode-languageserver": "^5.1.0"
-    }
+    "dependencies": {}
 }
