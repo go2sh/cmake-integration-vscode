@@ -83,6 +83,7 @@
                     "type": "string",
                     "title": "Build System Generator",
                     "description": "Select a build system generator",
+                    "scope": "resource",
                     "enum": [
                         "Ninja",
                         "Unix Makefiles",
@@ -109,17 +110,18 @@
                 },
                 "cmake-server.buildTypes": {
                     "type": "array",
-                    "description": "Add additional Build Types (Configurations)",
                     "title": "Additional Build Types",
+                    "description": "Add additional Build Types (Configurations)",
+                    "scope": "resource",
                     "items": {
                         "type": "string"
-                    },
-                    "scope": "resource"
+                    }
                 },
                 "cmake-server.configureEnviroment": {
                     "type": "object",
                     "title": "Configuration Environment",
                     "description": "Additional environment variables for the configuration process.",
+                    "scope": "resource",
                     "additionalProperties": {
                         "type": "string"
                     }
@@ -128,6 +130,7 @@
                     "type": "object",
                     "title": "Build Environment",
                     "description": "Additional environment variables for the build process.",
+                    "scope": "resource",
                     "additionalProperties": {
                         "type": "string"
                     }
