@@ -53,7 +53,7 @@ class CLMatcher implements ProblemMatcher {
 class GCCMatcher implements ProblemMatcher {
 
     private static DIAG_REGEX = /^([\w/].+?):(\d+):(\d+): (Error|Warning): (.+)$/;
-    private static RANGE_REGEX = /^(\s*)([\^\~]+)(\s*)$/
+    private static RANGE_REGEX = /^(\s*)([\^\~]+)(\s*)$/;
     private _diagnostics: Map<vscode.Uri, vscode.Diagnostic[]> = new Map();
     private _lastDiag: vscode.Diagnostic | undefined;
 
@@ -87,7 +87,7 @@ class GCCMatcher implements ProblemMatcher {
             this._diagnostics.get(uri)!.push(this._lastDiag);
         }
         if (this._lastDiag) {
-            matches = line.match(GCCMatcher.RANGE_REGEX)
+            matches = line.match(GCCMatcher.RANGE_REGEX);
             if (matches) {
                 let startLine = this._lastDiag.range.start.line;
                 this._lastDiag.range = new vscode.Range(

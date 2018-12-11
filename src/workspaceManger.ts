@@ -3,7 +3,7 @@ import { CMakeClient } from './cmake/client';
 
 interface ProjectContext {
     client: CMakeClient;
-    project : string;
+    project: string;
 }
 
 export class WorkspaceManager implements vscode.Disposable {
@@ -16,26 +16,23 @@ export class WorkspaceManager implements vscode.Disposable {
     private _buildTypeItem: vscode.StatusBarItem;
     private _targetItem: vscode.StatusBarItem;
 
-    private __currentProject: ProjectContext | undefined;
-    private get _currentProject() {
-        return this.__currentProject;
-    }
+    private _currentProject: ProjectContext | undefined;
 
     constructor(context: vscode.ExtensionContext) {
         this._context = context;
         this._events.push(vscode.workspace.onDidChangeWorkspaceFolders((event) => {
-            this._onWorkspaceFolderChange(event);
+            this.onWorkspaceFolderChange(event);
         }));
         this._events.push(vscode.window.onDidChangeActiveTextEditor((event) => {
-            this._onChangeActiveEditor(event);
+            this.onChangeActiveEditor(event);
         }));
 
         // Create a server for files that are already there
         vscode.workspace.findFiles("CMakeLists.txt").then(
-            (uris) => uris.forEach((value) => this._createServer(value)));
+            (uris) => uris.forEach((value) => this.createServer(value)));
 
         for (let folder of vscode.workspace.workspaceFolders || []) {
-            this._watchFolder(folder);
+            this.watchFolder(folder);
         }
 
         this._projectItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 12);
@@ -47,22 +44,24 @@ export class WorkspaceManager implements vscode.Disposable {
         this._buildTypeItem.command = "cmake-server.selectBuildType";
     }
 
-    private get _currentClient(): CMakeClient | undefined {
-        if (this._currentProject) {
-            return this._currentProject.client;
+    private get currentProject() {
+        return this._currentProject;
+    }
+    private set currentProject(value: ProjectContext | undefined) {
+        this._currentProject = value;
+        if (value) {
+            this._context.workspaceState.update("currentProject", value.project);
+        }
+    }
+
+    private get currentClient(): CMakeClient | undefined {
+        if (this.currentProject) {
+            return this.currentProject.client;
         }
         return undefined;
     }
 
-    private get _projects(): string[] {
-        let projects: string[] = [];
-        for (let client of this._clients.values()) {
-            projects = projects.concat(client.projects);
-        }
-        return projects;
-    }
-
-    private _getClientByProject(project: string): CMakeClient | undefined {
+    private getClientByProject(project: string): CMakeClient | undefined {
         for (let client of this._clients.values()) {
             if (client.projects.find((value) => value === project)) {
                 return client;
@@ -71,37 +70,35 @@ export class WorkspaceManager implements vscode.Disposable {
         return undefined;
     }
 
-    private _onModelChange(e: CMakeClient) {
-        if (this._currentProject === undefined) {
-            let client : CMakeClient | undefined;
-            let project : string | undefined;
+    private onModelChange(e: CMakeClient) {
+        if (this.currentProject === undefined) {
+            let client: CMakeClient | undefined;
+            let project: string | undefined;
 
             // Try to load workspace state
-            project = this._context.workspaceState.get("currentProject")
+            project = this._context.workspaceState.get("currentProject");
             if (project) {
-                client = this._getClientByProject(project);
+                client = this.getClientByProject(project);
             }
             // Load default project
             if (client === undefined) {
                 client = e;
                 project = e.project;
             }
-            this._currentProject = {client: client!, project: project!};
-            this._updateStatusBar();
+            this.currentProject = { client: client!, project: project! };
+        } else if (this.currentProject && this.currentProject.client === e) {
+            this.currentProject.project = e.project;
         }
-        if (this._currentProject && this._currentProject.client === e) {
-            this._currentProject.project = e.project;
-            this._updateStatusBar();
-        }
+        this.updateStatusBar();
     }
 
-    private _updateStatusBar() {
-        if (this._currentClient) {
-            this._projectItem.text = this._currentClient.project;
+    private updateStatusBar() {
+        if (this.currentClient) {
+            this._projectItem.text = this.currentClient.project;
             this._projectItem.show();
-            this._buildTypeItem.text = this._currentClient.buildType;
+            this._buildTypeItem.text = this.currentClient.buildType;
             this._buildTypeItem.show();
-            this._targetItem.text = this._currentClient.target;
+            this._targetItem.text = this.currentClient.target;
             this._targetItem.show();
         } else {
             this._projectItem.hide();
@@ -110,17 +107,17 @@ export class WorkspaceManager implements vscode.Disposable {
         }
     }
 
-    private _onWorkspaceFolderChange(event: vscode.WorkspaceFoldersChangeEvent) {
+    private onWorkspaceFolderChange(event: vscode.WorkspaceFoldersChangeEvent) {
         event.added.forEach((folder) => {
-            vscode.workspace.findFiles(new vscode.RelativePattern(folder,"CMakeLists.txt")).then(
-                (uris) => uris.forEach((value) => this._createServer(value)));
-            this._watchFolder(folder);
+            vscode.workspace.findFiles(new vscode.RelativePattern(folder, "CMakeLists.txt")).then(
+                (uris) => uris.forEach((value) => this.createServer(value)));
+            this.watchFolder(folder);
         });
         event.removed.forEach((folder) => {
             let paths = [...this._clients.keys()];
             for (let path of paths) {
                 if (path.startsWith(folder.uri.fsPath)) {
-                    this._deleteServer(vscode.Uri.file(path));
+                    this.deleteServer(vscode.Uri.file(path));
                 }
             }
             this._workspaceWatcher.get(folder)!.dispose();
@@ -128,84 +125,63 @@ export class WorkspaceManager implements vscode.Disposable {
         });
     }
 
-    private _watchFolder(folder: vscode.WorkspaceFolder) {
+    private watchFolder(folder: vscode.WorkspaceFolder) {
         const pattern = new vscode.RelativePattern(folder, "CMakeLists.txt");
         const watcher = vscode.workspace.createFileSystemWatcher(pattern, false, true, true);
-        watcher.onDidCreate((value) => this._createServer(value));
-        watcher.onDidDelete((value) => this._deleteServer(value));
+        watcher.onDidCreate((value) => this.createServer(value));
+        watcher.onDidDelete((value) => this.deleteServer(value));
         this._workspaceWatcher.set(folder, watcher);
     }
 
-    private _createServer(uri: vscode.Uri) {
+    private async createServer(uri: vscode.Uri) {
         if (uri.scheme !== "file" || this._clients.has(uri.fsPath)) {
             return;
         }
 
         let client = new CMakeClient(uri, this._context);
-        this._clients.set(uri.fsPath, client);
-        client.onModelChange((e) => this._onModelChange(e));
-        client.start().catch((e) => {
+
+        client.onModelChange((e) => this.onModelChange(e));
+        try {
+            await client.start();
+            this._clients.set(uri.fsPath, client);
+        } catch (e) {
             vscode.window.showErrorMessage("Failed to start cmake server: " + e.message);
-        });
+        }
+        if (vscode.workspace.getConfiguration("cmake-server").get("configureOnStart", true)) {
+            try {
+                await client.generate();
+                await client.updateModel();
+            } catch (e) {
+                vscode.window.showErrorMessage("Failed to configure project: " + e.message);
+            }
+        }
     }
-    
-    private _deleteServer(uri : vscode.Uri) {
+
+    private deleteServer(uri: vscode.Uri) {
         let client = this._clients.get(uri.fsPath);
         if (client) {
             client.dispose();
             this._clients.delete(uri.fsPath);
         }
-        this._updateStatusBar();
+        this.updateStatusBar();
     }
 
-    private _onChangeActiveEditor(event: vscode.TextEditor | undefined) {
+    private onChangeActiveEditor(event: vscode.TextEditor | undefined) {
 
     }
 
-    async configureCurrentProject() {
-        if (this._currentClient) {
-            await this._currentClient.generate();
-        }
-    }
-
-    async buildCurrentTarget() {
-        if (this._currentClient) {
-            try {
-                await this._currentClient.build();
-            } catch (e) {
-                vscode.window.showErrorMessage("Failed to build current target: " + e.message);
-            }
-        }
-    }
-
-    async buildTarget() {
-        let project: string | undefined;
-        let client: CMakeClient | undefined;
-
-        project = await vscode.window.showQuickPick(this._projects);
-        if (project === undefined) {
-            return;
-        }
-
-        client = this._getClientByProject(project);
-        if (client === undefined) {
-            return;
-        }
-
-        let target = await vscode.window.showQuickPick(client.targets);
-        await client.build(target);
-    }
-
-    async selectProject() {
+    private async pickProject(): Promise<ProjectContext | undefined> {
         let projects: ProjectContext[] = [];
         for (const client of this._clients.values()) {
             projects = projects.concat(client.projects.map((value) => {
-                return { client: client, project: value} as ProjectContext;
+                return { client: client, project: value } as ProjectContext;
             }));
         }
+
         interface ProjectContextItem extends vscode.QuickPickItem {
-            context : ProjectContext;
-        };
+            context: ProjectContext;
+        }
+
         let projectPick = vscode.window.createQuickPick<ProjectContextItem>();
         projectPick.items = projects.map((value) => {
             return {
@@ -214,11 +190,13 @@ export class WorkspaceManager implements vscode.Disposable {
                 description: value.client.name
             } as ProjectContextItem;
         });
+        projectPick.show();
 
-        let project = await new Promise<ProjectContext|undefined>((resolve) => {
+        return new Promise<ProjectContext | undefined>((resolve) => {
             let accepted = false;
             projectPick.onDidAccept((e) => {
                 accepted = true;
+                projectPick.hide();
                 resolve(projectPick.selectedItems[0].context);
             });
             projectPick.onDidHide((e) => {
@@ -227,43 +205,165 @@ export class WorkspaceManager implements vscode.Disposable {
                 }
             });
         });
-        
-        if (project) {
-            this._currentProject = project;
-            this._updateStatusBar();
+    }
+
+    private async pickClient(): Promise<CMakeClient | undefined> {
+        let clients: CMakeClient[] = new Array(...this._clients.values());
+
+        interface CMakeClientItem extends vscode.QuickPickItem {
+            client: CMakeClient;
         }
-        this._updateStatusBar();
+
+        let clientPick = vscode.window.createQuickPick<CMakeClientItem>();
+        clientPick.items = clients.map((value) => {
+            return {
+                client: value,
+                label: value.name,
+                description: value.sourceDirectory
+            } as CMakeClientItem;
+        });
+        clientPick.show();
+
+        return new Promise<CMakeClient | undefined>((resolve) => {
+            let accepted = false;
+            clientPick.onDidAccept((e) => {
+                accepted = true;
+                clientPick.hide();
+                resolve(clientPick.selectedItems[0].client);
+            });
+            clientPick.onDidHide((e) => {
+                if (!accepted) {
+                    resolve(undefined);
+                }
+            });
+        });
+    }
+
+    async configureProject() {
+
+    }
+
+    async configureCurrentProject() {
+        if (this.currentClient) {
+            try {
+                await this.currentClient.configure();
+                await this.currentClient.generate();
+            } catch (e) {
+                vscode.window.showErrorMessage("Failed to configure project: " + e.message);
+            }
+        }
+    }
+
+    async configureAllProjects() {
+
+    }
+
+    async restartClient(clean?: boolean) {
+        if (this.currentClient) {
+            try {
+                await this.currentClient.stop();
+                if (clean) {
+                    await this.currentClient.removeBuildDirectory();
+                }
+                await this.currentClient.start();
+            } catch (e) {
+                vscode.window.showErrorMessage("Failed to restart CMake: " + e.message);
+            }
+        }
+    }
+
+    async buildTarget() {
+        let project = await this.pickProject();
+        if (project === undefined) {
+            return;
+        }
+
+        let target = await vscode.window.showQuickPick(project.client.targets);
+        try {
+            await project.client.build(target);
+        } catch (e) {
+            vscode.window.showErrorMessage("Failed to build target: " + e.message);
+        }
+    }
+
+    async buildCurrentTarget() {
+        if (this.currentClient) {
+            try {
+                await this.currentClient.build(this.currentClient.target);
+            } catch (e) {
+                vscode.window.showErrorMessage("Failed to build current target: " + e.message);
+            }
+        }
+    }
+
+    async buildAllProjects() {
+        try {
+            await Promise.all(Array.from(this._clients.values()).map((value) => value.build()));
+        } catch(e) {
+            vscode.window.showErrorMessage("Failed to build all: " + e.message);
+        }
+    }
+
+    async cleanProject() {
+
+    }
+
+    async cleanCurrentProject() {
+
+    }
+
+    async cleanAllProjects() {
+
+    }
+
+    async selectProject() {
+        let project = await this.pickProject();
+        if (project) {
+            this.currentProject = project;
+            this.updateStatusBar();
+        }
     }
 
     async selectTarget() {
-        if (this._currentClient === undefined) {
+        if (this.currentClient === undefined) {
             await this.selectProject();
         }
-        if (this._currentClient) {
-            let target = await vscode.window.showQuickPick(this._currentClient.targets, {
-                placeHolder: this._currentClient.target
+        if (this.currentClient) {
+            let target = await vscode.window.showQuickPick(this.currentClient.targets, {
+                placeHolder: this.currentClient.target
             });
             if (target) {
-                this._currentClient.target = target;
+                this.currentClient.target = target;
             }
         }
-        this._updateStatusBar();
+        this.updateStatusBar();
     }
 
     async selectBuildType() {
-        if (this._currentClient === undefined) {
+        if (this.currentClient === undefined) {
             await this.selectProject();
             await this.selectTarget();
         }
-        if (this._currentClient) {
-            let buildType = await vscode.window.showQuickPick(this._currentClient.buildTypes, {
-                placeHolder: this._currentClient.buildType
+        if (this.currentClient) {
+            let buildType = await vscode.window.showQuickPick(this.currentClient.buildTypes, {
+                placeHolder: this.currentClient.buildType
             });
             if (buildType) {
-                this._currentClient.buildType = buildType;
+                this.currentClient.buildType = buildType;
             }
         }
-        this._updateStatusBar();
+        this.updateStatusBar();
+    }
+
+    async removeBuildDirectory() {
+        let client = await this.pickClient();
+        if (client) {
+            try {
+                await client.removeBuildDirectory();
+            } catch (e) {
+                vscode.window.showErrorMessage("Failed to removce build directory: " + e.message);
+            }
+        }
     }
 
     dispose(): void {

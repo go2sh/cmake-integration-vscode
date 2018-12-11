@@ -57,6 +57,11 @@
             {
                 "command": "cmake-server.selectBuildType",
                 "title": "Select CMake Build Type"
+            },            
+            {
+                "command": "cmake-server.removeBuildDirectory",
+                "title": "Remove build directory",
+                "category": "Configure"
             }
         ],
         "configuration": {

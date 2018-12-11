@@ -2,16 +2,16 @@ interface Message {
     type: string;
 }
 
-interface Request extends Message {
+interface RequestMessage extends Message {
     cookie: string;
 }
 
-interface Reply extends Message {
+interface ReplyMessage extends Message {
     cookie: string;
     inReplyTo: string;
 }
 
-interface Error extends Reply {
+interface ErrorMessage extends ReplyMessage {
     errorMessage: string;
 }
 
@@ -34,12 +34,12 @@ function createConnection(input : NodeJS.ReadableStream, output : NodeJS.Writabl
 
     function handleMessage(msg : Message) {
         if (msg.type === "reply" || msg.type === "error") {
-            let reply = msg as Reply;
+            let reply = msg as ReplyMessage;
             let replyPromise = replyMap[reply.cookie];
             if (replyPromise) {
                 delete replyMap[reply.cookie];
                 if (msg.type === "error") {
-                    replyPromise.reject((reply as Error).errorMessage);
+                    replyPromise.reject(new Error((reply as ErrorMessage).errorMessage));
                 } else {
                     replyPromise.resolve(reply);
                 }
@@ -56,7 +56,7 @@ function createConnection(input : NodeJS.ReadableStream, output : NodeJS.Writabl
         }
     }
 
-    function writeMessage(request: Request) {
+    function writeMessage(request: RequestMessage) {
         output.write("[== \"CMake Server\" ==[\n");
         output.write(JSON.stringify(request));
         output.write("\n");
@@ -82,7 +82,7 @@ function createConnection(input : NodeJS.ReadableStream, output : NodeJS.Writabl
             });
         },
         async sendRequest<T>(type: string, params: any): Promise<T> {
-            let request: Request = { type: type, cookie: sequenceNumber.toString(), ...params };
+            let request: RequestMessage = { type: type, cookie: sequenceNumber.toString(), ...params };
             sequenceNumber++;
             let promise = new Promise<any>((resolve, reject) => {
                 try {

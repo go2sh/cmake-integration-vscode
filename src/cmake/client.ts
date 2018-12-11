@@ -3,7 +3,9 @@ import * as net from 'net';
 import * as child_process from 'child_process';
 import * as process from 'process';
 import * as os from 'os';
+import * as fs from 'fs';
 import * as path from 'path';
+import * as util from 'util';
 import * as protocol from './protocol';
 import { LineTransform } from '../helpers/stream';
 import { ProblemMatcher, getProblemMatchers } from '../helpers/problemMatcher';
@@ -142,6 +144,10 @@ export class CMakeClient implements vscode.Disposable {
         return path.basename(this._sourceDirectory);
     }
 
+    public get sourceDirectory() : string {
+        return this._sourceDirectory;
+    }
+
     private get pipeName(): string {
         if (process.platform === "win32") {
             return "\\\\?\\pipe\\" + this.name + "-" + process.pid + "-cmake";
@@ -168,11 +174,6 @@ export class CMakeClient implements vscode.Disposable {
             toolset: this._toolset
         };
         await this._connection!.handshake(handshake);
-
-        if (vscode.workspace.getConfiguration("cmake-server").get("configureOnStart", true)) {
-            await this.generate();
-            await this.updateModel();
-        }
     }
 
     async stop() {
@@ -211,6 +212,31 @@ export class CMakeClient implements vscode.Disposable {
         this._state = ClientState.GENERATED;
     }
 
+    async removeBuildDirectory() {
+        const readdir = util.promisify(fs.readdir);
+        const lstat = util.promisify(fs.lstat);
+        const unlink = util.promisify(fs.unlink);
+        const rmdir = util.promisify(fs.rmdir);
+        if (this._state > ClientState.RUNNING) {
+            this._state = ClientState.RUNNING;
+        }
+
+        let removeDir = async (dir : string) => {
+            let files = await readdir(dir);
+            await Promise.all(files.map(async (file) => {
+                let p = path.join(dir, file);
+                const stat = await lstat(p);
+                if (stat.isDirectory()) {
+                    await removeDir(p);
+                } else {
+                    await unlink(p);
+                }
+            }));
+            await rmdir(dir);
+        };
+        await removeDir(this._buildDirectory);
+    }
+
     async updateModel() {
         this._checkReady();
         if (this._state < ClientState.GENERATED) {
@@ -237,7 +263,9 @@ export class CMakeClient implements vscode.Disposable {
         if (this.isConfigurationGenerator) {
             args.push("--config", this.buildType);
         }
-        let env = vscode.workspace.getConfiguration("cmake-server").get("buildEnvironment", {});
+        let configEnv = vscode.workspace.getConfiguration("cmake-server").get("buildEnvironment", {});
+        let processEnv = process.env;
+        let env = {...processEnv, ...configEnv};
 
         this._matchers.forEach((value) => value.clear());
         let buildProc = child_process.execFile("cmake", args, {
