@@ -12,6 +12,12 @@ export function activate(context: vscode.ExtensionContext) {
 
     disposables.push(
         vscode.commands.registerCommand(
+            "cmake-server.configureProject",
+            async () => manager.configureProject()
+        )
+    );
+    disposables.push(
+        vscode.commands.registerCommand(
             "cmake-server.configureCurrentProject", 
             async () => await manager.configureCurrentProject()
         )
@@ -56,6 +62,12 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand(
             "cmake-server.removeBuildDirectory",
             async () => await manager.removeBuildDirectory()
+        )
+    );
+    disposables.push(
+        vscode.commands.registerCommand(
+            "cmake-server.cleanRestartClient",
+            async () => await manager.restartClient(true)
         )
     );
 }

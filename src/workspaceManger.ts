@@ -139,21 +139,22 @@ export class WorkspaceManager implements vscode.Disposable {
         }
 
         let client = new CMakeClient(uri, this._context);
-
         client.onModelChange((e) => this.onModelChange(e));
+
+        this._clients.set(uri.fsPath, client);
+
         try {
             await client.start();
-            this._clients.set(uri.fsPath, client);
-        } catch (e) {
-            vscode.window.showErrorMessage("Failed to start cmake server: " + e.message);
-        }
-        if (vscode.workspace.getConfiguration("cmake-server").get("configureOnStart", true)) {
-            try {
-                await client.generate();
-                await client.updateModel();
-            } catch (e) {
-                vscode.window.showErrorMessage("Failed to configure project: " + e.message);
+            if (vscode.workspace.getConfiguration("cmake-server").get("configureOnStart", true)) {
+                try {
+                    await client.generate();
+                    await client.updateModel();
+                } catch (e) {
+                    vscode.window.showErrorMessage("Failed to configure project(" + client.name + "): " + e.message);
+                }
             }
+        } catch (e) {
+            vscode.window.showErrorMessage("Failed to start CMake(" + client.name + "): " + e.message);
         }
     }
 
@@ -240,7 +241,14 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     async configureProject() {
-
+        let client = await this.pickClient();
+        if (client) {
+            try {
+                await client.generate();
+            } catch (e) {
+                vscode.window.showErrorMessage("Failed to configure project(" + client.name + "): " + e.message);
+            }
+        }
     }
 
     async configureCurrentProject() {
@@ -256,20 +264,6 @@ export class WorkspaceManager implements vscode.Disposable {
 
     async configureAllProjects() {
 
-    }
-
-    async restartClient(clean?: boolean) {
-        if (this.currentClient) {
-            try {
-                await this.currentClient.stop();
-                if (clean) {
-                    await this.currentClient.removeBuildDirectory();
-                }
-                await this.currentClient.start();
-            } catch (e) {
-                vscode.window.showErrorMessage("Failed to restart CMake: " + e.message);
-            }
-        }
     }
 
     async buildTarget() {
@@ -299,7 +293,7 @@ export class WorkspaceManager implements vscode.Disposable {
     async buildAllProjects() {
         try {
             await Promise.all(Array.from(this._clients.values()).map((value) => value.build()));
-        } catch(e) {
+        } catch (e) {
             vscode.window.showErrorMessage("Failed to build all: " + e.message);
         }
     }
@@ -362,6 +356,29 @@ export class WorkspaceManager implements vscode.Disposable {
                 await client.removeBuildDirectory();
             } catch (e) {
                 vscode.window.showErrorMessage("Failed to removce build directory: " + e.message);
+            }
+        }
+    }
+
+    async restartClient(clean?: boolean) {
+        let client = await this.pickClient();
+        if (client) {
+            try {
+                await client.stop();
+                if (clean) {
+                    await client.removeBuildDirectory();
+                }
+                await client.start();
+                if (vscode.workspace.getConfiguration("cmake-server").get("configureOnStart", true)) {
+                    try {
+                        await client.generate();
+                        await client.updateModel();
+                    } catch (e) {
+                        vscode.window.showErrorMessage("Failed to configure project(" + client.name + "): " + e.message);
+                    }
+                }
+            } catch (e) {
+                vscode.window.showErrorMessage("Failed to restart CMake: " + e.message);
             }
         }
     }

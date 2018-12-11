@@ -36,8 +36,6 @@ export class CMakeClient implements vscode.Disposable {
     
     private _sourceDirectory: string;
     private _buildDirectory: string;
-    private _generator: string;
-    private _extraGenerator: string | undefined;
     private _platform: string | undefined;
     private _toolset: string | undefined;
 
@@ -51,8 +49,7 @@ export class CMakeClient implements vscode.Disposable {
     ) {
         this._sourceDirectory = path.dirname(this._uri.fsPath).replace(/\\/g, "/");
         this._buildDirectory = path.join(this._sourceDirectory, vscode.workspace.getConfiguration("cmake-server", this._uri).get("buildDirectory", "build")).replace(/\\/g, "/");
-        this._generator = vscode.workspace.getConfiguration("cmake-server", this._uri).get("generator", "Ninja");
-
+    
         this._project = this._context.workspaceState.get(this.name + "-project", "");
         this._target = this._context.workspaceState.get(this._project + "-target", "");
         this._buildType = this._context.workspaceState.get(this._project + "-buildType", "");
@@ -61,6 +58,14 @@ export class CMakeClient implements vscode.Disposable {
         this._diagnostics = vscode.languages.createDiagnosticCollection(this.name);
 
         this._console = vscode.window.createOutputChannel("CMake (" + this.name + ")");
+    }
+
+    public get generator() : string {
+        return vscode.workspace.getConfiguration("cmake-server", this._uri).get("generator", "Ninja");
+    }
+
+    public get extraGenerator() : string | undefined {
+        return vscode.workspace.getConfiguration("cmake-server", this._uri).get("extraGenerator");
     }
 
     public get projects(): string[] {
@@ -137,7 +142,7 @@ export class CMakeClient implements vscode.Disposable {
     }
 
     public get isConfigurationGenerator(): boolean {
-        return this._generator.match(/^Visual Studio/) !== null;
+        return this.generator.match(/^Visual Studio/) !== null;
     }
 
     public get name(): string {
@@ -168,8 +173,8 @@ export class CMakeClient implements vscode.Disposable {
             sourceDirectory: this._sourceDirectory,
             buildDirectory: this._buildDirectory,
             protocolVersion: msg.supportedProtocolVersions[0],
-            generator: this._generator,
-            extraGenerator: this._extraGenerator,
+            generator: this.generator,
+            extraGenerator: this.extraGenerator,
             platform: this._platform,
             toolset: this._toolset
         };

@@ -62,6 +62,11 @@
                 "command": "cmake-server.removeBuildDirectory",
                 "title": "Remove build directory",
                 "category": "Configure"
+            },
+            {
+                "command": "cmake-server.cleanRestartClient",
+                "title": "Restart CMake (Clean)",
+                "category": "Configure"
             }
         ],
         "configuration": {
