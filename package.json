@@ -57,7 +57,7 @@
             {
                 "command": "cmake-server.selectBuildType",
                 "title": "Select CMake Build Type"
-            },            
+            },
             {
                 "command": "cmake-server.removeBuildDirectory",
                 "title": "Remove build directory",
@@ -108,6 +108,19 @@
                     ],
                     "default": "Ninja"
                 },
+                "cmake-server.extraGenerator": {
+                    "type": "string",
+                    "title": "Extra Generator",
+                    "description": "Extra generator for an auxiliary IDE tool.",
+                    "scope": "resource",
+                    "enum": [
+                        "CodeBlocks",
+                        "CodeLite",
+                        "Eclipse CDT4",
+                        "Kate",
+                        "Sublime Text 2"
+                    ]
+                },
                 "cmake-server.buildTypes": {
                     "type": "array",
                     "title": "Additional Build Types",
@@ -143,35 +156,54 @@
                     "items": {
                         "type": "object",
                         "properties": {
-                            "project": { "type": "string" },
-                            "target": { "type": "string" },
+                            "project": {
+                                "type": "string"
+                            },
+                            "target": {
+                                "type": "string"
+                            },
                             "dependencies": {
                                 "type": "array",
                                 "items": {
                                     "type": "object",
                                     "properties": {
-                                        "project": { "type": "string" },
-                                        "target": { "type": "string" }
+                                        "project": {
+                                            "type": "string"
+                                        },
+                                        "target": {
+                                            "type": "string"
+                                        }
                                     },
-                                    "required": ["project"]
+                                    "required": [
+                                        "project"
+                                    ]
                                 }
                             }
                         },
-                        "required": ["project", "dependencies"]
+                        "required": [
+                            "project",
+                            "dependencies"
+                        ]
                     }
                 },
                 "cmake-server.buildAllTargets": {
-                    "type":"array",
+                    "type": "array",
                     "title": "Build all targets",
                     "description": "Custom list of targets for build all command.",
                     "scope": "resource",
                     "items": {
-                        "type":"object",
+                        "type": "object",
                         "properties": {
-                            "project": { "type": "string" },
-                            "target": { "type":"string" }
+                            "project": {
+                                "type": "string"
+                            },
+                            "target": {
+                                "type": "string"
+                            }
                         },
-                        "required": ["project"]
+                        "required": [
+                            "project"
+                        ]
                     }
                 }
             }
