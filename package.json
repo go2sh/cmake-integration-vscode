@@ -139,7 +139,7 @@
                     "type": "array",
                     "title": "Target Dependencies",
                     "description": "Additional dependencies between diffenrent projects and targets",
-                    "scope": "resource",
+                    "scope": "window",
                     "items": {
                         "type": "object",
                         "properties": {

@@ -13,7 +13,7 @@ export function activate(context: vscode.ExtensionContext) {
     disposables.push(
         vscode.commands.registerCommand(
             "cmake-server.configureProject",
-            async () => manager.configureProject()
+            async () => await manager.configureProject()
         )
     );
     disposables.push(
@@ -25,7 +25,7 @@ export function activate(context: vscode.ExtensionContext) {
     disposables.push(
         vscode.commands.registerCommand(
             "cmake-server.buildCurrentTarget", 
-            async () => await manager.buildCurrentTarget()
+            async () => await manager.buildTarget(true)
         )
     );
     disposables.push(

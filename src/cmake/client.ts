@@ -44,11 +44,11 @@ export class CMakeClient implements vscode.Disposable {
     private _target: string;
 
     constructor(
-        private _uri : vscode.Uri,
+        readonly uri : vscode.Uri,
         private _context: vscode.ExtensionContext
     ) {
-        this._sourceDirectory = path.dirname(this._uri.fsPath).replace(/\\/g, "/");
-        this._buildDirectory = path.join(this._sourceDirectory, vscode.workspace.getConfiguration("cmake-server", this._uri).get("buildDirectory", "build")).replace(/\\/g, "/");
+        this._sourceDirectory = path.dirname(this.uri.fsPath).replace(/\\/g, "/");
+        this._buildDirectory = path.join(this._sourceDirectory, vscode.workspace.getConfiguration("cmake-server", this.uri).get("buildDirectory", "build")).replace(/\\/g, "/");
     
         this._project = this._context.workspaceState.get(this.name + "-project", "");
         this._target = this._context.workspaceState.get(this._project + "-target", "");
@@ -61,11 +61,11 @@ export class CMakeClient implements vscode.Disposable {
     }
 
     public get generator() : string {
-        return vscode.workspace.getConfiguration("cmake-server", this._uri).get("generator", "Ninja");
+        return vscode.workspace.getConfiguration("cmake-server", this.uri).get("generator", "Ninja");
     }
 
     public get extraGenerator() : string | undefined {
-        return vscode.workspace.getConfiguration("cmake-server", this._uri).get("extraGenerator");
+        return vscode.workspace.getConfiguration("cmake-server", this.uri).get("extraGenerator");
     }
 
     public get projects(): string[] {

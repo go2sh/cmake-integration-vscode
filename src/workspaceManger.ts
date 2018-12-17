@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { CMakeClient } from './cmake/client';
+import { Dependency, DependencySpecification, DependencyResolver } from './helpers/dependencyResolver';
 
 interface ProjectContext {
     client: CMakeClient;
@@ -61,7 +62,7 @@ export class WorkspaceManager implements vscode.Disposable {
         return undefined;
     }
 
-    private getClientByProject(project: string): CMakeClient | undefined {
+    getClientByProject(project: string): CMakeClient | undefined {
         for (let client of this._clients.values()) {
             if (client.projects.find((value) => value === project)) {
                 return client;
@@ -266,26 +267,37 @@ export class WorkspaceManager implements vscode.Disposable {
 
     }
 
-    async buildTarget() {
-        let project = await this.pickProject();
-        if (project === undefined) {
-            return;
+    async buildTarget(current: boolean = false) {
+        let client: CMakeClient | undefined;
+        let target: string | undefined;
+        
+        if (current) {
+            client = this.currentClient;
+            if (client) {
+                target = client.target;
+            }
+        } else {
+            let project = await this.pickProject();
+            if (project) {
+                client = project.client;
+                target = await vscode.window.showQuickPick(project.client.targets);
+            }
         }
 
-        let target = await vscode.window.showQuickPick(project.client.targets);
-        try {
-            await project.client.build(target);
-        } catch (e) {
-            vscode.window.showErrorMessage("Failed to build target: " + e.message);
-        }
-    }
-
-    async buildCurrentTarget() {
-        if (this.currentClient) {
+        if (client) {
             try {
-                await this.currentClient.build(this.currentClient.target);
+                let deps = vscode.workspace.getConfiguration("cmake-server").get<DependencySpecification[]>("targetDependencies");
+                if (deps) {
+                    let resolver = new DependencyResolver(deps);
+                    let buildSteps = resolver.resolve({ project: client.project, target: target });
+                    for (const step of buildSteps) {
+                        await Promise.all(step.map((value) => client!.build(value.target)));
+                    }
+                } else {
+                    await client.build(target);
+                }
             } catch (e) {
-                vscode.window.showErrorMessage("Failed to build current target: " + e.message);
+                vscode.window.showErrorMessage("Failed to build target \"" + target + "\": " + e.message);
             }
         }
     }
@@ -294,7 +306,7 @@ export class WorkspaceManager implements vscode.Disposable {
         try {
             await Promise.all(Array.from(this._clients.values()).map((value) => value.build()));
         } catch (e) {
-            vscode.window.showErrorMessage("Failed to build all: " + e.message);
+            vscode.window.showErrorMessage("Failed to build target \"all\": " + e.message);
         }
     }
 
