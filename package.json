@@ -13,10 +13,9 @@
     ],
     "activationEvents": [
         "workspaceContains:**/CMakeLists.txt",
-        "onCommand:cmake-server.configureCurrentProject",
-        "onCommand:cmake-server.buildCurrentTarget",
         "onCommand:cmake-server.configureProject",
-        "onCommand:cmake-server.buildTarget"
+        "onCommand:cmake-server.configureCurrentProject",
+        "onCommand:cmake-server.configureWorkspace"
     ],
     "main": "./out/extension",
     "contributes": {
@@ -32,6 +31,11 @@
                 "category": "Configure"
             },
             {
+                "command": "cmake-server.configureWorkspace",
+                "title": "Configure workspace",
+                "category": "Configure"
+            },
+            {
                 "command": "cmake-server.buildTarget",
                 "title": "Build a target",
                 "category": "Build"
@@ -42,31 +46,59 @@
                 "category": "Build"
             },
             {
-                "command": "cmake-server.buildAll",
-                "title": "Build all",
+                "command": "cmake-server.buildProject",
+                "title": "Build a project",
                 "category": "Build"
             },
             {
-                "command": "cmake-server.selectProject",
-                "title": "Select CMake Project"
+                "command": "cmake-server.buildCurrentProject",
+                "title": "Build current project",
+                "category": "Build"
             },
             {
-                "command": "cmake-server.selectTarget",
-                "title": "Select CMake Target"
+                "command": "cmake-server.buildWorkspace",
+                "title": "Build workspace",
+                "category": "Build"
             },
             {
-                "command": "cmake-server.selectBuildType",
-                "title": "Select CMake Build Type"
+                "command": "cmake-server.cleanProject",
+                "title": "Clean a project",
+                "category": "Clean"
+            },
+            {
+                "command": "cmake-server.cleanCurrentProject",
+                "title": "Clean current project",
+                "category": "Clean"
+            },
+            {
+                "command": "cmake-server.cleanWorkspace",
+                "title": "Clean workspace",
+                "category": "Clean"
             },
             {
                 "command": "cmake-server.removeBuildDirectory",
                 "title": "Remove build directory",
-                "category": "Configure"
+                "category": "Clean"
             },
             {
                 "command": "cmake-server.cleanRestartClient",
                 "title": "Restart CMake (Clean)",
-                "category": "Configure"
+                "category": "CMake"
+            },
+            {
+                "command": "cmake-server.selectProject",
+                "title": "Select CMake Project",
+                "category": "CMake"
+            },
+            {
+                "command": "cmake-server.selectTarget",
+                "title": "Select CMake Target",
+                "category": "CMake"
+            },
+            {
+                "command": "cmake-server.selectBuildType",
+                "title": "Select CMake Build Type",
+                "category": "CMake"
             }
         ],
         "configuration": {
@@ -130,6 +162,15 @@
                         "type": "string"
                     }
                 },
+                "cmake-server.cacheEntries": {
+                    "type":"object",
+                    "title": "Additional Cache Entries",
+                    "description": "Speciefies additional cache entries for CMake. (Same as -D argument)",
+                    "scope": "resource",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "cmake-server.configureEnviroment": {
                     "type": "object",
                     "title": "Configuration Environment",
@@ -186,10 +227,10 @@
                         ]
                     }
                 },
-                "cmake-server.buildAllTargets": {
+                "cmake-server.workspaceTargets": {
                     "type": "array",
-                    "title": "Build all targets",
-                    "description": "Custom list of targets for build all command.",
+                    "title": "Workspace Targets",
+                    "description": "Custom list of targets for build workspace command.",
                     "scope": "resource",
                     "items": {
                         "type": "object",

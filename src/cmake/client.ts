@@ -195,13 +195,13 @@ export class CMakeClient implements vscode.Disposable {
         this._checkReady();
 
         let args: string[] = [];
-        let cacheEntries = vscode.workspace.getConfiguration("cmake-server").get<any>("cacheEntries", {});
+        let cacheEntries = vscode.workspace.getConfiguration("cmake-server", this.uri).get<any>("cacheEntries", {});
         for (let entry in cacheEntries) {
-            args.push("-D " + entry + "=" + cacheEntries[entry]);
+            args.push("-D" + entry + "=" + cacheEntries[entry]);
         }
 
         if (!this.isConfigurationGenerator) {
-            args.push("-D CMAKE_BUILD_TYPE=" + this.buildType);
+            args.push("-DCMAKE_BUILD_TYPE=" + this.buildType);
         }
 
         await this._connection!.configure(args);
@@ -227,6 +227,11 @@ export class CMakeClient implements vscode.Disposable {
         }
 
         let removeDir = async (dir : string) => {
+            try {
+                await lstat(dir);
+            } catch (e) {
+                return;
+            }
             let files = await readdir(dir);
             await Promise.all(files.map(async (file) => {
                 let p = path.join(dir, file);
@@ -268,7 +273,7 @@ export class CMakeClient implements vscode.Disposable {
         if (this.isConfigurationGenerator) {
             args.push("--config", this.buildType);
         }
-        let configEnv = vscode.workspace.getConfiguration("cmake-server").get("buildEnvironment", {});
+        let configEnv = vscode.workspace.getConfiguration("cmake-server", this.uri).get("buildEnvironment", {});
         let processEnv = process.env;
         let env = {...processEnv, ...configEnv};
 

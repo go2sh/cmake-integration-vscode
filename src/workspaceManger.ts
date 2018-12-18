@@ -241,36 +241,108 @@ export class WorkspaceManager implements vscode.Disposable {
         });
     }
 
-    async configureProject() {
-        let client = await this.pickClient();
+    async configureWorkspace() {
+        try {
+            await Promise.all([...this._clients.values()].map((value) => {
+                value.configure();
+                value.generate();
+            }));
+        } catch (e) {
+            vscode.window.showErrorMessage("Failed to configure workspace: " + e.message);
+        }
+    }
+
+    async configureProject(current?: boolean) {
+        let client : CMakeClient | undefined;
+        if (current) {
+            client = this.currentClient;
+        } else {
+            let projectContext = await this.pickProject();
+            if (projectContext) {
+                client = projectContext.client;
+            }
+        }
         if (client) {
             try {
+                await client.configure();
                 await client.generate();
             } catch (e) {
-                vscode.window.showErrorMessage("Failed to configure project(" + client.name + "): " + e.message);
+                vscode.window.showErrorMessage("Failed to configure project(" + client.project + "): " + e.message);
             }
         }
     }
 
-    async configureCurrentProject() {
-        if (this.currentClient) {
-            try {
-                await this.currentClient.configure();
-                await this.currentClient.generate();
-            } catch (e) {
-                vscode.window.showErrorMessage("Failed to configure project: " + e.message);
+    async buildWorkspace() {
+        let workspaceTargets = vscode.workspace.getConfiguration("cmake-server").get<Dependency[]>("workspaceTargets", []);
+        let targetDependencies = vscode.workspace.getConfiguration("cmake-server").get<DependencySpecification[]>("targetDependencies", []);
+
+        // If no workspace targets are defined, use all projects
+        if (workspaceTargets.length === 0) {
+            for (const client of this._clients.values()) {
+                workspaceTargets.push(...client.projects.map((value) => {
+                    return { project: value } as Dependency;
+                }));
             }
+        }
+
+        try {
+            let resolver = new DependencyResolver(targetDependencies);
+            let buildSteps: Dependency[][] = resolver.resolve(workspaceTargets);
+            for (const step of buildSteps) {
+                await Promise.all(step.map((value) => {
+                    let client = this.getClientByProject(value.project);
+                    if (client) {
+                        client.build(value.target);
+                    }
+                }));
+            }
+        } catch (e) {
+            vscode.window.showErrorMessage("Failed to build workspace: " + e.message);
         }
     }
 
-    async configureAllProjects() {
+    async buildProject(current: boolean = false) {
+        let client: CMakeClient | undefined;
+        let project: string | undefined;
 
+        if (current) {
+            client = this.currentClient;
+            if (client) {
+                project = client.project;
+            }
+        } else {
+            let projectContest = await this.pickProject();
+            if (projectContest) {
+                client = projectContest.client;
+                project = projectContest.project;
+            }
+        }
+
+        if (!client) {
+            return;
+        }
+
+        try {
+            let targetDependencies = vscode.workspace.getConfiguration("cmake-server").get<DependencySpecification[]>("targetDependencies", []);
+            let resolver = new DependencyResolver(targetDependencies);
+            let buildSteps: Dependency[][] = resolver.resolve({ project: project } as Dependency);
+            for (const step of buildSteps) {
+                await Promise.all(step.map((value) => {
+                    let client = this.getClientByProject(value.project);
+                    if (client) {
+                        client.build(value.target);
+                    }
+                }));
+            }
+        } catch (e) {
+            vscode.window.showErrorMessage("Failed to build project \"" + project + "\": " + e.message);
+        }
     }
 
     async buildTarget(current: boolean = false) {
         let client: CMakeClient | undefined;
         let target: string | undefined;
-        
+
         if (current) {
             client = this.currentClient;
             if (client) {
@@ -284,42 +356,58 @@ export class WorkspaceManager implements vscode.Disposable {
             }
         }
 
-        if (client) {
-            try {
-                let deps = vscode.workspace.getConfiguration("cmake-server").get<DependencySpecification[]>("targetDependencies");
-                if (deps) {
-                    let resolver = new DependencyResolver(deps);
-                    let buildSteps = resolver.resolve({ project: client.project, target: target });
-                    for (const step of buildSteps) {
-                        await Promise.all(step.map((value) => client!.build(value.target)));
+        if (!client) {
+            return;
+        }
+
+        try {
+            let deps = vscode.workspace.getConfiguration("cmake-server").get<DependencySpecification[]>("targetDependencies", []);
+            let resolver = new DependencyResolver(deps);
+            let buildSteps: Dependency[][] = resolver.resolve({ project: client.project, target: target });
+            for (const step of buildSteps) {
+                await Promise.all(step.map((value) => {
+                    let client = this.getClientByProject(value.project);
+                    if (client) {
+                        client.build(value.target);
                     }
-                } else {
-                    await client.build(target);
-                }
-            } catch (e) {
-                vscode.window.showErrorMessage("Failed to build target \"" + target + "\": " + e.message);
+                }));
+            }
+        } catch (e) {
+            vscode.window.showErrorMessage("Failed to build target \"" + target + "\": " + e.message);
+        }
+    }
+
+    async cleanWorkspace() {
+        try {
+            for (const client of this._clients.values()) {
+                await client.build("clean");
+            }
+        } catch (e) {
+            vscode.window.showErrorMessage("Failed to clean workspace: " + e.message);
+        }
+    }
+
+    async cleanProject(current?: boolean) {
+        let client: CMakeClient | undefined;
+
+        if (current) {
+            client = this.currentClient;
+        } else {
+            let project = await this.pickProject();
+            if (project) {
+                client = project.client;
             }
         }
-    }
 
-    async buildAllProjects() {
-        try {
-            await Promise.all(Array.from(this._clients.values()).map((value) => value.build()));
-        } catch (e) {
-            vscode.window.showErrorMessage("Failed to build target \"all\": " + e.message);
+        if (!client) {
+            return;
         }
-    }
 
-    async cleanProject() {
-
-    }
-
-    async cleanCurrentProject() {
-
-    }
-
-    async cleanAllProjects() {
-
+        try {
+            await client.build("clean");
+        } catch (e) {
+            vscode.window.showErrorMessage("Failed to clean project \"" + client.project + "\": " + e.message);
+        }
     }
 
     async selectProject() {
