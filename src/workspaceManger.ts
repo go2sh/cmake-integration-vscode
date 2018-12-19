@@ -1,3 +1,22 @@
+/*     
+ * Copyright 2018 Christoph Seitz
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+*/
+
+/*
+ * Worksapce manager handling CMake clients
+ */
 import * as vscode from 'vscode';
 import { CMakeClient } from './cmake/client';
 import { Dependency, DependencySpecification, DependencyResolver } from './helpers/dependencyResolver';
@@ -40,9 +59,9 @@ export class WorkspaceManager implements vscode.Disposable {
         this._targetItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 11);
         this._buildTypeItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 10);
 
-        this._projectItem.command = "cmake-server.selectProject";
-        this._targetItem.command = "cmake-server.selectTarget";
-        this._buildTypeItem.command = "cmake-server.selectBuildType";
+        this._projectItem.command = "cmake.selectProject";
+        this._targetItem.command = "cmake.selectTarget";
+        this._buildTypeItem.command = "cmake.selectBuildType";
     }
 
     private get currentProject() {
@@ -146,7 +165,7 @@ export class WorkspaceManager implements vscode.Disposable {
 
         try {
             await client.start();
-            if (vscode.workspace.getConfiguration("cmake-server").get("configureOnStart", true)) {
+            if (vscode.workspace.getConfiguration("cmake").get("configureOnStart", true)) {
                 try {
                     await client.generate();
                     await client.updateModel();
@@ -273,8 +292,8 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     async buildWorkspace() {
-        let workspaceTargets = vscode.workspace.getConfiguration("cmake-server").get<Dependency[]>("workspaceTargets", []);
-        let targetDependencies = vscode.workspace.getConfiguration("cmake-server").get<DependencySpecification[]>("targetDependencies", []);
+        let workspaceTargets = vscode.workspace.getConfiguration("cmake").get<Dependency[]>("workspaceTargets", []);
+        let targetDependencies = vscode.workspace.getConfiguration("cmake").get<DependencySpecification[]>("targetDependencies", []);
 
         // If no workspace targets are defined, use all projects
         if (workspaceTargets.length === 0) {
@@ -323,7 +342,7 @@ export class WorkspaceManager implements vscode.Disposable {
         }
 
         try {
-            let targetDependencies = vscode.workspace.getConfiguration("cmake-server").get<DependencySpecification[]>("targetDependencies", []);
+            let targetDependencies = vscode.workspace.getConfiguration("cmake").get<DependencySpecification[]>("targetDependencies", []);
             let resolver = new DependencyResolver(targetDependencies);
             let buildSteps: Dependency[][] = resolver.resolve({ project: project } as Dependency);
             for (const step of buildSteps) {
@@ -361,7 +380,7 @@ export class WorkspaceManager implements vscode.Disposable {
         }
 
         try {
-            let deps = vscode.workspace.getConfiguration("cmake-server").get<DependencySpecification[]>("targetDependencies", []);
+            let deps = vscode.workspace.getConfiguration("cmake").get<DependencySpecification[]>("targetDependencies", []);
             let resolver = new DependencyResolver(deps);
             let buildSteps: Dependency[][] = resolver.resolve({ project: client.project, target: target });
             for (const step of buildSteps) {
@@ -469,7 +488,7 @@ export class WorkspaceManager implements vscode.Disposable {
                     await client.removeBuildDirectory();
                 }
                 await client.start();
-                if (vscode.workspace.getConfiguration("cmake-server").get("configureOnStart", true)) {
+                if (vscode.workspace.getConfiguration("cmake").get("configureOnStart", true)) {
                     try {
                         await client.generate();
                         await client.updateModel();

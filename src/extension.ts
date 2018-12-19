@@ -1,3 +1,22 @@
+/*     
+ * Copyright 2018 Christoph Seitz
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+*/
+
+/*
+ * Extension main
+ */
 'use strict';
 import * as vscode from 'vscode';
 
@@ -7,25 +26,25 @@ let manager: WorkspaceManager;
 let disposables: vscode.Disposable[];
 
 export function activate(context: vscode.ExtensionContext) {
-    manager = new WorkspaceManager(context);
     disposables = [];
+    manager = new WorkspaceManager(context);
 
     /* Configure commands */
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake-server.configureProject",
+            "cmake.configureProject",
             async () => await manager.configureProject()
         )
     );
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake-server.configureCurrentProject", 
+            "cmake.configureCurrentProject", 
             async () => await manager.configureProject(true)
         )
     );
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake-server.configureWorkspace", 
+            "cmake.configureWorkspace", 
             async () => await manager.configureWorkspace()
         )
     );
@@ -33,25 +52,25 @@ export function activate(context: vscode.ExtensionContext) {
     /* clean commands */
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake-server.cleanProject",
+            "cmake.cleanProject",
             async () => await manager.cleanProject()
         )
     );
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake-server.cleanCurrentProject", 
+            "cmake.cleanCurrentProject", 
             async () => await manager.cleanProject(true)
         )
     );
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake-server.cleanWorkspace", 
+            "cmake.cleanWorkspace", 
             async () => await manager.cleanWorkspace()
         )
     );
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake-server.removeBuildDirectory",
+            "cmake.removeBuildDirectory",
             async () => await manager.removeBuildDirectory()
         )
     );
@@ -59,25 +78,31 @@ export function activate(context: vscode.ExtensionContext) {
     /* Build commands */
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake-server.buildTarget",
+            "cmake.buildTarget",
             async () => await manager.buildTarget()
         )
     );
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake-server.buildCurrentTarget", 
+            "cmake.buildCurrentTarget", 
             async () => await manager.buildTarget(true)
         )
     );
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake-server.buildProject",
+            "cmake.buildProject",
             async () => await manager.buildProject()
         )
     );
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake-server.buildWorkspace",
+            "cmake.buildCurrentProject",
+            async () => await manager.buildProject(true)
+        )
+    );
+    disposables.push(
+        vscode.commands.registerCommand(
+            "cmake.buildWorkspace",
             async () => await manager.buildWorkspace()
         )
     );
@@ -85,19 +110,19 @@ export function activate(context: vscode.ExtensionContext) {
     /* Select commands */
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake-server.selectProject", 
+            "cmake.selectProject", 
             async () => await manager.selectProject()
         )
     );
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake-server.selectTarget",
+            "cmake.selectTarget",
             async () => await manager.selectTarget()
         )
     );
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake-server.selectBuildType",
+            "cmake.selectBuildType",
             async () => await manager.selectBuildType()
         )
     );
@@ -105,7 +130,7 @@ export function activate(context: vscode.ExtensionContext) {
     /* Server commands */
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake-server.cleanRestartClient",
+            "cmake.cleanRestartClient",
             async () => await manager.restartClient(true)
         )
     );

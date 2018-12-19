@@ -1,3 +1,23 @@
+/*     
+ * Copyright 2018 Christoph Seitz
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+*/
+
+/*
+ * Client code for interaction with CMake
+ */
+
 import * as vscode from 'vscode';
 import * as net from 'net';
 import * as child_process from 'child_process';
@@ -33,23 +53,23 @@ export class CMakeClient implements vscode.Disposable {
 
     private _onModelChange: vscode.EventEmitter<CMakeClient> = new vscode.EventEmitter();
     readonly onModelChange: vscode.Event<CMakeClient> = this._onModelChange.event;
-    
+
     private _sourceDirectory: string;
     private _buildDirectory: string;
-    private _platform: string | undefined;
-    private _toolset: string | undefined;
 
     private _project: string;
     private _buildType: string;
     private _target: string;
 
+    private _matchers: ProblemMatcher[];
+
     constructor(
-        readonly uri : vscode.Uri,
+        readonly uri: vscode.Uri,
         private _context: vscode.ExtensionContext
     ) {
         this._sourceDirectory = path.dirname(this.uri.fsPath).replace(/\\/g, "/");
-        this._buildDirectory = path.join(this._sourceDirectory, vscode.workspace.getConfiguration("cmake-server", this.uri).get("buildDirectory", "build")).replace(/\\/g, "/");
-    
+        this._buildDirectory = path.join(this._sourceDirectory, vscode.workspace.getConfiguration("cmake", this.uri).get("buildDirectory", "build")).replace(/\\/g, "/");
+
         this._project = this._context.workspaceState.get(this.name + "-project", "");
         this._target = this._context.workspaceState.get(this._project + "-target", "");
         this._buildType = this._context.workspaceState.get(this._project + "-buildType", "");
@@ -60,12 +80,20 @@ export class CMakeClient implements vscode.Disposable {
         this._console = vscode.window.createOutputChannel("CMake (" + this.name + ")");
     }
 
-    public get generator() : string {
-        return vscode.workspace.getConfiguration("cmake-server", this.uri).get("generator", "Ninja");
+    public get generator(): string {
+        return vscode.workspace.getConfiguration("cmake", this.uri).get("generator", "Ninja");
     }
 
-    public get extraGenerator() : string | undefined {
-        return vscode.workspace.getConfiguration("cmake-server", this.uri).get("extraGenerator");
+    public get extraGenerator(): string | undefined {
+        return vscode.workspace.getConfiguration("cmake", this.uri).get("extraGenerator");
+    }
+
+    public get generatorPlatform(): string | undefined {
+        return vscode.workspace.getConfiguration("cmake", this.uri).get("generatorPlatform");
+    }
+
+    public get generatorToolset(): string | undefined {
+        return vscode.workspace.getConfiguration("cmake", this.uri).get("generatorToolset");
     }
 
     public get projects(): string[] {
@@ -96,7 +124,7 @@ export class CMakeClient implements vscode.Disposable {
             let types = new Set<string>();
             if (this._model.configurations.length === 1 && this._model.configurations[0].name === "") {
                 ["Debug", "Release", "RelWithDebInfo", "MinSizeRel"].forEach(types.add);
-                vscode.workspace.getConfiguration("cmake-server").get<string[]>("buildTypes", []).forEach(types.add);
+                vscode.workspace.getConfiguration("cmake").get<string[]>("buildTypes", []).forEach(types.add);
             } else {
                 this._model.configurations.forEach((value) => types.add(value.name));
             }
@@ -149,7 +177,7 @@ export class CMakeClient implements vscode.Disposable {
         return path.basename(this._sourceDirectory);
     }
 
-    public get sourceDirectory() : string {
+    public get sourceDirectory(): string {
         return this._sourceDirectory;
     }
 
@@ -166,8 +194,8 @@ export class CMakeClient implements vscode.Disposable {
             return;
         }
 
-        await this._createConnection();
-        
+        await this.createConnection();
+
         let msg = await this._hello!;
         let handshake: protocol.Handshake = {
             sourceDirectory: this._sourceDirectory,
@@ -175,8 +203,8 @@ export class CMakeClient implements vscode.Disposable {
             protocolVersion: msg.supportedProtocolVersions[0],
             generator: this.generator,
             extraGenerator: this.extraGenerator,
-            platform: this._platform,
-            toolset: this._toolset
+            platform: this.generatorPlatform,
+            toolset: this.generatorToolset
         };
         await this._connection!.handshake(handshake);
     }
@@ -192,10 +220,10 @@ export class CMakeClient implements vscode.Disposable {
     }
 
     async configure() {
-        this._checkReady();
+        this.checkReady();
 
         let args: string[] = [];
-        let cacheEntries = vscode.workspace.getConfiguration("cmake-server", this.uri).get<any>("cacheEntries", {});
+        let cacheEntries = vscode.workspace.getConfiguration("cmake", this.uri).get<any>("cacheEntries", {});
         for (let entry in cacheEntries) {
             args.push("-D" + entry + "=" + cacheEntries[entry]);
         }
@@ -209,7 +237,7 @@ export class CMakeClient implements vscode.Disposable {
     }
 
     async generate() {
-        this._checkReady();
+        this.checkReady();
         if (this._state === ClientState.RUNNING) {
             await this.configure();
         }
@@ -226,7 +254,7 @@ export class CMakeClient implements vscode.Disposable {
             this._state = ClientState.RUNNING;
         }
 
-        let removeDir = async (dir : string) => {
+        let removeDir = async (dir: string) => {
             try {
                 await lstat(dir);
             } catch (e) {
@@ -248,12 +276,12 @@ export class CMakeClient implements vscode.Disposable {
     }
 
     async updateModel() {
-        this._checkReady();
+        this.checkReady();
         if (this._state < ClientState.GENERATED) {
             throw new Error("Build system not generated yet.");
         }
         this._model = await this._connection!.codemodel();
-        this._updateValues();
+        this.updateValues();
         this._onModelChange.fire(this);
     }
 
@@ -265,6 +293,7 @@ export class CMakeClient implements vscode.Disposable {
             return;
         }
 
+        let cmakePath = vscode.workspace.getConfiguration("cmake", this.uri).get("cmakePath", "cmake");
         let args: string[] = [];
         args.push("--build", this._buildDirectory);
         if (target) {
@@ -273,23 +302,23 @@ export class CMakeClient implements vscode.Disposable {
         if (this.isConfigurationGenerator) {
             args.push("--config", this.buildType);
         }
-        let configEnv = vscode.workspace.getConfiguration("cmake-server", this.uri).get("buildEnvironment", {});
+        let configEnv = vscode.workspace.getConfiguration("cmake", this.uri).get("buildEnvironment", {});
         let processEnv = process.env;
-        let env = {...processEnv, ...configEnv};
+        let env = { ...processEnv, ...configEnv };
 
         this._matchers.forEach((value) => value.clear());
-        let buildProc = child_process.execFile("cmake", args, {
+        let buildProc = child_process.execFile(cmakePath, args, {
             env: env
         });
         this._state = ClientState.BUILDING;
 
         buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
             this._console.appendLine(chunk);
-            this._handleBuildLine(chunk);
+            this.handleBuildLine(chunk);
         });
         buildProc.stderr.pipe(new LineTransform()).on("data", (chunk: string) => {
             this._console.appendLine(chunk);
-            this._handleBuildLine(chunk);
+            this.handleBuildLine(chunk);
         });
 
         return new Promise((resolve, reject) => {
@@ -313,13 +342,13 @@ export class CMakeClient implements vscode.Disposable {
         this.stop();
     }
 
-    private _updateValues() {
+    private updateValues() {
         this.buildType = this.buildTypes.find((value) => value === this.buildType) || this.buildTypes[0] || "";
         this.project = this.projects.find((value) => value === this.project) || this.projects[0] || "";
         this.target = this.targets.find((value) => value === this.target) || this.targets[0] || "";
     }
 
-    private _checkReady() {
+    private checkReady() {
         if (this._state === ClientState.BUILDING) {
             throw new Error("Build in progress.");
         }
@@ -328,13 +357,13 @@ export class CMakeClient implements vscode.Disposable {
         }
     }
 
-    private _createConnection(): Promise<void> {
+    private createConnection(): Promise<void> {
         let socket = new net.Socket();
         let connection = protocol.createProtocolConnection(socket, socket);
 
-        connection.onMessage((msg: protocol.Display) => this._onMessage(msg));
-        connection.onSignal((data: protocol.Signal) => this._onSignal(data));
-        connection.onProgress((progress: protocol.Progress) => this._onProgress(progress));
+        connection.onMessage((msg: protocol.Display) => this.onMessage(msg));
+        connection.onSignal((data: protocol.Signal) => this.onSignal(data));
+        connection.onProgress((progress: protocol.Progress) => this.onProgress(progress));
         this._hello = new Promise((resolve) => {
             connection.onHello((msg) => {
                 this._state = ClientState.RUNNING;
@@ -342,11 +371,19 @@ export class CMakeClient implements vscode.Disposable {
             });
         });
 
-        this._process = child_process.execFile("cmake", ["-E", "server", "--pipe=" + this.pipeName, "--experimental"]);
+        let cmakePath = vscode.workspace.getConfiguration("cmake", this.uri).get("cmakePath", "cmake");
+        let configEnv = vscode.workspace.getConfiguration("cmake", this.uri).get("configurationEnvironment", {});
+        let processEnv = process.env;
+        let env = { ...processEnv, ...configEnv };
+        this._process = child_process.execFile(
+            cmakePath,
+            ["-E", "server", "--pipe=" + this.pipeName, "--experimental"],
+            { env: env }
+        );
         this._connection = connection;
 
         return new Promise((resolve, reject) => {
-            let errorHandler = (err : Error) => {
+            let errorHandler = (err: Error) => {
                 this._state = ClientState.STOPPED;
                 this._process = undefined;
                 reject(err);
@@ -378,20 +415,19 @@ export class CMakeClient implements vscode.Disposable {
             }, 500);
         });
     }
-    private _onProgress(progress: protocol.Progress): void {
-        
+    private onProgress(progress: protocol.Progress): void {
+
     }
 
-    private _onSignal(data: protocol.Signal): any {
-        
+    private onSignal(data: protocol.Signal): any {
+
     }
 
-    private _onMessage(msg: protocol.Display) {
+    private onMessage(msg: protocol.Display) {
         this._console.appendLine(msg.message);
     }
 
-    private _matchers: ProblemMatcher[];
-    private _handleBuildLine(line: string) {
+    private handleBuildLine(line: string) {
         for (let matcher of this._matchers) {
             matcher.match(line);
         }

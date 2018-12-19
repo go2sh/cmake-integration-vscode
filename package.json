@@ -2,8 +2,8 @@
     "name": "cmake-integration-vscode",
     "displayName": "CMake Integration",
     "description": "CMake integration for Visual Studio Code.",
-    "version": "0.0.1",
-    "license": "GPLv3",
+    "version": "0.1.0",
+    "license": "Apache-2.0",
     "publisher": "go2sh",
     "engines": {
         "vscode": "^1.28.0"
@@ -11,92 +11,106 @@
     "categories": [
         "Other"
     ],
+    "keywords": [
+        "CMake",
+        "Build",
+        "C",
+        "C++"
+    ],
+    "bugs": {
+        "url": "https://github.com/go2sh/cmake-integration-vscode/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/go2sh/cmake-integration-vscode.git"
+    },
+    "homepage": "https://github.com/go2sh/cmake-integration-vscode",
     "activationEvents": [
         "workspaceContains:**/CMakeLists.txt",
-        "onCommand:cmake-server.configureProject",
-        "onCommand:cmake-server.configureCurrentProject",
-        "onCommand:cmake-server.configureWorkspace"
+        "onCommand:cmake.configureProject",
+        "onCommand:cmake.configureCurrentProject",
+        "onCommand:cmake.configureWorkspace"
     ],
-    "main": "./out/extension",
+    "main": "./out/src/extension",
     "contributes": {
         "commands": [
             {
-                "command": "cmake-server.configureProject",
+                "command": "cmake.configureProject",
                 "title": "Configure a project",
                 "category": "Configure"
             },
             {
-                "command": "cmake-server.configureCurrentProject",
+                "command": "cmake.configureCurrentProject",
                 "title": "Configure current project",
                 "category": "Configure"
             },
             {
-                "command": "cmake-server.configureWorkspace",
+                "command": "cmake.configureWorkspace",
                 "title": "Configure workspace",
                 "category": "Configure"
             },
             {
-                "command": "cmake-server.buildTarget",
+                "command": "cmake.buildTarget",
                 "title": "Build a target",
                 "category": "Build"
             },
             {
-                "command": "cmake-server.buildCurrentTarget",
+                "command": "cmake.buildCurrentTarget",
                 "title": "Build current target",
                 "category": "Build"
             },
             {
-                "command": "cmake-server.buildProject",
+                "command": "cmake.buildProject",
                 "title": "Build a project",
                 "category": "Build"
             },
             {
-                "command": "cmake-server.buildCurrentProject",
+                "command": "cmake.buildCurrentProject",
                 "title": "Build current project",
                 "category": "Build"
             },
             {
-                "command": "cmake-server.buildWorkspace",
+                "command": "cmake.buildWorkspace",
                 "title": "Build workspace",
                 "category": "Build"
             },
             {
-                "command": "cmake-server.cleanProject",
+                "command": "cmake.cleanProject",
                 "title": "Clean a project",
                 "category": "Clean"
             },
             {
-                "command": "cmake-server.cleanCurrentProject",
+                "command": "cmake.cleanCurrentProject",
                 "title": "Clean current project",
                 "category": "Clean"
             },
             {
-                "command": "cmake-server.cleanWorkspace",
+                "command": "cmake.cleanWorkspace",
                 "title": "Clean workspace",
                 "category": "Clean"
             },
             {
-                "command": "cmake-server.removeBuildDirectory",
+                "command": "cmake.removeBuildDirectory",
                 "title": "Remove build directory",
                 "category": "Clean"
             },
             {
-                "command": "cmake-server.cleanRestartClient",
+                "command": "cmake.cleanRestartClient",
                 "title": "Restart CMake (Clean)",
                 "category": "CMake"
             },
             {
-                "command": "cmake-server.selectProject",
+                "command": "cmake.selectProject",
                 "title": "Select CMake Project",
                 "category": "CMake"
             },
             {
-                "command": "cmake-server.selectTarget",
+                "command": "cmake.selectTarget",
                 "title": "Select CMake Target",
                 "category": "CMake"
             },
             {
-                "command": "cmake-server.selectBuildType",
+                "command": "cmake.selectBuildType",
                 "title": "Select CMake Build Type",
                 "category": "CMake"
             }
@@ -105,13 +119,20 @@
             "type": "object",
             "title": "CMake Integration",
             "properties": {
-                "cmake-server.configureOnStart": {
+                "cmake.cmakePath": {
+                    "type": "string",
+                    "title": "CMake Path",
+                    "description": "Path to CMake executable.",
+                    "default": "cmake",
+                    "scope": "resource"
+                },
+                "cmake.configureOnStart": {
                     "type": "boolean",
                     "title": "Configure on server start",
                     "description": "Configure the project when a server is started (e.g. on open, on add)",
                     "default": "true"
                 },
-                "cmake-server.generator": {
+                "cmake.generator": {
                     "type": "string",
                     "title": "Build System Generator",
                     "description": "Select a build system generator",
@@ -140,7 +161,19 @@
                     ],
                     "default": "Ninja"
                 },
-                "cmake-server.extraGenerator": {
+                "cmake.generatorPlatform": {
+                    "type": "string",
+                    "title": "Generator Platform",
+                    "description": "Set the target platform for the generator. (See CMAKE_GENERATOR_PLATFORM)",
+                    "scope": "resource"
+                },
+                "cmake.generatorToolset": {
+                    "type": "string",
+                    "title": "Generator Toolset",
+                    "description": "Set the toolset to use for the generator. (See CMAKE_GENERATOR_TOOLSET)",
+                    "scope": "resource"
+                },
+                "cmake.extraGenerator": {
                     "type": "string",
                     "title": "Extra Generator",
                     "description": "Extra generator for an auxiliary IDE tool.",
@@ -153,7 +186,7 @@
                         "Sublime Text 2"
                     ]
                 },
-                "cmake-server.buildTypes": {
+                "cmake.buildTypes": {
                     "type": "array",
                     "title": "Additional Build Types",
                     "description": "Add additional Build Types (Configurations)",
@@ -162,8 +195,8 @@
                         "type": "string"
                     }
                 },
-                "cmake-server.cacheEntries": {
-                    "type":"object",
+                "cmake.cacheEntries": {
+                    "type": "object",
                     "title": "Additional Cache Entries",
                     "description": "Speciefies additional cache entries for CMake. (Same as -D argument)",
                     "scope": "resource",
@@ -171,7 +204,7 @@
                         "type": "string"
                     }
                 },
-                "cmake-server.configureEnviroment": {
+                "cmake.configureEnviroment": {
                     "type": "object",
                     "title": "Configuration Environment",
                     "description": "Additional environment variables for the configuration process.",
@@ -180,7 +213,7 @@
                         "type": "string"
                     }
                 },
-                "cmake-server.buildEnvironment": {
+                "cmake.buildEnvironment": {
                     "type": "object",
                     "title": "Build Environment",
                     "description": "Additional environment variables for the build process.",
@@ -189,7 +222,7 @@
                         "type": "string"
                     }
                 },
-                "cmake-server.targetDependencies": {
+                "cmake.targetDependencies": {
                     "type": "array",
                     "title": "Target Dependencies",
                     "description": "Additional dependencies between diffenrent projects and targets",
@@ -227,7 +260,7 @@
                         ]
                     }
                 },
-                "cmake-server.workspaceTargets": {
+                "cmake.workspaceTargets": {
                     "type": "array",
                     "title": "Workspace Targets",
                     "description": "Custom list of targets for build workspace command.",
@@ -251,11 +284,11 @@
         },
         "keybindings": [
             {
-                "command": "cmake-server.buildCurrentTarget",
+                "command": "cmake.buildCurrentTarget",
                 "key": "F7"
             },
             {
-                "command": "cmake-server.buildTarget",
+                "command": "cmake.buildTarget",
                 "key": "shift+F7"
             }
         ]
@@ -268,11 +301,11 @@
         "test": "npm run compile && node ./node_modules/vscode/bin/test"
     },
     "devDependencies": {
-        "@types/mocha": "^2.2.42",
+        "@types/mocha": "^5.2.5",
         "@types/node": "^8.10.25",
-        "tslint": "^5.8.0",
-        "typescript": "^2.6.1",
-        "vscode": "^1.1.21"
+        "tslint": "^5.12.0",
+        "typescript": "^3.2.0",
+        "vscode": "^1.1.26"
     },
     "dependencies": {}
 }
