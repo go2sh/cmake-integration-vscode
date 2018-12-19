@@ -70,6 +70,7 @@ specifying dependencies for a project or a target.
         { "project": "libb", "target": "special"}
     ]
 }
+```
 Both options have a JSON schema in place to guide you through the configuration.
 
 ## Known Issues
