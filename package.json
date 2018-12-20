@@ -1,15 +1,16 @@
 {
     "name": "cmake-integration-vscode",
     "displayName": "CMake Integration",
-    "description": "CMake integration for Visual Studio Code.",
+    "description": "Supercharged CMake integration for Visual Studio Code — With support for multi-root workspaces, advanced build workflows and more.",
     "author": {
         "name": "Christoph Seitz",
         "email": "christoph.seitz@posteo.de"
     },
-    "version": "0.1.0",
+    "version": "0.1.1",
     "preview": true,
     "license": "Apache-2.0",
     "publisher": "go2sh",
+    "icon": "images/cmake-logo.png",
     "engines": {
         "vscode": "^1.28.0"
     },
