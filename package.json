@@ -2,7 +2,12 @@
     "name": "cmake-integration-vscode",
     "displayName": "CMake Integration",
     "description": "CMake integration for Visual Studio Code.",
+    "author": {
+        "name": "Christoph Seitz",
+        "email": "christoph.seitz@posteo.de"
+    },
     "version": "0.1.0",
+    "preview": true,
     "license": "Apache-2.0",
     "publisher": "go2sh",
     "engines": {
@@ -12,10 +17,11 @@
         "Other"
     ],
     "keywords": [
-        "CMake",
-        "Build",
-        "C",
-        "C++"
+        "cmake",
+        "build",
+        "c",
+        "c++",
+        "multi-root"
     ],
     "bugs": {
         "url": "https://github.com/go2sh/cmake-integration-vscode/issues"
