@@ -76,8 +76,11 @@ class GCCMatcher implements ProblemMatcher {
 
     private static DIAG_REGEX = /^([\.\w/].+?):(\d+):(\d+): (error|warning|note): (.+)$/;
     private static RANGE_REGEX = /^(\s*)([\^\~]+)(\s*)$/;
+    private static INCLUDE_START_REGEX = /^In file included from ([\.\w/].+?):(\d+)(?:\,|\:)$/;
+    private static INCLUDE_REGEX = /^\s+from ([\.\w/].+?):(\d+)(?:\,|\:)$/;
     private _diagnostics: Map<vscode.Uri, vscode.Diagnostic[]> = new Map();
     private _lastDiag: vscode.Diagnostic | undefined;
+    private _includeInfo: vscode.DiagnosticRelatedInformation[] | undefined;
 
     constructor(public buildPath: string) {
 
@@ -116,16 +119,57 @@ class GCCMatcher implements ProblemMatcher {
                 this._diagnostics.set(uri, []);
             }
             this._lastDiag = new vscode.Diagnostic(range, matches[5], severity);
+            
+            if (this._includeInfo) {
+                this._lastDiag.relatedInformation = this._includeInfo;
+                this._includeInfo = undefined;
+            }
             this._diagnostics.get(uri)!.push(this._lastDiag);
         }
-            matches = line.match(GCCMatcher.RANGE_REGEX);
-            if (matches) {
+        matches = line.match(GCCMatcher.RANGE_REGEX);
+        if (matches) {
             if (this._lastDiag) {
                 let startLine = this._lastDiag.range.start.line;
                 this._lastDiag.range = new vscode.Range(
                     startLine, matches[1].length - 1,
                     startLine, matches[1].length + matches[2].length - 1
                 );
+            }
+        }
+        matches = line.match(GCCMatcher.INCLUDE_START_REGEX);
+        if (matches) {
+            this._includeInfo = [];
+
+            let filePath: string = matches[1];
+            if (!path.isAbsolute(filePath)) {
+                filePath = path.normalize(path.join(this.buildPath, filePath));
+            }
+
+            this._includeInfo.push(new vscode.DiagnosticRelatedInformation(
+                new vscode.Location(
+                    vscode.Uri.file(filePath),
+                    new vscode.Range(
+                        parseInt(matches[2]) - 1, 0,
+                        parseInt(matches[2]), 0)),
+                matches[0]
+            ));
+        }
+        matches = line.match(GCCMatcher.INCLUDE_REGEX);
+        if (matches) {
+            if (this._includeInfo) {
+                let filePath: string = matches[1];
+                if (!path.isAbsolute(filePath)) {
+                    filePath = path.normalize(path.join(this.buildPath, filePath));
+                }
+
+                this._includeInfo.push(new vscode.DiagnosticRelatedInformation(
+                    new vscode.Location(
+                        vscode.Uri.file(filePath),
+                        new vscode.Range(
+                            parseInt(matches[2]) - 1, 0,
+                            parseInt(matches[2]), 0)),
+                    matches[0]
+                ));
             }
         }
     }
