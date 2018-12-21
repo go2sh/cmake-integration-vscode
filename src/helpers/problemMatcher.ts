@@ -33,7 +33,9 @@ class CLMatcher implements ProblemMatcher {
     private static regex = /^([\w/].+?)\((\d+)\): (error|warning) (.+?): (.+)\[.+\]$/;
     private _diagnostics: Map<vscode.Uri, vscode.Diagnostic[]> = new Map();
 
-    buildPath: string = "";
+    constructor(public buildPath: string) {
+
+    }
 
     match(line: string): void {
         let matches = line.match(CLMatcher.regex);
@@ -72,27 +74,37 @@ class CLMatcher implements ProblemMatcher {
 
 class GCCMatcher implements ProblemMatcher {
 
-    private static DIAG_REGEX = /^([\w/].+?):(\d+):(\d+): (Error|Warning): (.+)$/;
+    private static DIAG_REGEX = /^([\.\w/].+?):(\d+):(\d+): (error|warning|note): (.+)$/;
     private static RANGE_REGEX = /^(\s*)([\^\~]+)(\s*)$/;
     private _diagnostics: Map<vscode.Uri, vscode.Diagnostic[]> = new Map();
     private _lastDiag: vscode.Diagnostic | undefined;
 
-    buildPath: string = "";
+    constructor(public buildPath: string) {
+
+    }
 
     match(line: string): void {
         let matches: RegExpMatchArray | null;
         matches = line.match(GCCMatcher.DIAG_REGEX);
         if (matches) {
-            let range: vscode.Range = new vscode.Range(
+            let range: vscode.Range;
+            range = new vscode.Range(
                 new vscode.Position(parseInt(matches[2]) - 1, parseInt(matches[3]) - 1),
                 new vscode.Position(parseInt(matches[2]), 0)
             );
-            let severity: vscode.DiagnosticSeverity | undefined;
-            if (matches[4] === "Error") {
-                severity = vscode.DiagnosticSeverity.Error;
-            } else if (matches[4] === "Warning") {
-                severity = vscode.DiagnosticSeverity.Warning;
+            if (this._lastDiag && this._lastDiag.range.start.compareTo(range.start) === 0) {
+                range = this._lastDiag.range;
             }
+
+            let severity: vscode.DiagnosticSeverity | undefined;
+            if (matches[4] === "error") {
+                severity = vscode.DiagnosticSeverity.Error;
+            } else if (matches[4] === "warning") {
+                severity = vscode.DiagnosticSeverity.Warning;
+            } else if (matches[4] === "note") {
+                severity = vscode.DiagnosticSeverity.Information;
+            }
+            
             let filePath: string = matches[1];
             if (!path.isAbsolute(filePath)) {
                 filePath = path.normalize(path.join(this.buildPath, filePath));
@@ -106,13 +118,13 @@ class GCCMatcher implements ProblemMatcher {
             this._lastDiag = new vscode.Diagnostic(range, matches[5], severity);
             this._diagnostics.get(uri)!.push(this._lastDiag);
         }
-        if (this._lastDiag) {
             matches = line.match(GCCMatcher.RANGE_REGEX);
             if (matches) {
+            if (this._lastDiag) {
                 let startLine = this._lastDiag.range.start.line;
                 this._lastDiag.range = new vscode.Range(
-                    startLine, matches[1].length,
-                    startLine, matches[1].length + matches[2].length
+                    startLine, matches[1].length - 1,
+                    startLine, matches[1].length + matches[2].length - 1
                 );
             }
         }
@@ -131,8 +143,8 @@ class GCCMatcher implements ProblemMatcher {
     }
 }
 
-function getProblemMatchers(): ProblemMatcher[] {
-    return [new CLMatcher(), new GCCMatcher()];
+function getProblemMatchers(buildPath: string): ProblemMatcher[] {
+    return [new CLMatcher(buildPath), new GCCMatcher(buildPath)];
 }
 
 export { ProblemMatcher, getProblemMatchers };
