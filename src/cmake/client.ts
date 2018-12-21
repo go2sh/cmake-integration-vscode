@@ -74,7 +74,7 @@ export class CMakeClient implements vscode.Disposable {
         this._target = this._context.workspaceState.get(this._project + "-target", "");
         this._buildType = this._context.workspaceState.get(this._project + "-buildType", "");
 
-        this._matchers = getProblemMatchers();
+        this._matchers = getProblemMatchers(this._buildDirectory);
         this._diagnostics = vscode.languages.createDiagnosticCollection(this.name);
 
         this._console = vscode.window.createOutputChannel("CMake (" + this.name + ")");
@@ -122,9 +122,9 @@ export class CMakeClient implements vscode.Disposable {
             return [];
         } else {
             let types = new Set<string>();
-            if (this._model.configurations.length === 1 && this._model.configurations[0].name === "") {
-                ["Debug", "Release", "RelWithDebInfo", "MinSizeRel"].forEach(types.add);
-                vscode.workspace.getConfiguration("cmake").get<string[]>("buildTypes", []).forEach(types.add);
+            if (!this.isConfigurationGenerator) {
+                ["Debug", "Release", "RelWithDebInfo", "MinSizeRel"].forEach(types.add, types);
+                vscode.workspace.getConfiguration("cmake", this.uri).get<string[]>("buildTypes", []).forEach(types.add, types);
             } else {
                 this._model.configurations.forEach((value) => types.add(value.name));
             }
