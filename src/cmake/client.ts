@@ -72,7 +72,7 @@ export class CMakeClient implements vscode.Disposable {
 
         this._project = this._context.workspaceState.get(this.name + "-project", "");
         this._target = this._context.workspaceState.get(this._project + "-target", "");
-        this._buildType = this._context.workspaceState.get(this._project + "-buildType", "");
+        this._buildType = this._context.workspaceState.get(this._project + "-buildType", "Debug");
 
         this._matchers = getProblemMatchers(this._buildDirectory);
         this._diagnostics = vscode.languages.createDiagnosticCollection(this.name);
