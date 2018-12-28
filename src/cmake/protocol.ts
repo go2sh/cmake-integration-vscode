@@ -111,6 +111,11 @@ interface CodeModel {
     configurations: Configuration[];
 }
 
+interface FileChangeSignal extends Signal{
+    path : string;
+    properties: string[];
+}
+
 interface CMakeProtocolConnection {
     listen(): void;
     onHello(handler: (data : Hello) => void): void;
@@ -155,5 +160,6 @@ function createProtocolConnection(input: NodeJS.ReadableStream, output: NodeJS.W
 export {
     Version, Hello, Progress, Display, Signal, Handshake,
     Path, FileGroup, TargetType, Target, Project, Configuration, CodeModel,
+    FileChangeSignal,
     CMakeProtocolConnection, createProtocolConnection
 };

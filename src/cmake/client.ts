@@ -425,6 +425,9 @@ export class CMakeClient implements vscode.Disposable {
 
     private onSignal(data: protocol.Signal): any {
 
+        // if (data.name === "fileChange") {
+        //     let file = data as protocol.FileChangeSignal;
+        // }
     }
 
     private onMessage(msg: protocol.Display) {
