@@ -139,6 +139,13 @@
                     "description": "Configure the project when a server is started (e.g. on open, on add)",
                     "default": "true"
                 },
+                "cmake.reconfigureOnChange": {
+                    "type": "boolean",
+                    "title": "Reconfigure project on Change",
+                    "description": "Reconfigure the project on change to the CMake files.",
+                    "scope": "window",
+                    "default": "false"
+                },
                 "cmake.generator": {
                     "type": "string",
                     "title": "Build System Generator",

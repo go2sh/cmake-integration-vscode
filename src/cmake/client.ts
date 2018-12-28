@@ -425,6 +425,11 @@ export class CMakeClient implements vscode.Disposable {
 
     private onSignal(data: protocol.Signal): any {
 
+        if (data.name === "dirty") {
+            if (vscode.workspace.getConfiguration("cmake").get("reconfigureOnChange", false)) {
+                this.configure().then(() => this.generate()).then(() => this.updateModel());
+            }
+        }
         // if (data.name === "fileChange") {
         //     let file = data as protocol.FileChangeSignal;
         // }
