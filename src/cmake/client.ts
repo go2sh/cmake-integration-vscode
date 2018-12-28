@@ -30,6 +30,10 @@ import * as protocol from './protocol';
 import { LineTransform } from '../helpers/stream';
 import { ProblemMatcher, getProblemMatchers } from '../helpers/problemMatcher';
 
+const readdir = util.promisify(fs.readdir);
+const lstat = util.promisify(fs.lstat);
+const unlink = util.promisify(fs.unlink);
+const rmdir = util.promisify(fs.rmdir);
 enum ClientState {
     STOPPED,
     CONNECTED,
@@ -217,6 +221,10 @@ export class CMakeClient implements vscode.Disposable {
             this._process!.once('exit', () => resolve());
             this._process!.kill();
         });
+        try {
+            await unlink(this.pipeName);
+        } catch (e) {
+        }
     }
 
     async configure() {
@@ -246,10 +254,6 @@ export class CMakeClient implements vscode.Disposable {
     }
 
     async removeBuildDirectory() {
-        const readdir = util.promisify(fs.readdir);
-        const lstat = util.promisify(fs.lstat);
-        const unlink = util.promisify(fs.unlink);
-        const rmdir = util.promisify(fs.rmdir);
         if (this._state > ClientState.RUNNING) {
             this._state = ClientState.RUNNING;
         }
