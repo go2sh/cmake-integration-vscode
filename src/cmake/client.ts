@@ -229,6 +229,9 @@ export class CMakeClient implements vscode.Disposable {
 
     async configure() {
         this.checkReady();
+        if (vscode.workspace.getConfiguration("cmake").get("showConsoleAutomatically", true)) {
+            this._console.show();
+        }
 
         let args: string[] = [];
         let cacheEntries = vscode.workspace.getConfiguration("cmake", this.uri).get<any>("cacheEntries", {});
@@ -295,6 +298,9 @@ export class CMakeClient implements vscode.Disposable {
         }
         if (this._state === ClientState.BUILDING) {
             return;
+        }
+        if (vscode.workspace.getConfiguration("cmake").get("showConsoleAutomatically", true)) {
+            this._console.show();
         }
 
         let cmakePath = vscode.workspace.getConfiguration("cmake", this.uri).get("cmakePath", "cmake");

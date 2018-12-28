@@ -139,6 +139,13 @@
                     "description": "Configure the project when a server is started (e.g. on open, on add)",
                     "default": "true"
                 },
+                "cmake.showConsoleAutomatically": {
+                    "type": "boolean",
+                    "title": "Automatically show CMake output",
+                    "description": "Show the CMake output during configuration or build.",
+                    "scope": "window",
+                    "default": "true"
+                },
                 "cmake.reconfigureOnChange": {
                     "type": "boolean",
                     "title": "Reconfigure project on Change",
