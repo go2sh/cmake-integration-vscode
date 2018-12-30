@@ -81,24 +81,35 @@ export class WorkspaceManager implements vscode.Disposable {
         return undefined;
     }
 
-    getClientByProject(project: string): CMakeClient | undefined {
+    getClientByProjectName(project: string): CMakeClient | undefined {
         for (let client of this._clients.values()) {
-            if (client.projects.find((value) => value === project)) {
+            if (client.projects.find((value) => value.name === project)) {
                 return client;
             }
         }
         return undefined;
     }
 
+    getProjectContexts(): ProjectContext[] {
+        let contexts: ProjectContext[] = [];
+        for (const client of this._clients.values()) {
+            client.projects.map((value) => contexts.push({
+                project: value,
+                client: client
+            }));
+        }
+        return contexts;
+    }
+
     private onModelChange(e: CMakeClient) {
         if (this.currentProject === undefined) {
             let client: CMakeClient | undefined;
-            let project: string | undefined;
+            let projectName: string | undefined;
 
             // Try to load workspace state
-            project = this._context.workspaceState.get("currentProject");
-            if (project) {
-                client = this.getClientByProject(project);
+            projectName = this._context.workspaceState.get("currentProject");
+            if (projectName) {
+                client = this.getClientByProjectName(projectName);
             }
             // Load default project
             if (client === undefined) {
@@ -191,43 +202,6 @@ export class WorkspaceManager implements vscode.Disposable {
 
     }
 
-    private async pickProject(): Promise<ProjectContext | undefined> {
-        let projects: ProjectContext[] = [];
-        for (const client of this._clients.values()) {
-            projects = projects.concat(client.projects.map((value) => {
-                return { client: client, project: value } as ProjectContext;
-            }));
-        }
-
-        interface ProjectContextItem extends vscode.QuickPickItem {
-            context: ProjectContext;
-        }
-
-        let projectPick = vscode.window.createQuickPick<ProjectContextItem>();
-        projectPick.items = projects.map((value) => {
-            return {
-                context: value,
-                label: value.project,
-                description: value.client.name
-            } as ProjectContextItem;
-        });
-        projectPick.show();
-
-        return new Promise<ProjectContext | undefined>((resolve) => {
-            let accepted = false;
-            projectPick.onDidAccept((e) => {
-                accepted = true;
-                projectPick.hide();
-                resolve(projectPick.selectedItems[0].context);
-            });
-            projectPick.onDidHide((e) => {
-                if (!accepted) {
-                    resolve(undefined);
-                }
-            });
-        });
-    }
-
     private async pickClient(): Promise<CMakeClient | undefined> {
         let clients: CMakeClient[] = new Array(...this._clients.values());
 
@@ -271,11 +245,11 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     async configureProject(current?: boolean) {
-        let client : CMakeClient | undefined;
+        let client: CMakeClient | undefined;
         if (current) {
             client = this.currentClient;
         } else {
-            let projectContext = await this.pickProject();
+            let projectContext = await pickProject(this.getProjectContexts());
             if (projectContext) {
                 client = projectContext.client;
             }
@@ -309,7 +283,7 @@ export class WorkspaceManager implements vscode.Disposable {
             let buildSteps: Dependency[][] = resolver.resolve(workspaceTargets);
             for (const step of buildSteps) {
                 await Promise.all(step.map((value) => {
-                    let client = this.getClientByProject(value.project);
+                    let client = this.getClientByProjectName(value.project);
                     if (client) {
                         client.build(value.target);
                     }
@@ -330,10 +304,10 @@ export class WorkspaceManager implements vscode.Disposable {
                 project = client.project;
             }
         } else {
-            let projectContest = await this.pickProject();
-            if (projectContest) {
-                client = projectContest.client;
-                project = projectContest.project;
+            let projectContext = await pickProject(this.getProjectContexts());
+            if (projectContext) {
+                client = projectContext.client;
+                project = projectContext.project;
             }
         }
 
@@ -347,7 +321,7 @@ export class WorkspaceManager implements vscode.Disposable {
             let buildSteps: Dependency[][] = resolver.resolve({ project: project } as Dependency);
             for (const step of buildSteps) {
                 await Promise.all(step.map((value) => {
-                    let client = this.getClientByProject(value.project);
+                    let client = this.getClientByProjectName(value.project);
                     if (client) {
                         client.build(value.target);
                     }
@@ -368,24 +342,23 @@ export class WorkspaceManager implements vscode.Disposable {
                 target = client.target;
             }
         } else {
-            let project = await this.pickProject();
-            if (project) {
-                client = project.client;
-                target = await vscode.window.showQuickPick(project.client.targets);
+            projectContext = await pickProject(this.getProjectContexts());
+            if (projectContext) {
+                target = await pickTarget(projectContext);
             }
         }
 
-        if (!client) {
+        if (!projectContext || !target) {
             return;
         }
 
         try {
             let deps = vscode.workspace.getConfiguration("cmake").get<DependencySpecification[]>("targetDependencies", []);
             let resolver = new DependencyResolver(deps);
-            let buildSteps: Dependency[][] = resolver.resolve({ project: client.project, target: target });
+            let buildSteps: Dependency[][] = resolver.resolve({ project: projectContext.project.name, target: target.name });
             for (const step of buildSteps) {
                 await Promise.all(step.map((value) => {
-                    let client = this.getClientByProject(value.project);
+                    let client = this.getClientByProjectName(value.project);
                     if (client) {
                         client.build(value.target);
                     }
@@ -412,7 +385,7 @@ export class WorkspaceManager implements vscode.Disposable {
         if (current) {
             client = this.currentClient;
         } else {
-            let project = await this.pickProject();
+            let project = await pickProject(this.getProjectContexts());
             if (project) {
                 client = project.client;
             }
@@ -430,7 +403,7 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     async selectProject() {
-        let project = await this.pickProject();
+        let project = await pickProject(this.getProjectContexts());
         if (project) {
             this.currentProject = project;
             this.updateStatusBar();
