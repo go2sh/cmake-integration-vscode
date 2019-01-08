@@ -19,12 +19,9 @@
  */
 import * as vscode from 'vscode';
 import { CMakeClient } from './cmake/client';
+import { ProjectContext, pickProject, pickTarget } from './helpers/quickPick';
 import { Dependency, DependencySpecification, DependencyResolver } from './helpers/dependencyResolver';
-
-interface ProjectContext {
-    client: CMakeClient;
-    project: string;
-}
+import * as protocol from './cmake/protocol';
 
 export class WorkspaceManager implements vscode.Disposable {
     private _context: vscode.ExtensionContext;
@@ -106,30 +103,42 @@ export class WorkspaceManager implements vscode.Disposable {
             let client: CMakeClient | undefined;
             let projectName: string | undefined;
 
-            // Try to load workspace state
+
             projectName = this._context.workspaceState.get("currentProject");
             if (projectName) {
                 client = this.getClientByProjectName(projectName);
             }
-            // Load default project
             if (client === undefined) {
                 client = e;
-                project = e.project;
             }
-            this.currentProject = { client: client!, project: project! };
+            
+            let project = client.projects.find((value) => value.name === projectName);
+            if (project) {
+                client.project = project;
+            } else {
+                project = client.project;
+            }
+            
+            if (project) {
+                this.currentProject = { client: client!, project: project! };
+            }
         } else if (this.currentProject && this.currentProject.client === e) {
-            this.currentProject.project = e.project;
+            if (e.project) {
+                this.currentProject.project = e.project;
+            } else {
+                this.currentProject = undefined;
+            }
         }
         this.updateStatusBar();
     }
 
     private updateStatusBar() {
         if (this.currentClient) {
-            this._projectItem.text = this.currentClient.project;
+            this._projectItem.text = this.currentClient.project!.name;
             this._projectItem.show();
-            this._buildTypeItem.text = this.currentClient.buildType;
+            this._buildTypeItem.text = this.currentClient.buildType!;
             this._buildTypeItem.show();
-            this._targetItem.text = this.currentClient.target;
+            this._targetItem.text = this.currentClient.target!.fullName || this.currentClient.target!.name;
             this._targetItem.show();
         } else {
             this._projectItem.hide();
@@ -273,7 +282,7 @@ export class WorkspaceManager implements vscode.Disposable {
         if (workspaceTargets.length === 0) {
             for (const client of this._clients.values()) {
                 workspaceTargets.push(...client.projects.map((value) => {
-                    return { project: value } as Dependency;
+                    return { project: value.name } as Dependency;
                 }));
             }
         }
@@ -296,7 +305,7 @@ export class WorkspaceManager implements vscode.Disposable {
 
     async buildProject(current: boolean = false) {
         let client: CMakeClient | undefined;
-        let project: string | undefined;
+        let project: protocol.Project | undefined;
 
         if (current) {
             client = this.currentClient;
@@ -311,14 +320,14 @@ export class WorkspaceManager implements vscode.Disposable {
             }
         }
 
-        if (!client) {
+        if (!client || !project) {
             return;
         }
 
         try {
             let targetDependencies = vscode.workspace.getConfiguration("cmake").get<DependencySpecification[]>("targetDependencies", []);
             let resolver = new DependencyResolver(targetDependencies);
-            let buildSteps: Dependency[][] = resolver.resolve({ project: project } as Dependency);
+            let buildSteps: Dependency[][] = resolver.resolve({ project: project.name } as Dependency);
             for (const step of buildSteps) {
                 await Promise.all(step.map((value) => {
                     let client = this.getClientByProjectName(value.project);
@@ -333,13 +342,13 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     async buildTarget(current: boolean = false) {
-        let client: CMakeClient | undefined;
-        let target: string | undefined;
+        let projectContext: ProjectContext | undefined;
+        let target: protocol.Target | undefined;
 
         if (current) {
-            client = this.currentClient;
-            if (client) {
-                target = client.target;
+            projectContext = this.currentProject;
+            if (projectContext) {
+                target = projectContext.client.target;
             }
         } else {
             projectContext = await pickProject(this.getProjectContexts());
@@ -411,15 +420,13 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     async selectTarget() {
-        if (this.currentClient === undefined) {
+        if (this.currentProject === undefined) {
             await this.selectProject();
         }
-        if (this.currentClient) {
-            let target = await vscode.window.showQuickPick(this.currentClient.targets, {
-                placeHolder: this.currentClient.target
-            });
+        if (this.currentProject) {
+            let target = await pickTarget(this.currentProject);
             if (target) {
-                this.currentClient.target = target;
+                this.currentProject.client.target = target;
             }
         }
         this.updateStatusBar();

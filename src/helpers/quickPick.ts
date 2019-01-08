@@ -62,7 +62,7 @@ async function pickTarget(context: ProjectContext): Promise<protocol.Target | un
         if (value.type !== "INTERFACE_LIBRARY") {
             arr.push({
                 target: value,
-                label: value.fullName,
+                label: value.fullName || value.name,
                 description: value.type
             });
         }

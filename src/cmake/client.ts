@@ -29,11 +29,13 @@ import * as util from 'util';
 import * as protocol from './protocol';
 import { LineTransform } from '../helpers/stream';
 import { ProblemMatcher, getProblemMatchers } from '../helpers/problemMatcher';
+import { Lock } from '../helpers/lock';
 
 const readdir = util.promisify(fs.readdir);
 const lstat = util.promisify(fs.lstat);
 const unlink = util.promisify(fs.unlink);
 const rmdir = util.promisify(fs.rmdir);
+
 enum ClientState {
     STOPPED,
     CONNECTED,
@@ -41,6 +43,20 @@ enum ClientState {
     CONFIGURED,
     GENERATED,
     BUILDING
+}
+
+class ProjectContext {
+    currentTargetName : string = "";
+}
+
+interface ProjectContextMap {
+    [key : string] : ProjectContext;
+}
+
+class ClientContext {
+    currentProjectName : string = "";
+    currentBuildType : string = "Debug";
+    projectContexts : ProjectContextMap = {};
 }
 
 export class CMakeClient implements vscode.Disposable {
@@ -51,6 +67,7 @@ export class CMakeClient implements vscode.Disposable {
     private _model: protocol.CodeModel | undefined;
     private _state: ClientState = ClientState.STOPPED;
     private _hello: Promise<protocol.Hello> | undefined;
+    private _lock : Lock = new Lock();
 
     private _console: vscode.OutputChannel;
     private _diagnostics: vscode.DiagnosticCollection;
@@ -61,9 +78,13 @@ export class CMakeClient implements vscode.Disposable {
     private _sourceDirectory: string;
     private _buildDirectory: string;
 
-    private _project: string;
-    private _buildType: string;
-    private _target: string;
+    private _clientContext : ClientContext;
+    private _project: protocol.Project | undefined;
+    private _target: protocol.Target | undefined;
+
+    private _projects : protocol.Project[] = [];
+    private _projectTargets: Map<protocol.Project, protocol.Target[]> = new Map();
+    private _targetProjects: Map<protocol.Target, protocol.Project> = new Map();
 
     private _matchers: ProblemMatcher[];
 
@@ -74,14 +95,11 @@ export class CMakeClient implements vscode.Disposable {
         this._sourceDirectory = path.dirname(this.uri.fsPath).replace(/\\/g, "/");
         this._buildDirectory = path.join(this._sourceDirectory, vscode.workspace.getConfiguration("cmake", this.uri).get("buildDirectory", "build")).replace(/\\/g, "/");
 
-        this._project = this._context.workspaceState.get(this.name + "-project", "");
-        this._target = this._context.workspaceState.get(this._project + "-target", "");
-        this._buildType = this._context.workspaceState.get(this._project + "-buildType", "Debug");
-
         this._matchers = getProblemMatchers(this._buildDirectory);
         this._diagnostics = vscode.languages.createDiagnosticCollection(this.name);
-
         this._console = vscode.window.createOutputChannel("CMake (" + this.name + ")");
+
+        this._clientContext = this._context.workspaceState.get(this.name + "-context", new ClientContext());
     }
 
     public get generator(): string {
@@ -100,27 +118,6 @@ export class CMakeClient implements vscode.Disposable {
         return vscode.workspace.getConfiguration("cmake", this.uri).get("generatorToolset");
     }
 
-    public get projects(): string[] {
-        if (this._model === undefined) {
-            return [];
-        } else {
-            return this._model.configurations.reduce((arr, elm) => {
-                if (elm.name === this.buildType) {
-                    return arr.concat(elm.projects.map((value) => value.name));
-                }
-                return arr;
-            }, [] as string[]);
-        }
-    }
-
-    public get project(): string {
-        return this._project;
-    }
-    public set project(v: string) {
-        this._project = v;
-        this._context.workspaceState.update(this.name + "-project", v);
-    }
-
     public get buildTypes(): string[] {
         if (this._model === undefined) {
             return [];
@@ -137,40 +134,55 @@ export class CMakeClient implements vscode.Disposable {
     }
 
     public get buildType(): string {
-        return this._buildType;
+        return this._clientContext.currentBuildType;
     }
     public set buildType(v: string) {
-        this._buildType = v;
-        this._context.workspaceState.update(this.project + "-buildType", v);
+        this._clientContext.currentBuildType = v;
+        this._context.workspaceState.update(this.name + "-context", this._clientContext);
     }
 
-    public get targets(): string[] {
-        if (this._model === undefined) {
-            return [];
+    public get projects(): protocol.Project[] {
+        return this._projects;
+    }
+
+    public get project(): protocol.Project | undefined {
+        return this._project;
+    }
+    public set project(v: protocol.Project | undefined) {
+        if (v && this._projectTargets.has(v)) {
+            this._project = v;
+
+            if (this._project.targets.length > 0 ) {
+                this._target = this._project.targets.find(
+                    (value) => value.name === this.currentProjectContext!.currentTargetName
+                ) || this._project.targets[0];
+                this.currentProjectContext!.currentTargetName = this._target.name;
+            } else {
+                this._target = undefined;
+            }
+        }
+        this.updateContext();
+    }
+
+    public get projectTargets(): protocol.Target[] {
+        if (this.project && this._projectTargets.has(this.project)) {
+            return this._projectTargets.get(this.project)!;
         } else {
-            let vals: string[] = [];
-            return this._model.configurations.reduce(
-                (arr, elm) => {
-                    if (elm.name === this.buildType) {
-                        return arr.concat(elm.projects.reduce((arr, elm) => {
-                            if (elm.name === this.project) {
-                                return arr.concat(elm.targets.reduce((arr, elm) => arr.concat(elm.name), arr));
-                            }
-                            return arr;
-                        }, arr));
-                    }
-                    return arr;
-                }, vals
-            );
+            return [];
         }
     }
 
-    public get target(): string {
+    public get target(): protocol.Target | undefined {
         return this._target;
     }
-    public set target(v: string) {
-        this._target = v;
-        this._context.workspaceState.update(this.project + "-target", v);
+    public set target(v: protocol.Target | undefined) {
+        if (v && this._targetProjects.has(v)) {
+            this._target = v;
+            this._project = this._targetProjects.get(v)!;
+        } else {
+            this._target = undefined;
+        }
+        this.updateContext();
     }
 
     public get isConfigurationGenerator(): boolean {
@@ -191,6 +203,35 @@ export class CMakeClient implements vscode.Disposable {
         } else {
             return path.join(os.tmpdir(), this.name + "-" + process.pid + "-cmake.sock");
         }
+    }
+
+    private get currentProjectContext() : ProjectContext | undefined {
+        if (this._project) {
+            let projectContext : ProjectContext;
+            if (!this._clientContext.projectContexts.hasOwnProperty(this._project.name)) {
+                projectContext = new ProjectContext();
+                this._clientContext.projectContexts[this._project.name] = projectContext;
+            } else {
+                projectContext = this._clientContext.projectContexts[this._project.name];
+            }
+            return projectContext;
+        }
+        return undefined;
+    }
+    
+    private updateContext() {
+        if (this._project) {
+            this._clientContext.currentProjectName = this._project.name;
+
+            if (this._target) {
+                this.currentProjectContext!.currentTargetName = this._target.name;
+            } else {
+                this.currentProjectContext!.currentTargetName = "";
+            }
+        } else {
+            this._clientContext.currentProjectName = "";
+        }
+        this._context.workspaceState.update(this.name + "-context", this._clientContext);
     }
 
     async start() {
@@ -221,6 +262,7 @@ export class CMakeClient implements vscode.Disposable {
             this._process!.once('exit', () => resolve());
             this._process!.kill();
         });
+
         try {
             await unlink(this.pipeName);
         } catch (e) {
@@ -229,6 +271,7 @@ export class CMakeClient implements vscode.Disposable {
 
     async configure() {
         this.checkReady();
+        await this._lock.lock();
         if (vscode.workspace.getConfiguration("cmake").get("showConsoleAutomatically", true)) {
             this._console.show();
         }
@@ -239,12 +282,13 @@ export class CMakeClient implements vscode.Disposable {
             args.push("-D" + entry + "=" + cacheEntries[entry]);
         }
 
-        if (!this.isConfigurationGenerator) {
+        if (!this.isConfigurationGenerator && this.buildType) {
             args.push("-DCMAKE_BUILD_TYPE=" + this.buildType);
         }
-
+        this._state = ClientState.RUNNING;
         await this._connection!.configure(args);
         this._state = ClientState.CONFIGURED;
+        this._lock.unlock();
     }
 
     async generate() {
@@ -252,8 +296,11 @@ export class CMakeClient implements vscode.Disposable {
         if (this._state === ClientState.RUNNING) {
             await this.configure();
         }
+        await this._lock.lock();
+        this._state = ClientState.CONFIGURED;
         await this._connection!.compute();
         this._state = ClientState.GENERATED;
+        this._lock.unlock();
     }
 
     async removeBuildDirectory() {
@@ -310,7 +357,7 @@ export class CMakeClient implements vscode.Disposable {
             args.push("--target", target);
         }
         if (this.isConfigurationGenerator) {
-            args.push("--config", this.buildType);
+            args.push("--config", this.buildType!);
         }
         let configEnv = vscode.workspace.getConfiguration("cmake", this.uri).get("buildEnvironment", {});
         let processEnv = process.env;
@@ -353,9 +400,43 @@ export class CMakeClient implements vscode.Disposable {
     }
 
     private updateValues() {
-        this.buildType = this.buildTypes.find((value) => value === this.buildType) || this.buildTypes[0] || "";
-        this.project = this.projects.find((value) => value === this.project) || this.projects[0] || "";
-        this.target = this.targets.find((value) => value === this.target) || this.targets[0] || "";
+        this.buildType =
+            this.buildTypes.find(
+                (value) => value === this.buildType) ||
+            this.buildTypes[0];
+
+        this._projects = this._model!.configurations.find((value) => value.name === this.buildType)!.projects;
+        this._projectTargets.clear();
+        this._targetProjects.clear();
+        this._model!.configurations
+            .find((value => value.name === this.buildType))!
+            .projects.forEach(
+                (value) => this._projectTargets.set(value, value.targets)
+            );
+        this._model!.configurations
+            .find((value => value.name === this.buildType))!
+            .projects.forEach(
+                (project) => project.targets.forEach(
+                    (target) => this._targetProjects.set(target, project)
+                )
+            );
+        
+        if (this._projects.length > 0) {
+            this._project = this._projects.find((value) => value.name === this._clientContext.currentProjectName) || this._projects[0];
+            this._clientContext.currentProjectName = this._project.name;
+
+            let context = this.currentProjectContext!;
+            if (this._project.targets.length > 0) {
+                let target = this._project.targets.find((value) => context.currentTargetName === value.name) || this._project.targets[0];
+                this._target = target;
+                context.currentTargetName = target.name;
+            } else {
+                this._target = undefined;
+            }
+        } else {
+            this._project = undefined;
+            this._target = undefined;
+        }
     }
 
     private checkReady() {
@@ -430,9 +511,8 @@ export class CMakeClient implements vscode.Disposable {
     }
 
     private onSignal(data: protocol.Signal): any {
-
         if (data.name === "dirty") {
-            if (vscode.workspace.getConfiguration("cmake").get("reconfigureOnChange", false)) {
+            if (vscode.workspace.getConfiguration("cmake").get("reconfigureOnChange", false) && this._state === ClientState.GENERATED) {
                 this.configure().then(() => this.generate()).then(() => this.updateModel());
             }
         }
