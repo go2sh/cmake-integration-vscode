@@ -424,6 +424,7 @@ export class WorkspaceManager implements vscode.Disposable {
         let project = await pickProject(this.getProjectContexts());
         if (project) {
             this.currentProject = project;
+            this.currentProject.client.project = project.project;
             this.updateStatusBar();
         }
     }
