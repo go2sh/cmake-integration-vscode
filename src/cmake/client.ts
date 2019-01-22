@@ -152,10 +152,10 @@ export class CMakeClient implements vscode.Disposable {
         if (v && this._projectTargets.has(v)) {
             this._project = v;
 
-            if (this._project.targets.length > 0 ) {
-                this._target = this._project.targets.find(
+            if (this.projectBuildTargets.length > 0 ) {
+                this._target = this.projectBuildTargets.find(
                     (value) => value.name === this.currentProjectContext!.currentTargetName
-                ) || this._project.targets[0];
+                ) || this.projectBuildTargets[0];
                 this.currentProjectContext!.currentTargetName = this._target.name;
             } else {
                 this._target = undefined;
@@ -165,11 +165,15 @@ export class CMakeClient implements vscode.Disposable {
     }
 
     public get projectTargets(): protocol.Target[] {
-        if (this.project && this._projectTargets.has(this.project)) {
-            return this._projectTargets.get(this.project)!;
+        if (this.project) {
+            return this.project.targets;
         } else {
             return [];
         }
+    }
+
+    public get projectBuildTargets() : protocol.Target[] {
+        return this.projectTargets.filter((value) => value.type !== "INTERFACE_LIBRARY");
     }
 
     public get target(): protocol.Target | undefined {
@@ -408,26 +412,20 @@ export class CMakeClient implements vscode.Disposable {
         this._projects = this._model!.configurations.find((value) => value.name === this.buildType)!.projects;
         this._projectTargets.clear();
         this._targetProjects.clear();
-        this._model!.configurations
-            .find((value => value.name === this.buildType))!
-            .projects.forEach(
-                (value) => this._projectTargets.set(value, value.targets)
-            );
-        this._model!.configurations
-            .find((value => value.name === this.buildType))!
-            .projects.forEach(
-                (project) => project.targets.forEach(
-                    (target) => this._targetProjects.set(target, project)
-                )
-            );
-        
+
+        this._projects.forEach((project) => {
+            this._projectTargets.set(project, project.targets);
+            project.targets.forEach((target) =>  this._targetProjects.set(target, project));
+        });
+
         if (this._projects.length > 0) {
             this._project = this._projects.find((value) => value.name === this._clientContext.currentProjectName) || this._projects[0];
             this._clientContext.currentProjectName = this._project.name;
 
             let context = this.currentProjectContext!;
-            if (this._project.targets.length > 0) {
-                let target = this._project.targets.find((value) => context.currentTargetName === value.name) || this._project.targets[0];
+            let targets = this.projectBuildTargets;
+            if (targets && targets.length > 0) {
+                let target = targets.find((value) => context.currentTargetName === value.name) || targets[0];
                 this._target = target;
                 context.currentTargetName = target.name;
             } else {

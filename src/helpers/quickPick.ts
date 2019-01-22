@@ -58,16 +58,13 @@ interface TargetItem extends vscode.QuickPickItem {
 
 async function pickTarget(context: ProjectContext): Promise<protocol.Target | undefined> {
     let targetPick = vscode.window.createQuickPick<TargetItem>();
-    targetPick.items = context.project.targets.reduce((arr, value) => {
-        if (value.type !== "INTERFACE_LIBRARY") {
-            arr.push({
-                target: value,
-                label: value.fullName || value.name,
-                description: value.type
-            });
-        }
-        return arr;
-    }, [] as TargetItem[]);
+    targetPick.items = context.client.projectBuildTargets.map((value) => {
+        return {
+            target: value,
+            label: value.fullName || value.name,
+            description: value.type
+        };
+    });
     targetPick.show();
 
     return new Promise<protocol.Target | undefined>((resolve) => {
