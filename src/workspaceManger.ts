@@ -134,12 +134,21 @@ export class WorkspaceManager implements vscode.Disposable {
 
     private updateStatusBar() {
         if (this.currentClient) {
-            this._projectItem.text = this.currentClient.project!.name;
+            if (this.currentClient.project) {
+                this._projectItem.text = this.currentClient.project.name;
+                if (this.currentClient.target) {
+                    this._targetItem.text = this.currentClient.target.fullName || this.currentClient.target.name;
+                } else {
+                    this._projectItem.text = "No Target";
+                }
+                this._targetItem.show();
+            } else {
+                this._projectItem.text = "No Project";
+                this._targetItem.hide();
+            }
             this._projectItem.show();
-            this._buildTypeItem.text = this.currentClient.buildType!;
+            this._buildTypeItem.text = this.currentClient.buildType;
             this._buildTypeItem.show();
-            this._targetItem.text = this.currentClient.target!.fullName || this.currentClient.target!.name;
-            this._targetItem.show();
         } else {
             this._projectItem.hide();
             this._buildTypeItem.hide();
