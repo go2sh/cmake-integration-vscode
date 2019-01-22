@@ -87,6 +87,11 @@ Both options have a JSON schema in place to guide you through the configuration.
 
 None.
 
+## Contributing
+As this extension is in a preview state, it is neither bug-free nor feature-complete.
+Your help is highly appreciated and feel free to contribute to this extension by 
+opening a bug report or feature request or contribute directly via pull requests.
+
 ## Roadmap
 
  * CTest support
