@@ -6,7 +6,7 @@
         "name": "Christoph Seitz",
         "email": "christoph.seitz@posteo.de"
     },
-    "version": "0.2.0",
+    "version": "0.3.0-beta1",
     "preview": true,
     "license": "Apache-2.0",
     "publisher": "go2sh",

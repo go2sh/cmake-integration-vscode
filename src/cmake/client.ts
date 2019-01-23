@@ -64,10 +64,12 @@ export class CMakeClient implements vscode.Disposable {
     private _process: child_process.ChildProcess | undefined;
     private _connection: protocol.CMakeProtocolConnection | undefined;
 
-    private _model: protocol.CodeModel | undefined;
     private _state: ClientState = ClientState.STOPPED;
     private _hello: Promise<protocol.Hello> | undefined;
     private _lock : Lock = new Lock();
+
+    private _model: protocol.CodeModel | undefined;
+    private _cache: Map<string, protocol.CacheValue> = new Map();
 
     private _console: vscode.OutputChannel;
     private _diagnostics: vscode.DiagnosticCollection;
@@ -83,10 +85,12 @@ export class CMakeClient implements vscode.Disposable {
     private _target: protocol.Target | undefined;
 
     private _projects : protocol.Project[] = [];
+    private _targets : protocol.Target[] = [];
     private _projectTargets: Map<protocol.Project, protocol.Target[]> = new Map();
     private _targetProjects: Map<protocol.Target, protocol.Project> = new Map();
 
     private _matchers: ProblemMatcher[];
+    
 
     constructor(
         readonly uri: vscode.Uri,
@@ -174,6 +178,10 @@ export class CMakeClient implements vscode.Disposable {
 
     public get projectBuildTargets() : protocol.Target[] {
         return this.projectTargets.filter((value) => value.type !== "INTERFACE_LIBRARY");
+    }
+
+    public get targets() : protocol.Target[] {
+        return this._targets;
     }
 
     public get target(): protocol.Target | undefined {
@@ -340,7 +348,16 @@ export class CMakeClient implements vscode.Disposable {
         }
         this._model = await this._connection!.codemodel();
         this.updateValues();
+        
+        let cache = await this._connection!.cache();
+        this._cache.clear();
+        cache.forEach((value) => this._cache.set(value.key, value));
+
         this._onModelChange.fire(this);
+    }
+
+    getCacheValue(key : string) : protocol.CacheValue | undefined {
+        return this._cache.get(key);
     }
 
     async build(target?: string) {
@@ -414,6 +431,7 @@ export class CMakeClient implements vscode.Disposable {
         this._targetProjects.clear();
 
         this._projects.forEach((project) => {
+            this._targets.splice(this._targets.length, 0, ...project.targets);
             this._projectTargets.set(project, project.targets);
             project.targets.forEach((target) =>  this._targetProjects.set(target, project));
         });

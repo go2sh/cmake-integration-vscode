@@ -19,13 +19,13 @@
  */
 'use strict';
 import * as vscode from 'vscode';
-
 import { WorkspaceManager } from './workspaceManger';
+
 
 let manager: WorkspaceManager;
 let disposables: vscode.Disposable[];
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
     disposables = [];
     manager = new WorkspaceManager(context);
 
@@ -134,6 +134,8 @@ export function activate(context: vscode.ExtensionContext) {
             async () => await manager.restartClient(true)
         )
     );
+
+    await manager.registerCppProvider();
 }
 
 // this method is called when your extension is deactivated

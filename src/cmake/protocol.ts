@@ -116,6 +116,25 @@ interface FileChangeSignal extends Signal{
     properties: string[];
 }
 
+enum CacheType {
+    Boolean = "BOOL",
+    FilePath = "FILEPATH",
+    Path = "PATH",
+    String = "STRING",
+    Internal = "INTERNAL"
+}
+
+interface CacheValue {
+    key: string;
+    properties: {[key : string] : string};
+    type: CacheType;
+    value: string;
+}
+
+interface Cache {
+    cache: CacheValue[];
+}
+
 interface CMakeProtocolConnection {
     listen(): void;
     onHello(handler: (data : Hello) => void): void;
@@ -125,6 +144,7 @@ interface CMakeProtocolConnection {
     configure(args: string[]): Promise<void>;
     compute(): Promise<void>;
     codemodel(): Promise<CodeModel>;
+    cache(keys?:string[]) : Promise<CacheValue[]>;
     handshake(data : Handshake): Promise<void>;
 }
 
@@ -148,6 +168,10 @@ function createProtocolConnection(input: NodeJS.ReadableStream, output: NodeJS.W
         async codemodel(): Promise<CodeModel> {
             return connection.sendRequest<CodeModel>("codemodel", {});
         },
+        async cache(keys? : string[]) : Promise<CacheValue[]> {
+            let cache = await connection.sendRequest<Cache>("cache", {keys: keys});
+            return cache.cache;
+        },
         handshake(data : Handshake): Promise<void> {
             return connection.sendRequest("handshake", data);
         }
@@ -160,6 +184,6 @@ function createProtocolConnection(input: NodeJS.ReadableStream, output: NodeJS.W
 export {
     Version, Hello, Progress, Display, Signal, Handshake,
     Path, FileGroup, TargetType, Target, Project, Configuration, CodeModel,
-    FileChangeSignal,
+    FileChangeSignal, CacheValue, CacheType,
     CMakeProtocolConnection, createProtocolConnection
 };

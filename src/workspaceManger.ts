@@ -22,6 +22,8 @@ import { CMakeClient } from './cmake/client';
 import { ProjectContext, pickProject, pickTarget } from './helpers/quickPick';
 import { Dependency, DependencySpecification, DependencyResolver } from './helpers/dependencyResolver';
 import * as protocol from './cmake/protocol';
+import { ConfigurationProvider } from './cpptools/configurationProvider';
+import { CppToolsApi, Version, getCppToolsApi } from 'vscode-cpptools';
 
 export class WorkspaceManager implements vscode.Disposable {
     private _context: vscode.ExtensionContext;
@@ -34,6 +36,9 @@ export class WorkspaceManager implements vscode.Disposable {
     private _targetItem: vscode.StatusBarItem;
 
     private _currentProject: ProjectContext | undefined;
+
+    private cppProvider: ConfigurationProvider;
+    private api: CppToolsApi | undefined;
 
     constructor(context: vscode.ExtensionContext) {
         this._context = context;
@@ -59,6 +64,8 @@ export class WorkspaceManager implements vscode.Disposable {
         this._projectItem.command = "cmake.selectProject";
         this._targetItem.command = "cmake.selectTarget";
         this._buildTypeItem.command = "cmake.selectBuildType";
+
+        this.cppProvider = new ConfigurationProvider();
     }
 
     private get currentProject() {
@@ -76,6 +83,13 @@ export class WorkspaceManager implements vscode.Disposable {
             return this.currentProject.client;
         }
         return undefined;
+    }
+
+    async registerCppProvider() {
+        this.api = await getCppToolsApi(Version.v2);
+        if (this.api) {
+            this.api.registerCustomConfigurationProvider(this.cppProvider);
+        }
     }
 
     getClientByProjectName(project: string): CMakeClient | undefined {
@@ -130,6 +144,14 @@ export class WorkspaceManager implements vscode.Disposable {
             }
         }
         this.updateStatusBar();
+        if (this.api) {
+            this.cppProvider.updateClient(e);
+            if (this.cppProvider.isReady) {
+                this.api.notifyReady(this.cppProvider);
+            }
+            // this.api.didChangeCustomBrowseConfiguration(this.cppProvider);
+            // this.api.didChangeCustomConfiguration(this.cppProvider);
+        }
     }
 
     private updateStatusBar() {
@@ -191,6 +213,7 @@ export class WorkspaceManager implements vscode.Disposable {
         client.onModelChange((e) => this.onModelChange(e));
 
         this._clients.set(uri.fsPath, client);
+        this.cppProvider.addClient(client);
 
         try {
             await client.start();
@@ -212,6 +235,7 @@ export class WorkspaceManager implements vscode.Disposable {
         if (client) {
             client.dispose();
             this._clients.delete(uri.fsPath);
+            this.cppProvider.deleteClient(client);
         }
         this.updateStatusBar();
     }
