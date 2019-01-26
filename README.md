@@ -25,10 +25,11 @@ CMake version 3.7 or higher must be installed.
 
 ## Quick Start
 
-  1. Configure your default Generator in your User Settings (Default is Ninja).
+  1. Configure your default Generator in your User Settings (Default is Ninja):  
+     e.g. `"cmake.generator": "Unix Makefiles"`
   2. Add your CMake project(s) to the workspace.
   3. Select your project, target and configuration from the status bar.
-  4. Hit F7 for building the currently selected target or Shift+F7 for the
+  4. Hit <kbd>F7</kbd> for building the currently selected target or <kbd>Shift</kbd>+<kbd>F7</kbd> for the
      currently selected project (build all).
 
 ### Pitfalls
