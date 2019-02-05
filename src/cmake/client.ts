@@ -1,12 +1,12 @@
-/*     
+/*
  * Copyright 2018 Christoph Seitz
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -46,17 +46,17 @@ enum ClientState {
 }
 
 class ProjectContext {
-    currentTargetName : string = "";
+    currentTargetName: string = "";
 }
 
 interface ProjectContextMap {
-    [key : string] : ProjectContext;
+    [key: string]: ProjectContext;
 }
 
 class ClientContext {
-    currentProjectName : string = "";
-    currentBuildType : string = "Debug";
-    projectContexts : ProjectContextMap = {};
+    currentProjectName: string = "";
+    currentBuildType: string = "Debug";
+    projectContexts: ProjectContextMap = {};
 }
 
 export class CMakeClient implements vscode.Disposable {
@@ -79,17 +79,17 @@ export class CMakeClient implements vscode.Disposable {
     private _sourceDirectory: string;
     private _buildDirectory: string;
 
-    private _clientContext : ClientContext;
+    private _clientContext: ClientContext;
     private _project: protocol.Project | undefined;
     private _target: protocol.Target | undefined;
 
-    private _projects : protocol.Project[] = [];
-    private _targets : protocol.Target[] = [];
+    private _projects: protocol.Project[] = [];
+    private _targets: protocol.Target[] = [];
     private _projectTargets: Map<protocol.Project, protocol.Target[]> = new Map();
     private _targetProjects: Map<protocol.Target, protocol.Project> = new Map();
 
     private _matchers: ProblemMatcher[];
-    
+
 
     constructor(
         readonly uri: vscode.Uri,
@@ -155,7 +155,7 @@ export class CMakeClient implements vscode.Disposable {
         if (v && this._projectTargets.has(v)) {
             this._project = v;
 
-            if (this.projectBuildTargets.length > 0 ) {
+            if (this.projectBuildTargets.length > 0) {
                 this._target = this.projectBuildTargets.find(
                     (value) => value.name === this.currentProjectContext!.currentTargetName
                 ) || this.projectBuildTargets[0];
@@ -175,11 +175,11 @@ export class CMakeClient implements vscode.Disposable {
         }
     }
 
-    public get projectBuildTargets() : protocol.Target[] {
+    public get projectBuildTargets(): protocol.Target[] {
         return this.projectTargets.filter((value) => value.type !== "INTERFACE_LIBRARY");
     }
 
-    public get targets() : protocol.Target[] {
+    public get targets(): protocol.Target[] {
         return this._targets;
     }
 
@@ -216,9 +216,9 @@ export class CMakeClient implements vscode.Disposable {
         }
     }
 
-    private get currentProjectContext() : ProjectContext | undefined {
+    private get currentProjectContext(): ProjectContext | undefined {
         if (this._project) {
-            let projectContext : ProjectContext;
+            let projectContext: ProjectContext;
             if (!this._clientContext.projectContexts.hasOwnProperty(this._project.name)) {
                 projectContext = new ProjectContext();
                 this._clientContext.projectContexts[this._project.name] = projectContext;
@@ -229,7 +229,7 @@ export class CMakeClient implements vscode.Disposable {
         }
         return undefined;
     }
-    
+
     private updateContext() {
         if (this._project) {
             this._clientContext.currentProjectName = this._project.name;
@@ -373,17 +373,21 @@ export class CMakeClient implements vscode.Disposable {
         this._onModelChange.fire(this);
     }
 
-    getCacheValue(key : string) : protocol.CacheValue | undefined {
+    getCacheValue(key: string): protocol.CacheValue | undefined {
         return this._cache.get(key);
     }
 
     async build(target?: string) {
         if (this._state < ClientState.GENERATED) {
-            throw new Error("Build system not generated yet.");
+            vscode.window.showWarningMessage(
+                "Build directory for " + this.name + " needs to be generated first."
+            );
+            return;
         }
         if (this._state === ClientState.BUILDING) {
             return;
         }
+
         if (vscode.workspace.getConfiguration("cmake").get("showConsoleAutomatically", true)) {
             this._console.show();
         }
@@ -397,16 +401,14 @@ export class CMakeClient implements vscode.Disposable {
         if (this.isConfigurationGenerator) {
             args.push("--config", this.buildType!);
         }
+
         let configEnv = vscode.workspace.getConfiguration("cmake", this.uri).get("buildEnvironment", {});
         let processEnv = process.env;
         let env = { ...processEnv, ...configEnv };
 
-        this._matchers.forEach((value) => value.clear());
         let buildProc = child_process.execFile(cmakePath, args, {
             env: env
         });
-        this._state = ClientState.BUILDING;
-
         buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
             this._console.appendLine(chunk);
             this.handleBuildLine(chunk);
@@ -416,9 +418,14 @@ export class CMakeClient implements vscode.Disposable {
             this.handleBuildLine(chunk);
         });
 
+        this._matchers.forEach((value) => value.clear());
+        this._state = ClientState.BUILDING;
+
         return new Promise((resolve, reject) => {
+            let error = false;
             buildProc.on("error", (err) => {
                 this._state = ClientState.GENERATED;
+                error = true;
                 reject(err);
             });
             buildProc.on("exit", (code, signal) => {
@@ -428,7 +435,9 @@ export class CMakeClient implements vscode.Disposable {
                         [] as [vscode.Uri, vscode.Diagnostic[] | undefined][])
                 );
                 this._state = ClientState.GENERATED;
-                resolve();
+                if (!error) {
+                    resolve();
+                }
             });
         });
     }
@@ -450,7 +459,7 @@ export class CMakeClient implements vscode.Disposable {
         this._projects.forEach((project) => {
             this._targets.splice(this._targets.length, 0, ...project.targets);
             this._projectTargets.set(project, project.targets);
-            project.targets.forEach((target) =>  this._targetProjects.set(target, project));
+            project.targets.forEach((target) => this._targetProjects.set(target, project));
         });
 
         if (this._projects.length > 0) {

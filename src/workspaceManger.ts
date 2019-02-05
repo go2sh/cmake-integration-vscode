@@ -1,12 +1,12 @@
-/*     
+/*
  * Copyright 2018 Christoph Seitz
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -125,14 +125,14 @@ export class WorkspaceManager implements vscode.Disposable {
             if (client === undefined) {
                 client = e;
             }
-            
+
             let project = client.projects.find((value) => value.name === projectName);
             if (project) {
                 client.project = project;
             } else {
                 project = client.project;
             }
-            
+
             if (project) {
                 this.currentProject = { client: client!, project: project! };
             }
@@ -250,7 +250,9 @@ export class WorkspaceManager implements vscode.Disposable {
                 value.configure().then(() => value.updateModel());
             }));
         } catch (e) {
-            vscode.window.showErrorMessage("Failed to configure workspace: " + e.message);
+            vscode.window.showErrorMessage(
+                "Failed to configure workspace: +" + e.message
+            );
         }
     }
 
@@ -478,7 +480,9 @@ export class WorkspaceManager implements vscode.Disposable {
                     }
                 }
             } catch (e) {
-                vscode.window.showErrorMessage("Failed to restart CMake: " + e.message);
+                vscode.window.showErrorMessage(
+                    "Failed to restart CMake Server (" + client.name + "): " + e.message
+                );
             }
         }
     }
