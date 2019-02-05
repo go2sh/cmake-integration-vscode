@@ -29,7 +29,6 @@ import * as util from 'util';
 import * as protocol from './protocol';
 import { LineTransform } from '../helpers/stream';
 import { ProblemMatcher, getProblemMatchers } from '../helpers/problemMatcher';
-import { Lock } from '../helpers/lock';
 
 const readdir = util.promisify(fs.readdir);
 const lstat = util.promisify(fs.lstat);
@@ -66,7 +65,6 @@ export class CMakeClient implements vscode.Disposable {
 
     private _state: ClientState = ClientState.STOPPED;
     private _hello: Promise<protocol.Hello> | undefined;
-    private _lock : Lock = new Lock();
 
     private _model: protocol.CodeModel | undefined;
     private _cache: Map<string, protocol.CacheValue> = new Map();
@@ -282,8 +280,10 @@ export class CMakeClient implements vscode.Disposable {
     }
 
     async configure() {
-        this.checkReady();
-        await this._lock.lock();
+        if (!this._connection || this._state < ClientState.RUNNING) {
+            vscode.window.showWarningMessage("CMake Server (" + this.name + " is not running.");
+            return;
+        }
         if (vscode.workspace.getConfiguration("cmake").get("showConsoleAutomatically", true)) {
             this._console.show();
         }
@@ -308,7 +308,6 @@ export class CMakeClient implements vscode.Disposable {
 
         await this._connection.compute();
         this._state = ClientState.GENERATED;
-        this._lock.unlock();
     }
 
     async removeBuildDirectory() {
@@ -525,7 +524,7 @@ export class CMakeClient implements vscode.Disposable {
     private onSignal(data: protocol.Signal): any {
         if (data.name === "dirty") {
             if (vscode.workspace.getConfiguration("cmake").get("reconfigureOnChange", false) && this._state === ClientState.GENERATED) {
-                this.configure().then(() => this.generate()).then(() => this.updateModel());
+                this.configure().then(() => this.updateModel());
             }
         }
         // if (data.name === "fileChange") {
