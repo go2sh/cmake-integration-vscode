@@ -1,7 +1,68 @@
+/*
+ * Copyright 2019 Christoph Seitz
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+*/
+/*
+ * Handling all quick pick action for clients, projects and targets.
+ */
 import * as vscode from "vscode";
 import * as protocol from '../cmake/protocol';
 import { CMakeClient } from "../cmake/client";
 
+interface CMakeClientItem extends vscode.QuickPickItem {
+    client: CMakeClient;
+}
+
+async function pickClient(clients: CMakeClient[]): Promise<CMakeClient | undefined> {
+
+    let clientPick = vscode.window.createQuickPick<CMakeClientItem>();
+    clientPick.items = clients.map((value) => {
+        return {
+            client: value,
+            label: value.name,
+            description: value.sourceDirectory
+        } as CMakeClientItem;
+    });
+    clientPick.show();
+
+    return new Promise<CMakeClient | undefined>((resolve) => {
+        let activeItem: CMakeClientItem;
+        clientPick.onDidChangeSelection((e) => {
+            const result = clientPick.activeItems[0];
+            if (result) {
+                resolve(result.client);
+                clientPick.hide();
+            }
+        });
+        clientPick.onDidChangeValue(value => {
+            if (activeItem && !value && (clientPick.activeItems.length !== 1 || clientPick.activeItems[0] !== activeItem)) {
+                clientPick.activeItems = [activeItem];
+            }
+        });
+        clientPick.onDidAccept((e) => {
+            const result = clientPick.activeItems[0];
+            if (result) {
+                resolve(result.client);
+                clientPick.hide();
+            }
+        });
+        clientPick.onDidHide((e) => {
+            resolve(undefined);
+            clientPick.dispose();
+        });
+    });
+}
 
 interface ProjectContext {
     client: CMakeClient;
@@ -68,7 +129,7 @@ async function pickTarget(context: ProjectContext): Promise<protocol.Target | un
     targetPick.show();
 
     return new Promise<protocol.Target | undefined>((resolve) => {
-        let activeItem : TargetItem;
+        let activeItem: TargetItem;
         targetPick.onDidChangeSelection((e) => {
             const result = targetPick.activeItems[0];
             if (result) {
@@ -95,4 +156,4 @@ async function pickTarget(context: ProjectContext): Promise<protocol.Target | un
     });
 }
 
-export { ProjectContext, pickProject, pickTarget };
+export { ProjectContext, pickProject, pickTarget, pickClient };

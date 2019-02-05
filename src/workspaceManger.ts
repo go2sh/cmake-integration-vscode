@@ -19,7 +19,7 @@
  */
 import * as vscode from 'vscode';
 import { CMakeClient } from './cmake/client';
-import { ProjectContext, pickProject, pickTarget } from './helpers/quickPick';
+import { ProjectContext, pickProject, pickTarget, pickClient } from './helpers/quickPick';
 import { Dependency, DependencySpecification, DependencyResolver } from './helpers/dependencyResolver';
 import * as protocol from './cmake/protocol';
 import { ConfigurationProvider } from './cpptools/configurationProvider';
@@ -244,38 +244,6 @@ export class WorkspaceManager implements vscode.Disposable {
 
     }
 
-    private async pickClient(): Promise<CMakeClient | undefined> {
-        let clients: CMakeClient[] = new Array(...this._clients.values());
-
-        interface CMakeClientItem extends vscode.QuickPickItem {
-            client: CMakeClient;
-        }
-
-        let clientPick = vscode.window.createQuickPick<CMakeClientItem>();
-        clientPick.items = clients.map((value) => {
-            return {
-                client: value,
-                label: value.name,
-                description: value.sourceDirectory
-            } as CMakeClientItem;
-        });
-        clientPick.show();
-
-        return new Promise<CMakeClient | undefined>((resolve) => {
-            let accepted = false;
-            clientPick.onDidAccept((e) => {
-                accepted = true;
-                clientPick.hide();
-                resolve(clientPick.selectedItems[0].client);
-            });
-            clientPick.onDidHide((e) => {
-                if (!accepted) {
-                    resolve(undefined);
-                }
-            });
-        });
-    }
-
     async configureWorkspace() {
         try {
             await Promise.all([...this._clients.values()].map((value) => {
@@ -483,7 +451,7 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     async removeBuildDirectory() {
-        let client = await this.pickClient();
+        let client = await pickClient([...this._clients.values()]);
         if (client) {
             try {
                 await client.removeBuildDirectory();
@@ -494,7 +462,7 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     async restartClient(clean?: boolean) {
-        let client = await this.pickClient();
+        let client = await pickClient([...this._clients.values()]);
         if (client) {
             try {
                 await client.stop();
