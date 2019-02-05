@@ -219,7 +219,7 @@ export class WorkspaceManager implements vscode.Disposable {
             await client.start();
             if (vscode.workspace.getConfiguration("cmake").get("configureOnStart", true)) {
                 try {
-                    await client.generate();
+                    await client.configure();
                     await client.updateModel();
                 } catch (e) {
                     vscode.window.showErrorMessage("Failed to configure project(" + client.name + "): " + e.message);
@@ -247,7 +247,7 @@ export class WorkspaceManager implements vscode.Disposable {
     async configureWorkspace() {
         try {
             await Promise.all([...this._clients.values()].map((value) => {
-                value.configure().then(() => value.generate()).then(() => value.updateModel());
+                value.configure().then(() => value.updateModel());
             }));
         } catch (e) {
             vscode.window.showErrorMessage("Failed to configure workspace: " + e.message);
@@ -267,7 +267,6 @@ export class WorkspaceManager implements vscode.Disposable {
         if (client) {
             try {
                 await client.configure();
-                await client.generate();
                 await client.updateModel();
             } catch (e) {
                 vscode.window.showErrorMessage("Failed to configure project(" + client.project + "): " + e.message);
@@ -472,7 +471,7 @@ export class WorkspaceManager implements vscode.Disposable {
                 await client.start();
                 if (vscode.workspace.getConfiguration("cmake").get("configureOnStart", true)) {
                     try {
-                        await client.generate();
+                        await client.configure();
                         await client.updateModel();
                     } catch (e) {
                         vscode.window.showErrorMessage("Failed to configure project(" + client.name + "): " + e.message);

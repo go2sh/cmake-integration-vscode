@@ -298,19 +298,15 @@ export class CMakeClient implements vscode.Disposable {
             args.push("-DCMAKE_BUILD_TYPE=" + this.buildType);
         }
         this._state = ClientState.RUNNING;
-        await this._connection!.configure(args);
-        this._state = ClientState.CONFIGURED;
-        this._lock.unlock();
-    }
-
-    async generate() {
-        this.checkReady();
-        if (this._state === ClientState.RUNNING) {
-            await this.configure();
+        try {
+            await this._connection.configure(args);
+            this._state = ClientState.CONFIGURED;
+        } catch (e) {
+            // Fail siliently as it is reported via diagnostics
+            return;
         }
-        await this._lock.lock();
-        this._state = ClientState.CONFIGURED;
-        await this._connection!.compute();
+
+        await this._connection.compute();
         this._state = ClientState.GENERATED;
         this._lock.unlock();
     }
