@@ -34,6 +34,7 @@ const readdir = util.promisify(fs.readdir);
 const lstat = util.promisify(fs.lstat);
 const unlink = util.promisify(fs.unlink);
 const rmdir = util.promisify(fs.rmdir);
+const access = util.promisify(fs.access);
 
 enum ClientState {
     STOPPED,
@@ -60,11 +61,11 @@ class ClientContext {
 
 export class CMakeClient implements vscode.Disposable {
 
+    private _socket: net.Socket | undefined;
     private _process: child_process.ChildProcess | undefined;
     private _connection: protocol.CMakeProtocolConnection | undefined;
 
     private _state: ClientState = ClientState.STOPPED;
-    private _hello: Promise<protocol.Hello> | undefined;
 
     private _model: protocol.CodeModel | undefined;
     private _cache: Map<string, protocol.CacheValue> = new Map();
@@ -249,33 +250,52 @@ export class CMakeClient implements vscode.Disposable {
             return;
         }
 
-        await this.createConnection();
+        await this.spwanCMakeServer();
+        // Wait some time till cmake server is up to handle our requests.
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await this.createSocket();
 
-        let msg = await this._hello!;
-        let handshake: protocol.Handshake = {
-            sourceDirectory: this._sourceDirectory,
-            buildDirectory: this._buildDirectory,
-            protocolVersion: msg.supportedProtocolVersions[0],
-            generator: this.generator,
-            extraGenerator: this.extraGenerator,
-            platform: this.generatorPlatform,
-            toolset: this.generatorToolset
-        };
-        await this._connection!.handshake(handshake);
+        let msg = await this.createConnection();
+        if (this._connection && msg) {
+            let handshake: protocol.Handshake = {
+                sourceDirectory: this._sourceDirectory,
+                buildDirectory: this._buildDirectory,
+                protocolVersion: msg.supportedProtocolVersions[0],
+                generator: this.generator,
+                extraGenerator: this.extraGenerator,
+                platform: this.generatorPlatform,
+                toolset: this.generatorToolset
+            };
+            await this._connection.handshake(handshake);
+        }
     }
 
     async stop() {
-        if (this._state === ClientState.STOPPED) {
-            return;
-        }
-        await new Promise((resolve) => {
-            this._process!.once('exit', () => resolve());
-            this._process!.kill();
-        });
+        await new Promise((resolve, reject) => {
+            if (!this._process || this._state === ClientState.STOPPED) {
+                return Promise.resolve();
+            }
 
+            let killTimer = setTimeout(() => reject(
+                {
+                    name: "Kill Timeout",
+                    message: "Failed to kill server process (Timeout)."
+                } as Error
+            ), 5000);
+
+            this._process.once('exit', () => {
+                clearTimeout(killTimer);
+                resolve();
+            });
+            this._process.kill();
+        });
         try {
             await unlink(this.pipeName);
         } catch (e) {
+            throw {
+                name: "pipe delete error",
+                message: "Failed to remove CMake Server socket: " + e.message
+            } as Error;
         }
     }
 
@@ -284,6 +304,7 @@ export class CMakeClient implements vscode.Disposable {
             vscode.window.showWarningMessage("CMake Server (" + this.name + " is not running.");
             return;
         }
+
         if (vscode.workspace.getConfiguration("cmake").get("showConsoleAutomatically", true)) {
             this._console.show();
         }
@@ -297,6 +318,7 @@ export class CMakeClient implements vscode.Disposable {
         if (!this.isConfigurationGenerator && this.buildType) {
             args.push("-DCMAKE_BUILD_TYPE=" + this.buildType);
         }
+
         this._state = ClientState.RUNNING;
         try {
             await this._connection.configure(args);
@@ -337,14 +359,14 @@ export class CMakeClient implements vscode.Disposable {
     }
 
     async updateModel() {
-        this.checkReady();
-        if (this._state < ClientState.GENERATED) {
-            throw new Error("Build system not generated yet.");
+        if (!this._connection || this._state < ClientState.GENERATED) {
+            return;
         }
-        this._model = await this._connection!.codemodel();
+
+        this._model = await this._connection.codemodel();
         this.updateValues();
-        
-        let cache = await this._connection!.cache();
+
+        let cache = await this._connection.cache();
         this._cache.clear();
         cache.forEach((value) => this._cache.set(value.key, value));
 
@@ -450,71 +472,92 @@ export class CMakeClient implements vscode.Disposable {
         }
     }
 
-    private checkReady() {
-        if (this._state === ClientState.BUILDING) {
-            throw new Error("Build in progress.");
-        }
-        if (this._state < ClientState.RUNNING) {
-            throw new Error("Not connected to CMake Server.");
-        }
-    }
-
-    private createConnection(): Promise<void> {
-        let socket = new net.Socket();
-        let connection = protocol.createProtocolConnection(socket, socket);
-
-        connection.onMessage((msg: protocol.Display) => this.onMessage(msg));
-        connection.onSignal((data: protocol.Signal) => this.onSignal(data));
-        connection.onProgress((progress: protocol.Progress) => this.onProgress(progress));
-        this._hello = new Promise((resolve) => {
-            connection.onHello((msg) => {
-                this._state = ClientState.RUNNING;
-                resolve(msg);
-            });
-        });
-
+    private async spwanCMakeServer() {
         let cmakePath = vscode.workspace.getConfiguration("cmake", this.uri).get("cmakePath", "cmake");
         let configEnv = vscode.workspace.getConfiguration("cmake", this.uri).get("configurationEnvironment", {});
         let processEnv = process.env;
         let env = { ...processEnv, ...configEnv };
+
+        try {
+            await access(cmakePath, fs.constants.X_OK);
+        } catch (e) {
+            throw {
+                name: "access error",
+                message: "Cannot acces cmake executable at \'" + cmakePath + "'."
+            } as Error;
+        }
         this._process = child_process.execFile(
             cmakePath,
             ["-E", "server", "--pipe=" + this.pipeName, "--experimental"],
             { env: env }
         );
-        this._connection = connection;
 
-        return new Promise((resolve, reject) => {
-            let errorHandler = (err: Error) => {
-                this._state = ClientState.STOPPED;
-                this._process = undefined;
-                reject(err);
-            };
-            this._process!.on("error", errorHandler);
-            // Wait some time until cmake server is spawned, the server creates the pipe
-            setTimeout(() => {
-                socket.connect(this.pipeName);
-                socket.on('error', errorHandler);
-                socket.on('connect', () => {
-                    // Remove promise handlers
-                    socket.removeListener('error', errorHandler);
-                    this._process!.removeListener('error', errorHandler);
+        this._process.on("error", (e: Error) => {
+            vscode.window.showErrorMessage(
+                "CMake Server (" + this.name + ") process error: " + e.message
+            );
+        });
+        this._process.on("exit", () => {
+            this._state = ClientState.STOPPED;
+            if (this._socket) {
+                this._socket.destroy();
+                this._socket = undefined;
+            }
+            this._process = undefined;
+        });
+    }
 
-                    socket.on("close", () => {
-                        this._state = ClientState.STOPPED;
-                        if (this._process) {
-                            this._process.kill();
-                        }
-                    });
-                    this._process!.on("exit", (code, signal) => {
-                        this._state = ClientState.STOPPED;
-                        this._process = undefined;
-                    });
-                    connection.listen();
-                    this._state = ClientState.CONNECTED;
-                    resolve();
-                });
-            }, 500);
+    private async createSocket() {
+        this._socket = net.createConnection(this.pipeName);
+        this._socket.on("error", (e) => {
+            vscode.window.showErrorMessage("CMake Server (" + this.name + ") socket error: " + e.message);
+        });
+        this._socket.on("close", () => {
+            this._state = ClientState.STOPPED;
+            if (this._process) {
+                this._process.kill();
+            }
+            this._socket = undefined;
+        });
+    }
+
+    private async createConnection() {
+        if (!this._socket) {
+            return Promise.reject(
+                { name: "no socket", message: "No socket existing." } as Error
+            );
+        }
+        this._connection = protocol.createProtocolConnection(this._socket, this._socket);
+
+        this._connection.onMessage((msg: protocol.Display) => this.onMessage(msg));
+        this._connection.onSignal((data: protocol.Signal) => this.onSignal(data));
+        this._connection.onProgress((progress: protocol.Progress) => this.onProgress(progress));
+
+        this._socket.once("connect", () => {
+            if (this._connection) {
+                this._connection.listen();
+            }
+        });
+
+        return new Promise<protocol.Hello>((resolve, reject) => {
+            // Set a timeout for the response
+            let helloTimeout = setTimeout(() => {
+                reject({
+                    name: "Timeout",
+                    message: "CMake Server failed to respond."
+                } as Error);
+            }, 5000);
+            if (this._connection === undefined) {
+                return reject(
+                    { name: "no connection", message: "No connection existing." } as Error
+                );
+            }
+            //Connect to the connection signal
+            this._connection.onHello((msg) => {
+                this._state = ClientState.RUNNING;
+                clearTimeout(helloTimeout);
+                resolve(msg);
+            });
         });
     }
     private onProgress(progress: protocol.Progress): void {
