@@ -74,7 +74,7 @@ interface FileGroup {
     language: string;
     compileFlags: string;
     includePath: Path[];
-    defines: string[];
+    defines?: string[];
     sources: string[];
 }
 

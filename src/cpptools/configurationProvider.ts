@@ -26,9 +26,6 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   private browseConfig: WorkspaceBrowseConfiguration | undefined;
 
   constructor() {
-    this.browseConfig = {
-      browsePath: []
-    };
   }
 
 
@@ -177,12 +174,12 @@ class ConfigurationProvider implements CustomConfigurationProvider {
         let targetItems: SourceFileConfigurationItem[] = [];
         if (fg.language === "CXX") {
           if (cppCompiler) {
-            compiler = cppCompiler!.value;
+            compiler = cppCompiler.value;
           }
           language = "c++";
         } else if (fg.language === "C") {
           if (cCompiler) {
-            compiler = cCompiler!.value;
+            compiler = cCompiler.value;
           }
           language = "c";
         } else {
@@ -192,19 +189,24 @@ class ConfigurationProvider implements CustomConfigurationProvider {
         let intelliSenseMode = ConfigurationProvider.getIntelliSenseMode(compiler);
 
         fg.sources.forEach((source) => {
-          let filePath = path.normalize(path.join(target.sourceDirectory, source));
+          let filePath;
+          if (path.isAbsolute(source)) {
+            filePath = source;
+          } else {
+            filePath = path.normalize(path.join(target.sourceDirectory, source));
+          }
           fileList!.push(filePath);
           let item = {
-            uri: filePath,
+            uri: Uri.file(filePath),
             configuration: {
               compilerPath: compiler,
-              defines: fg.defines,
+              defines: fg.defines || [],
               includePath: fg.includePath.map((value) => path.normalize(value.path)),
               standard: localStandard || "c++17",
               intelliSenseMode: intelliSenseMode,
-              windowsSdkVersion: windowsSdkVersion
+              //windowsSdkVersion: windowsSdkVersion
             }
-          };
+          } as SourceFileConfigurationItem;
           targetItems.push(item);
           this.sourceFiles.set(filePath, item);
         });
@@ -312,30 +314,36 @@ class ConfigurationProvider implements CustomConfigurationProvider {
       }
     }
 
-
     this.browseConfig = {
       browsePath: Array.from(includeSet),
       compilerPath: compilerPath,
       standard: standard,
-      windowsSdkVersion: windowsSdkVersion
+      //      windowsSdkVersion: windowsSdkVersion
     };
   }
 
-  canProvideConfiguration(uri: Uri, token?: CancellationToken): Thenable<boolean> {
+  async canProvideConfiguration(uri: Uri, token?: CancellationToken) {
     let status = this.sourceFiles.has(uri.fsPath);
-    return Promise.resolve(status);
+    return status;
   }
 
-  provideConfigurations(uris: Uri[], token?: CancellationToken): Thenable<SourceFileConfigurationItem[]> {
-    return Promise.resolve(uris.map((uri) => this.sourceFiles.get(uri.fsPath)!));
+  async provideConfigurations(uris: Uri[], token?: CancellationToken) {
+    let items: SourceFileConfigurationItem[] = [];
+    for (const uri of uris) {
+      let item = this.sourceFiles.get(uri.fsPath);
+      if (item) {
+        items.push(item);
+      }
+    }
+    return items;
   }
 
-  canProvideBrowseConfiguration(token?: CancellationToken): Thenable<boolean> {
-    return Promise.resolve(this.browseConfig !== undefined);
+  async canProvideBrowseConfiguration(token?: CancellationToken) {
+    return this.browseConfig !== undefined;
   }
 
-  provideBrowseConfiguration(token?: CancellationToken): Thenable<WorkspaceBrowseConfiguration> {
-    return Promise.resolve(this.browseConfig!);
+  async provideBrowseConfiguration(token?: CancellationToken) {
+    return this.browseConfig!;
   }
 
   dispose() {
