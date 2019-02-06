@@ -34,7 +34,6 @@ const readdir = util.promisify(fs.readdir);
 const lstat = util.promisify(fs.lstat);
 const unlink = util.promisify(fs.unlink);
 const rmdir = util.promisify(fs.rmdir);
-const access = util.promisify(fs.access);
 
 enum ClientState {
     STOPPED,
@@ -487,14 +486,6 @@ export class CMakeClient implements vscode.Disposable {
         let processEnv = process.env;
         let env = { ...processEnv, ...configEnv };
 
-        try {
-            await access(cmakePath, fs.constants.X_OK);
-        } catch (e) {
-            throw {
-                name: "access error",
-                message: "Cannot acces cmake executable at \'" + cmakePath + "'."
-            } as Error;
-        }
         this._process = child_process.execFile(
             cmakePath,
             ["-E", "server", "--pipe=" + this.pipeName, "--experimental"],
