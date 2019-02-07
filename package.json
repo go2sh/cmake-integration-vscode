@@ -6,13 +6,13 @@
         "name": "Christoph Seitz",
         "email": "christoph.seitz@posteo.de"
     },
-    "version": "0.3.0",
+    "version": "0.3.1",
     "preview": true,
     "license": "Apache-2.0",
     "publisher": "go2sh",
     "icon": "images/cmake-logo.png",
     "engines": {
-        "vscode": "^1.28.0"
+        "vscode": "^1.30.0"
     },
     "categories": [
         "Other"
@@ -327,8 +327,9 @@
         "tslint": "^5.12.0",
         "typescript": "^3.2.0",
         "vscode": "^1.1.26",
-        "vscode-jsonrpc": "^4.0.0",
-        "vscode-cpptools": "^2.1.2"
+        "vscode-jsonrpc": "^4.0.0"
     },
-    "dependencies": {}
+    "dependencies": {
+        "vscode-cpptools": "^2.1.2"
+    }
 }
