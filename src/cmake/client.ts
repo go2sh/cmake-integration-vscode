@@ -289,7 +289,14 @@ export class CMakeClient implements vscode.Disposable {
             this._process.kill();
         });
         try {
-            await unlink(this.pipeName);
+            if (os.platform() !== "win32") {
+                try {
+                    await lstat(this.pipeName);
+                } catch (e) {
+                    return;
+                }
+                await unlink(this.pipeName);
+            }
         } catch (e) {
             throw {
                 name: "pipe delete error",
