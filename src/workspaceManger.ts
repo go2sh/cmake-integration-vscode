@@ -50,11 +50,12 @@ export class WorkspaceManager implements vscode.Disposable {
         }));
 
         // Create a server for files that are already there
-        vscode.workspace.findFiles("CMakeLists.txt").then(
-            (uris) => uris.forEach((value) => this.createServer(value)));
-
-        for (let folder of vscode.workspace.workspaceFolders || []) {
-            this.watchFolder(folder);
+        if (vscode.workspace.workspaceFolders) {
+            for (let folder of vscode.workspace.workspaceFolders) {
+                vscode.workspace.findFiles(new vscode.RelativePattern(folder, "CMakeLists.txt")).then(
+                    (uris) => uris.forEach((value) => this.createServer(value)));
+                this.watchFolder(folder);
+            }
         }
 
         this._projectItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 12);
