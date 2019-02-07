@@ -73,7 +73,7 @@ interface Path {
 interface FileGroup {
     language: string;
     compileFlags: string;
-    includePath: Path[];
+    includePath?: Path[];
     defines?: string[];
     sources: string[];
 }

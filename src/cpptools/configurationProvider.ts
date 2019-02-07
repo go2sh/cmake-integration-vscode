@@ -196,12 +196,16 @@ class ConfigurationProvider implements CustomConfigurationProvider {
             filePath = path.normalize(path.join(target.sourceDirectory, source));
           }
           fileList!.push(filePath);
+          let includePath : string[] = [];
+          if (fg.includePath) {
+            includePath = fg.includePath.map((value) => path.normalize(value.path))
+          }
           let item = {
             uri: Uri.file(filePath),
             configuration: {
               compilerPath: compiler,
               defines: fg.defines || [],
-              includePath: fg.includePath.map((value) => path.normalize(value.path)),
+              includePath: includePath,
               standard: localStandard || "c++17",
               intelliSenseMode: intelliSenseMode,
               //windowsSdkVersion: windowsSdkVersion
