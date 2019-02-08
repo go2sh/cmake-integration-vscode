@@ -238,7 +238,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   ) {
     let info: TargetInfo = {};
 
-    if (!target.fileGroups) {
+    if (!target.type.match(/(?:STATIC_LIBRARY|MODULE_LIBRARY|SHARED_LIBRARY|OBJECT_LIBRARY|INTERFACE_LIBRARY|EXECUTABLE)/) || !target.fileGroups) {
       return;
     }
 
@@ -309,6 +309,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
         } else {
           filePath = path.normalize(path.join(target.sourceDirectory, source));
         }
+        filePath = filePath.replace(/\w\:\\/, (c) => c.toUpperCase()).replace(/\\/g,"/");
         uri = Uri.file(filePath);
 
         clientInfo.clientFiles.add(filePath);
@@ -429,19 +430,23 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   }
 
   async canProvideConfiguration(uri: Uri, token?: CancellationToken) {
-    let path = uri.fsPath;
+    let filePath = uri.fsPath;
     //FIXME: Convert drive letters to uppercase
-    path = path.replace(/^\w\:\\/, c => c.toUpperCase()).replace(/\\/g,"/");
+    filePath = filePath.replace(/^\w\:\\/, c => c.toUpperCase()).replace(/\\/g,"/");
 
-    let status = this.sourceFiles.has(path);
+    let status = this.sourceFiles.has(filePath);
     // Look for other sources
     if (!status) {
+      // Match only files with c and cpp based file endings
+      if (!path.extname(filePath).toLowerCase().match(/(?:c|cc|cpp|h|hpp|def|inc)$/)) {
+        return false;
+      }
       for (const client of this.clientInfos.keys()) {
         let clientInfo = this.clientInfos.get(client)!;
         let configuration: SourceFileConfiguration | undefined;
 
-        if (path.startsWith(client.sourceDirectory)) {
-          if (path.match(/\.[cC]$/)) {
+        if (filePath.startsWith(client.sourceDirectory)) {
+          if (filePath.match(/\.[cC]$/)) {
             configuration = clientInfo.cConfiguration;
           } else {
             configuration = clientInfo.cppConfiguration || clientInfo.cConfiguration;
@@ -449,7 +454,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
         }
 
         if (configuration) {
-          this.sourceFiles.set(path, { uri, configuration });
+          this.sourceFiles.set(filePath, { uri, configuration });
           return true;
         }
       }
