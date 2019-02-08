@@ -1,16 +1,26 @@
+import * as path from 'path';
+import * as os from 'os';
+
 import { Uri } from 'vscode';
 import { CancellationToken } from 'vscode-jsonrpc';
 import { CustomConfigurationProvider, SourceFileConfiguration, SourceFileConfigurationItem, WorkspaceBrowseConfiguration } from 'vscode-cpptools';
 import { Target } from '../cmake/protocol';
 import { CMakeClient } from '../cmake/client';
-import * as path from 'path';
 
+interface TargetInfo {
+  cConfiguration?: SourceFileConfiguration;
+  cppConfiguration?: SourceFileConfiguration;
+}
 
 interface ClientInfo {
-  targetInfos: Map<Target, SourceFileConfigurationItem[]>;
-  compilerPath?: string;
-  standard?: WorkspaceBrowseConfiguration["standard"];
-  windowsSdkVersion?: string;
+  targetInfos: Map<Target, TargetInfo>;
+
+  clientFiles: Set<string>;
+
+  cConfiguration?: SourceFileConfiguration;
+  cppConfiguration?: SourceFileConfiguration;
+
+  ready: boolean;
 }
 
 class ConfigurationProvider implements CustomConfigurationProvider {
@@ -18,28 +28,29 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   name: string = "CMake Integration";
   extensionId: string = "go2sh.cmake-integration";
 
-  private clients: Set<CMakeClient> = new Set();
+  /* Storage of precompiled infos per client */
   private clientInfos: Map<CMakeClient, ClientInfo> = new Map();
-  private clientFiles: Map<CMakeClient, string[]> = new Map();
-
+  /* Fast look up map for Items */
   private sourceFiles: Map<string, SourceFileConfigurationItem> = new Map();
+  /* Precompiled browseConfig */
   private browseConfig: WorkspaceBrowseConfiguration | undefined;
 
   constructor() {
   }
 
-
   public get isReady(): boolean {
-    return [...this.clientFiles.values()].reduce((old, value) => old && value.length !== 0, true);
+    return [...this.clientInfos.values()].reduce(
+      (old, value) =>
+        old && (value.ready),
+      true);
   }
-
 
   static gccMatch = /\/?[^/]*(?:gcc|g\+\+|cc|c\+\+)[^/]*$/;
 
-  static getStandard(compiler: string, args: string, language?: "c" | "c++"): WorkspaceBrowseConfiguration["standard"] {
+  static getStandard(compiler: string, args: string, language?: "c" | "c++"): SourceFileConfiguration["standard"] {
     let clangMatch = /\/?[^/]*clang(?:\+\+)?[^/]$/;
     let gccStdMatch = /-std=((?:iso9899\:|(?:(?:gnu|c)(?:\+\+)?))\w+)/;
-    let gccStdLookup: { [key: string]: WorkspaceBrowseConfiguration["standard"] } = {
+    let gccStdLookup: { [key: string]: SourceFileConfiguration["standard"] } = {
       "c89": "c89",
       "c90": "c99",
       "iso9899:1990": "c99",
@@ -85,7 +96,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
 
     let clMatch = /cl\.exe$/;
     let clStdMatch = /\/Std\:(c\+\+\w+)/;
-    let clStdLookup: { [key: string]: WorkspaceBrowseConfiguration["standard"] } = {
+    let clStdLookup: { [key: string]: SourceFileConfiguration["standard"] } = {
       "c++14": "c++14",
       "c++17": "c++17",
       "c++latest": "c++17" // Not supported by c/c++ extension
@@ -139,191 +150,263 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     return "clang-x64";
   }
 
+  private static compareStandard(a: SourceFileConfiguration["standard"], b: SourceFileConfiguration["standard"]) {
+    if (a.startsWith("c++")) {
+      if (b.startsWith("c++")) {
+        if (a > b) {
+          return a;
+        } else {
+          return b;
+        }
+      } else {
+        return a;
+      }
+    } else {
+      if (b.startsWith("c++")) {
+        return b;
+      } else {
+        if (a > b) {
+          return a;
+        } else {
+          return b;
+        }
+      }
+    }
+  }
+
   updateClient(client: CMakeClient) {
+    let clientInfo: ClientInfo = this.clientInfos.get(client)!;
     let windowsSdkVersion: string | undefined;
-    let standard: WorkspaceBrowseConfiguration["standard"] = "c++17";
-    let targetInfos = new Map<Target, SourceFileConfigurationItem[]>();
-
-
-    let cCompiler = client.getCacheValue("CMAKE_C_COMPILER");
-    let cppCompiler = client.getCacheValue("CMAKE_CXX_COMPILER");
-    let sdk = client.getCacheValue("CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION");
+    let cCompiler: string | undefined;
+    let cppCompiler: string | undefined;
 
     // Remove all previos files from the list
-    let fileList = this.clientFiles.get(client);
-    if (fileList) {
-      fileList.forEach((file) => this.sourceFiles.delete(file));
-    } else {
-      fileList = [];
-      this.clientFiles.set(client, fileList);
+    for (const clientFile of clientInfo.clientFiles.values()) {
+      this.sourceFiles.delete(clientFile);
     }
+    clientInfo.clientFiles.clear();
+    clientInfo.targetInfos.clear();
 
     // Determain sdk version
+    let sdk = client.getCacheValue("CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION");
     if (sdk) {
       windowsSdkVersion = sdk.value;
     }
 
-    // Search all targets for files and standards
-    client.targets.forEach((target) => {
-      if (!target.fileGroups) {
-        return;
-      }
-      target.fileGroups.forEach((fg) => {
-        let compiler: string = "";
-        let language: "c" | "c++";
-        let targetItems: SourceFileConfigurationItem[] = [];
-        if (fg.language === "CXX") {
-          if (cppCompiler) {
-            compiler = cppCompiler.value;
-          }
-          language = "c++";
-        } else if (fg.language === "C") {
-          if (cCompiler) {
-            compiler = cCompiler.value;
-          }
-          language = "c";
-        } else {
-          return;
-        }
-        let localStandard = ConfigurationProvider.getStandard(compiler, fg.compileFlags, language);
-        let intelliSenseMode = ConfigurationProvider.getIntelliSenseMode(compiler);
+    let cacheC = client.getCacheValue("CMAKE_C_COMPILER");
+    if (cacheC) {
+      cCompiler = cacheC.value;
+    }
 
-        fg.sources.forEach((source) => {
-          let filePath;
-          if (path.isAbsolute(source)) {
-            filePath = source;
-          } else {
-            filePath = path.normalize(path.join(target.sourceDirectory, source));
-          }
-          fileList!.push(filePath);
-          let includePath : string[] = [];
-          if (fg.includePath) {
-            includePath = fg.includePath.map((value) => path.normalize(value.path))
-          }
-          let item = {
-            uri: Uri.file(filePath),
-            configuration: {
-              compilerPath: compiler,
-              defines: fg.defines || [],
-              includePath: includePath,
-              standard: localStandard || "c++17",
-              intelliSenseMode: intelliSenseMode,
-              //windowsSdkVersion: windowsSdkVersion
-            }
-          } as SourceFileConfigurationItem;
-          targetItems.push(item);
-          this.sourceFiles.set(filePath, item);
+    let cacheCPP = client.getCacheValue("CMAKE_CXX_COMPILER");
+    if (cacheCPP) {
+      cppCompiler = cacheCPP.value;
+    }
+
+    for (const target of client.targets) {
+      this._createTargetConfiguration(clientInfo, target, windowsSdkVersion, cCompiler, cppCompiler);
+    }
+    this._createClientConfiguration(clientInfo, windowsSdkVersion, cCompiler, cppCompiler);
+    this._updateBrowsingConfiguration();
+    this.clientInfos.get(client)!.ready = true;
+  }
+  private _createTargetConfiguration(
+    clientInfo: ClientInfo,
+    target: Target,
+    windowsSdkVersion: string | undefined,
+    cCompiler: string | undefined,
+    cppCompiler: string | undefined
+  ) {
+    let info: TargetInfo = {};
+
+    if (!target.fileGroups) {
+      return;
+    }
+
+    for (const fg of target.fileGroups) {
+      let language: "c" | "c++" = "c";
+      let compilerPath: string | undefined;
+      let defines: string[] = [];
+      let includePath: string[] = [];
+      let standard: SourceFileConfiguration["standard"] = "c++17";
+      let intelliSenseMode: SourceFileConfiguration["intelliSenseMode"] = "clang-x64";
+
+      // Find target file group infos
+      if (fg.language === "CXX") {
+        compilerPath = cppCompiler;
+        language = "c++";
+        standard = "c++17";
+      } else if (fg.language === "C") {
+        compilerPath = cCompiler;
+        language = "c";
+        standard = "c11";
+      }
+
+      if (fg.includePath) {
+        fg.includePath.forEach((value) => {
+          let incPath = path.normalize(value.path);
+          includePath.push(incPath);
         });
-        targetInfos.set(target, targetItems);
-
-        if (localStandard) {
-          if (standard!.startsWith("c++")) {
-            if (language === "c++" && localStandard > standard!) {
-              standard = localStandard;
-            }
-          } else {
-            if (language === "c++") {
-              standard = localStandard;
-            } else if (localStandard > standard!) {
-              standard = localStandard;
-            }
-          }
-        }
-      });
-    });
-
-    let clientInfo: ClientInfo = {
-      targetInfos: targetInfos,
-      standard: standard,
-      windowsSdkVersion: windowsSdkVersion,
-    };
-
-    if (standard.startsWith("c++")) {
-      if (cppCompiler) {
-        clientInfo.compilerPath = cppCompiler.value;
       }
-    } else {
-      if (cCompiler) {
-        clientInfo.compilerPath = cCompiler.value;
+      if (fg.defines) {
+        fg.defines.forEach((value) => {
+          defines.push(value);
+        });
+      }
+
+      if (compilerPath) {
+        standard = ConfigurationProvider.getStandard(compilerPath, fg.compileFlags, language);
+        intelliSenseMode = ConfigurationProvider.getIntelliSenseMode(compilerPath);
+      } else {
+        if (os.platform() === "win32") {
+          intelliSenseMode = "msvc-x64";
+        } else {
+          intelliSenseMode = "clang-x64";
+        }
+      }
+
+      // Set config
+      let configuration: SourceFileConfiguration = {
+        compilerPath,
+        includePath,
+        defines,
+        intelliSenseMode,
+        standard,
+        windowsSdkVersion
+      };
+      if (fg.language === "C") {
+        info.cConfiguration = configuration;
+      }
+      if (fg.language === "CXX") {
+        info.cppConfiguration = configuration;
+      }
+
+      fg.sources.forEach((source) => {
+        let filePath: string;
+        let uri: Uri;
+
+        if (path.isAbsolute(source)) {
+          filePath = source;
+        } else {
+          filePath = path.normalize(path.join(target.sourceDirectory, source));
+        }
+        uri = Uri.file(filePath);
+
+        clientInfo.clientFiles.add(filePath);
+        this.sourceFiles.set(filePath, { uri, configuration });
+      });
+    }
+    clientInfo.targetInfos.set(target, info);
+  }
+
+  private _createClientConfiguration(
+    clientInfo: ClientInfo,
+    windowsSdkVersion: string | undefined,
+    cCompiler: string | undefined,
+    cppCompiler: string | undefined
+  ) {
+    let cStandard: SourceFileConfiguration["standard"] = "c89";
+    let cIncludePath: Set<string> = new Set();
+    let cDefines: Set<string> = new Set();
+    let cppStandard: SourceFileConfiguration["standard"] = "c++98";
+    let cppIncludePath: Set<string> = new Set();
+    let cppDefines: Set<string> = new Set();
+    let intelliSenseMode: SourceFileConfiguration["intelliSenseMode"] = "clang-x64";
+
+    for (const targetInfo of clientInfo.targetInfos.values()) {
+      if (targetInfo.cConfiguration) {
+        intelliSenseMode = targetInfo.cConfiguration.intelliSenseMode;
+        cStandard = ConfigurationProvider.compareStandard(
+          targetInfo.cConfiguration.standard, cStandard
+        );
+        targetInfo.cConfiguration.defines.forEach((value) => cDefines.add(value));
+        targetInfo.cConfiguration.includePath.forEach((value) => cIncludePath.add(value));
+      }
+      if (targetInfo.cppConfiguration) {
+        intelliSenseMode = targetInfo.cppConfiguration.intelliSenseMode;
+        cppStandard = ConfigurationProvider.compareStandard(
+          targetInfo.cppConfiguration.standard, cppStandard
+        );
+        targetInfo.cppConfiguration.defines.forEach((value) => cppDefines.add(value));
+        targetInfo.cppConfiguration.includePath.forEach((value) => cppIncludePath.add(value));
       }
     }
 
-    this.clientInfos.set(client, clientInfo);
-    this._updateBrowsingConfiguration();
-  }
+    clientInfo.cConfiguration = {
+      standard: cStandard,
+      compilerPath: cCompiler,
+      includePath: Array.from(cIncludePath.values()),
+      defines: Array.from(cDefines.values()),
+      intelliSenseMode: intelliSenseMode,
+      windowsSdkVersion: windowsSdkVersion
+    };
 
-  addClient(client: CMakeClient) {
-    this.clients.add(client);
-    this.clientInfos.set(client, {
-      targetInfos: new Map()
-    });
-    this.clientFiles.set(client, []);
-  }
-
-  deleteClient(client: CMakeClient) {
-    let files = this.clientFiles.get(client)!;
-    // Remove from source files
-    files.forEach((value) => this.sourceFiles.delete(value));
-    // Remove from cache
-    this.clientInfos.delete(client);
-    this.clientFiles.delete(client);
-    this.clients.delete(client);
-    this._updateBrowsingConfiguration();
+    clientInfo.cppConfiguration = {
+      standard: cppStandard,
+      compilerPath: cppCompiler,
+      includePath: Array.from(cppIncludePath.values()),
+      defines: Array.from(cppDefines.values()),
+      intelliSenseMode: intelliSenseMode,
+      windowsSdkVersion: windowsSdkVersion
+    };
   }
 
   private _updateBrowsingConfiguration() {
     let includeSet = new Set<string>();
-    let compilerPath: string | undefined;
-    let standard: WorkspaceBrowseConfiguration["standard"];
+    let cCompilerPath: string | undefined;
+    let cppCompilerPath: string | undefined;
+    let standard: WorkspaceBrowseConfiguration["standard"] = "c89";
     let windowsSdkVersion: string | undefined;
 
-    for (const client of this.clients) {
-      let clientInfo = this.clientInfos.get(client)!;
-
-      if (!compilerPath) {
-        compilerPath = clientInfo.compilerPath;
-      }
-
-      if (!windowsSdkVersion) {
-        windowsSdkVersion = clientInfo.windowsSdkVersion;
-      }
-
-      if (clientInfo.standard) {
-        if (clientInfo.standard.startsWith("c++")) {
-          if (standard && standard.startsWith("c++")) {
-            if (standard! < clientInfo.standard) {
-              standard = clientInfo.standard;
-            }
-          } else {
-            standard = clientInfo.standard;
-          }
-        } else {
-          if (standard) {
-            if (!standard.startsWith("c++") && standard < clientInfo.standard) {
-              standard = clientInfo.standard;
-            }
-          } else {
-            standard = clientInfo.standard;
-          }
+    for (const clientInfo of this.clientInfos.values()) {
+      if (clientInfo.cppConfiguration) {
+        clientInfo.cppConfiguration.includePath.forEach((value) => includeSet.add(value));
+        if (!cppCompilerPath && clientInfo.cppConfiguration.compilerPath) {
+          cppCompilerPath = clientInfo.cppConfiguration.compilerPath;
         }
+        if (!windowsSdkVersion) {
+          windowsSdkVersion = clientInfo.cppConfiguration.windowsSdkVersion;
+        }
+        standard = ConfigurationProvider.compareStandard(standard, clientInfo.cppConfiguration.standard);
       }
 
-      for (const targetInfo of clientInfo.targetInfos.values()) {
-        if (targetInfo.length > 0) {
-          if (targetInfo[0].configuration.forcedInclude) {
-            targetInfo[0].configuration.forcedInclude.forEach((value) => includeSet.add(value));
-          }
-          targetInfo[0].configuration.includePath.forEach((value) => includeSet.add(value));
+      if (clientInfo.cConfiguration) {
+        clientInfo.cConfiguration.includePath.forEach((value) => includeSet.add(value));
+        if (!cCompilerPath && clientInfo.cConfiguration.compilerPath) {
+          cCompilerPath = clientInfo.cConfiguration.compilerPath;
         }
+        if (!windowsSdkVersion) {
+          windowsSdkVersion = clientInfo.cConfiguration.windowsSdkVersion;
+        }
+        standard = ConfigurationProvider.compareStandard(standard, clientInfo.cConfiguration.standard);
       }
     }
 
     this.browseConfig = {
       browsePath: Array.from(includeSet),
-      compilerPath: compilerPath,
+      compilerPath: cppCompilerPath || cCompilerPath,
       standard: standard,
-      //      windowsSdkVersion: windowsSdkVersion
+      windowsSdkVersion: windowsSdkVersion
     };
+  }
+
+  addClient(client: CMakeClient) {
+    this.clientInfos.set(client, {
+      targetInfos: new Map(),
+      clientFiles: new Set(),
+      ready: false
+    });
+  }
+
+  deleteClient(client: CMakeClient) {
+    let info = this.clientInfos.get(client)!;
+    // Remove from source files
+    for (const file of info.clientFiles.values()) {
+      this.sourceFiles.delete(file);
+    }
+    // Remove from cache
+    this.clientInfos.delete(client);
+    this._updateBrowsingConfiguration();
   }
 
   async canProvideConfiguration(uri: Uri, token?: CancellationToken) {
@@ -332,6 +415,26 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     path.replace(/^\w\:\\/, c => c.toUpperCase());
 
     let status = this.sourceFiles.has(path);
+    // Look for other sources
+    if (!status) {
+      for (const client of this.clientInfos.keys()) {
+        let clientInfo = this.clientInfos.get(client)!;
+        let configuration: SourceFileConfiguration | undefined;
+
+        if (path.startsWith(client.sourceDirectory)) {
+          if (path.match(/\.[cC]$/)) {
+            configuration = clientInfo.cConfiguration;
+          } else {
+            configuration = clientInfo.cppConfiguration || clientInfo.cConfiguration;
+          }
+        }
+
+        if (configuration) {
+          this.sourceFiles.set(path, { uri, configuration });
+          return true;
+        }
+      }
+    }
     return status;
   }
 
