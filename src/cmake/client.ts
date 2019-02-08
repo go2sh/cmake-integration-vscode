@@ -94,7 +94,7 @@ export class CMakeClient implements vscode.Disposable {
         readonly uri: vscode.Uri,
         private _context: vscode.ExtensionContext
     ) {
-        this._sourceDirectory = path.dirname(this.uri.fsPath).replace(/\\/g, "/");
+        this._sourceDirectory = path.dirname(this.uri.fsPath).replace(/\\/g, "/").replace(/^\w\:\//, (c) => c.toUpperCase());
         this._buildDirectory = path.join(this._sourceDirectory, vscode.workspace.getConfiguration("cmake", this.uri).get("buildDirectory", "build")).replace(/\\/g, "/");
 
         this._matchers = getProblemMatchers(this._buildDirectory);

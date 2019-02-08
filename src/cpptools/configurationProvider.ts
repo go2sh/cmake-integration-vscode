@@ -431,7 +431,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   async canProvideConfiguration(uri: Uri, token?: CancellationToken) {
     let path = uri.fsPath;
     //FIXME: Convert drive letters to uppercase
-    path.replace(/^\w\:\\/, c => c.toUpperCase());
+    path = path.replace(/^\w\:\\/, c => c.toUpperCase()).replace(/\\/g,"/");
 
     let status = this.sourceFiles.has(path);
     // Look for other sources
@@ -462,7 +462,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     for (const uri of uris) {
       let path = uri.fsPath;
       //FIXME: Convert drive letters to uppercase
-      path.replace(/^\w\:\\/, c => c.toUpperCase());
+      path = path.replace(/^\w\:\\/, c => c.toUpperCase()).replace(/\\/g,"/");
       let item = this.sourceFiles.get(path);
       if (item) {
         items.push(item);
