@@ -1,12 +1,12 @@
-/*     
+/*
  * Copyright 2018 Christoph Seitz
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -38,13 +38,13 @@ export async function activate(context: vscode.ExtensionContext) {
     );
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake.configureCurrentProject", 
+            "cmake.configureCurrentProject",
             async () => await manager.configureProject(true)
         )
     );
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake.configureWorkspace", 
+            "cmake.configureWorkspace",
             async () => await manager.configureWorkspace()
         )
     );
@@ -58,13 +58,13 @@ export async function activate(context: vscode.ExtensionContext) {
     );
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake.cleanCurrentProject", 
+            "cmake.cleanCurrentProject",
             async () => await manager.cleanProject(true)
         )
     );
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake.cleanWorkspace", 
+            "cmake.cleanWorkspace",
             async () => await manager.cleanWorkspace()
         )
     );
@@ -84,7 +84,7 @@ export async function activate(context: vscode.ExtensionContext) {
     );
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake.buildCurrentTarget", 
+            "cmake.buildCurrentTarget",
             async () => await manager.buildTarget(true)
         )
     );
@@ -110,7 +110,7 @@ export async function activate(context: vscode.ExtensionContext) {
     /* Select commands */
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake.selectProject", 
+            "cmake.selectProject",
             async () => await manager.selectProject()
         )
     );
