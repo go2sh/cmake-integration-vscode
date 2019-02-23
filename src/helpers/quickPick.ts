@@ -17,27 +17,27 @@
  * Handling all quick pick action for clients, projects and targets.
  */
 import * as vscode from "vscode";
-import * as protocol from '../cmake/protocol';
-import { CMakeClient } from "../cmake/client";
+import * as model from '../cmake/model';
+import { CMake } from "../cmake/cmake";
 
-interface CMakeClientItem extends vscode.QuickPickItem {
-    client: CMakeClient;
+interface CMakeItem extends vscode.QuickPickItem {
+    client: CMake;
 }
 
-async function pickClient(clients: CMakeClient[]): Promise<CMakeClient | undefined> {
+async function pickClient(clients: CMake[]): Promise<CMake | undefined> {
 
-    let clientPick = vscode.window.createQuickPick<CMakeClientItem>();
+    let clientPick = vscode.window.createQuickPick<CMakeItem>();
     clientPick.items = clients.map((value) => {
         return {
             client: value,
             label: value.name,
-            description: value.sourceDirectory
-        } as CMakeClientItem;
+            description: value.sourceFolder.fsPath
+        } as CMakeItem;
     });
     clientPick.show();
 
-    return new Promise<CMakeClient | undefined>((resolve) => {
-        let activeItem: CMakeClientItem;
+    return new Promise<CMake | undefined>((resolve) => {
+        let activeItem: CMakeItem;
         clientPick.onDidChangeSelection((e) => {
             const result = clientPick.activeItems[0];
             if (result) {
@@ -65,8 +65,8 @@ async function pickClient(clients: CMakeClient[]): Promise<CMakeClient | undefin
 }
 
 interface ProjectContext {
-    client: CMakeClient;
-    project: protocol.Project;
+    client: CMake;
+    project: model.Project;
 }
 
 interface ProjectContextItem extends vscode.QuickPickItem {
@@ -114,21 +114,21 @@ async function pickProject(projects: ProjectContext[]): Promise<ProjectContext |
 }
 
 interface TargetItem extends vscode.QuickPickItem {
-    target: protocol.Target;
+    target: model.Target;
 }
 
-async function pickTarget(context: ProjectContext): Promise<protocol.Target | undefined> {
+async function pickTarget(context: ProjectContext): Promise<model.Target | undefined> {
     let targetPick = vscode.window.createQuickPick<TargetItem>();
-    targetPick.items = context.client.projectBuildTargets.map((value) => {
+    targetPick.items = context.client.projectTargets.map((value) => {
         return {
             target: value,
-            label: value.fullName || value.name,
+            label: value.name,
             description: value.type
         };
     });
     targetPick.show();
 
-    return new Promise<protocol.Target | undefined>((resolve) => {
+    return new Promise<model.Target | undefined>((resolve) => {
         let activeItem: TargetItem;
         targetPick.onDidChangeSelection((e) => {
             const result = targetPick.activeItems[0];

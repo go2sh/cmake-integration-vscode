@@ -18,17 +18,22 @@
  * Worksapce manager handling CMake clients
  */
 import * as vscode from 'vscode';
-import { CMakeClient } from './cmake/client';
+import * as path from 'path';
 import { ProjectContext, pickProject, pickTarget, pickClient } from './helpers/quickPick';
 import { Dependency, DependencySpecification, DependencyResolver } from './helpers/dependencyResolver';
-import * as protocol from './cmake/protocol';
-import { ConfigurationProvider } from './cpptools/configurationProvider';
+
 import { CppToolsApi, Version, getCppToolsApi } from 'vscode-cpptools';
+import { ConfigurationProvider } from './cpptools/configurationProvider';
+
+import { CMake } from './cmake/cmake';
+import { CommandClient } from './cmake/commandClient';
+import { CMakeClient } from './cmake/client';
+import { Project, Target } from './cmake/model';
 
 export class WorkspaceManager implements vscode.Disposable {
     private _context: vscode.ExtensionContext;
     private _events: vscode.Disposable[] = [];
-    private _clients: Map<string, CMakeClient> = new Map<string, CMakeClient>();
+    private _clients: Map<string, CMake> = new Map<string, CMake>();
     private _workspaceWatcher: Map<vscode.WorkspaceFolder, vscode.FileSystemWatcher> = new Map();
 
     private _projectItem: vscode.StatusBarItem;
@@ -53,7 +58,7 @@ export class WorkspaceManager implements vscode.Disposable {
         if (vscode.workspace.workspaceFolders) {
             for (let folder of vscode.workspace.workspaceFolders) {
                 vscode.workspace.findFiles(new vscode.RelativePattern(folder, "CMakeLists.txt")).then(
-                    (uris) => uris.forEach((value) => this.createServer(value)));
+                    (uris) => uris.forEach((value) => this.createServer(value, folder)));
                 this.watchFolder(folder);
             }
         }
@@ -79,7 +84,7 @@ export class WorkspaceManager implements vscode.Disposable {
         }
     }
 
-    private get currentClient(): CMakeClient | undefined {
+    private get currentClient(): CMake | undefined {
         if (this.currentProject) {
             return this.currentProject.client;
         }
@@ -93,7 +98,7 @@ export class WorkspaceManager implements vscode.Disposable {
         }
     }
 
-    getClientByProjectName(project: string): CMakeClient | undefined {
+    getClientByProjectName(project: string): CMake | undefined {
         for (let client of this._clients.values()) {
             if (client.projects.find((value) => value.name === project)) {
                 return client;
@@ -110,12 +115,13 @@ export class WorkspaceManager implements vscode.Disposable {
                 client: client
             }));
         }
+        this.onModelChange(contexts[0].client);
         return contexts;
     }
 
-    private onModelChange(e: CMakeClient) {
+    private onModelChange(e: CMake) {
         if (this.currentProject === undefined) {
-            let client: CMakeClient | undefined;
+            let client: CMake | undefined;
             let projectName: string | undefined;
 
 
@@ -160,7 +166,7 @@ export class WorkspaceManager implements vscode.Disposable {
             if (this.currentClient.project) {
                 this._projectItem.text = this.currentClient.project.name;
                 if (this.currentClient.target) {
-                    this._targetItem.text = this.currentClient.target.fullName || this.currentClient.target.name;
+                    this._targetItem.text = this.currentClient.target.name;
                 } else {
                     this._projectItem.text = "No Target";
                 }
@@ -205,29 +211,30 @@ export class WorkspaceManager implements vscode.Disposable {
         this._workspaceWatcher.set(folder, watcher);
     }
 
-    private async createServer(uri: vscode.Uri) {
+    private async createServer(uri: vscode.Uri, workspaceFolder?: vscode.WorkspaceFolder) {
         if (uri.scheme !== "file" || this._clients.has(uri.fsPath)) {
             return;
         }
 
-        let client = new CMakeClient(uri, this._context);
-        client.onModelChange((e) => this.onModelChange(e));
+        let sourceFolder = vscode.Uri.file(path.dirname(uri.fsPath));
 
-        this._clients.set(uri.fsPath, client);
-        this.cppProvider.addClient(client);
-
+        let client: CMake;
         try {
-            await client.start();
+            client = new CommandClient(sourceFolder, workspaceFolder!);
+            client.onModelChange((e) => this.onModelChange(e));
+
+            this._clients.set(uri.fsPath, client);
+            this.cppProvider.addClient(client);
+
             if (vscode.workspace.getConfiguration("cmake").get("configureOnStart", true)) {
                 try {
                     await client.configure();
-                    await client.updateModel();
                 } catch (e) {
                     vscode.window.showErrorMessage("Failed to configure project(" + client.name + "): " + e.message);
                 }
             }
         } catch (e) {
-            vscode.window.showErrorMessage("Failed to start CMake(" + client.name + "): " + e.message);
+            vscode.window.showErrorMessage("Failed to start CMake Client(" + sourceFolder.fsPath + "): " + e.message);
         }
     }
 
@@ -247,8 +254,8 @@ export class WorkspaceManager implements vscode.Disposable {
 
     async configureWorkspace() {
         try {
-            await Promise.all([...this._clients.values()].map((value) => {
-                value.configure().then(() => value.updateModel());
+            await Promise.all([...this._clients.values()].map(async (value) => {
+                await value.configure();
             }));
         } catch (e) {
             vscode.window.showErrorMessage(
@@ -258,7 +265,7 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     async configureProject(current?: boolean) {
-        let client: CMakeClient | undefined;
+        let client: CMake | undefined;
         if (current) {
             client = this.currentClient;
         } else {
@@ -270,7 +277,6 @@ export class WorkspaceManager implements vscode.Disposable {
         if (client) {
             try {
                 await client.configure();
-                await client.updateModel();
             } catch (e) {
                 vscode.window.showErrorMessage("Failed to configure project(" + client.project + "): " + e.message);
             }
@@ -307,8 +313,8 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     async buildProject(current: boolean = false) {
-        let client: CMakeClient | undefined;
-        let project: protocol.Project | undefined;
+        let client: CMake | undefined;
+        let project: Project | undefined;
 
         if (current) {
             client = this.currentClient;
@@ -346,7 +352,7 @@ export class WorkspaceManager implements vscode.Disposable {
 
     async buildTarget(current: boolean = false) {
         let projectContext: ProjectContext | undefined;
-        let target: protocol.Target | undefined;
+        let target: Target | undefined;
 
         if (current) {
             projectContext = this.currentProject;
@@ -392,7 +398,7 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     async cleanProject(current?: boolean) {
-        let client: CMakeClient | undefined;
+        let client: CMake | undefined;
 
         if (current) {
             client = this.currentClient;
@@ -465,7 +471,7 @@ export class WorkspaceManager implements vscode.Disposable {
 
     async restartClient(clean?: boolean) {
         let client = await pickClient([...this._clients.values()]);
-        if (client) {
+        if (client && client instanceof CMakeClient) {
             try {
                 await client.stop();
                 if (clean) {
@@ -475,7 +481,6 @@ export class WorkspaceManager implements vscode.Disposable {
                 if (vscode.workspace.getConfiguration("cmake").get("configureOnStart", true)) {
                     try {
                         await client.configure();
-                        await client.updateModel();
                     } catch (e) {
                         vscode.window.showErrorMessage("Failed to configure project(" + client.name + "): " + e.message);
                     }
