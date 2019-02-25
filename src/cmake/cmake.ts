@@ -170,6 +170,12 @@ abstract class CMake implements vscode.Disposable {
     }
   }
 
+  protected cache: Map<string, CacheValue> = new Map();
+
+  public getCacheValue(key: string): CacheValue | undefined {
+    return this.cache.get(key);
+  }
+
   public dispose() {
     this.console.dispose();
     this.diagnostics.dispose();
@@ -177,7 +183,6 @@ abstract class CMake implements vscode.Disposable {
 
   abstract build(target?: string): Promise<void>;
   abstract configure(): Promise<void>;
-  abstract getCacheValue(key : string) : CacheValue | undefined;
 
   protected replaceVariables(value: string): string {
     let vars = new Map<string, string>();

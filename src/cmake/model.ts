@@ -21,7 +21,9 @@ interface Project {
 }
 
 interface CacheValue {
+  name: string;
   value: string;
+  type: string;
 }
 
 export { Target, Project, CacheValue };
