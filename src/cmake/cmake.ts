@@ -31,17 +31,19 @@ abstract class CMake implements vscode.Disposable {
   protected console: vscode.OutputChannel;
   protected diagnostics: vscode.DiagnosticCollection;
 
+  protected sourcePath: string;
 
   constructor(
-    public readonly sourceFolder: vscode.Uri,
-    public readonly workspaceFolder: vscode.WorkspaceFolder
+    public readonly sourceUri: vscode.Uri,
+    public readonly workspaceFolder: vscode.WorkspaceFolder,
+    protected readonly extensionContext: vscode.ExtensionContext
   ) {
-    this.cmakeConfig = {
-      name: "Default"
-    };
+    this.sourcePath = path.dirname(this.sourceUri.fsPath).replace(/\\/g, "/").replace(/^\w\:\//, (c) => c.toUpperCase());
 
     this.console = vscode.window.createOutputChannel(this.name);
     this.diagnostics = vscode.languages.createDiagnosticCollection("cmake-" + this.name);
+
+    this.clientContext = this.extensionContext.workspaceState.get(this.name + "-context", new ClientContext());
   }
 
   /*
@@ -50,41 +52,82 @@ abstract class CMake implements vscode.Disposable {
   protected _onModelChange: vscode.EventEmitter<CMake> = new vscode.EventEmitter();
   readonly onModelChange: vscode.Event<CMake> = this._onModelChange.event;
 
-  abstract buildTypes : string[];
-  abstract buildType : string;
   protected _configs: CMakeConfiguration[] = getDefaultConfigurations();
   protected _config: CMakeConfiguration = { name: "Debug", buildType: "Debug" };
   public get configurations(): CMakeConfiguration[] {
     return this._configs;
   }
 
-  abstract project: Project | undefined;
-  abstract readonly projects : Project[];
-  public get projectTargets() : Target[] {
   public get configuration(): CMakeConfiguration {
     return this._config;
   }
 
   abstract updateConfiguration(config: CMakeConfiguration): Promise<void>;
+
+  private _project: Project | undefined = undefined;
+  private _projectTargets: Map<Project, Target[]> = new Map();
+  protected _projects: Project[] = [];
+
+  public get projects(): Project[] {
+    return this._projects;
+  }
+
+  public get project(): Project | undefined {
+    return this._project;
+  }
+  public set project(v: Project | undefined) {
+    if (v && this._projectTargets.has(v)) {
+      this._project = v;
+
+      this._target = this.projectTargets.find(
+        (value) =>
+          value.name === this.currentProjectContext!.currentTargetName
+      ) || this.projectTargets[0];
+    } else {
+      this._project = undefined;
+      this._target = undefined;
+    }
+    this.updateContext();
+  }
+
+  public get projectTargets(): Target[] {
     if (this.project) {
       return this.project.targets;
     } else {
       return [];
     }
   }
-  
-  abstract target: Target | undefined;
-  abstract readonly targets : Target[];
+
+  protected _targets: Target[] = [];
+  private _target: Target | undefined;
+  private _targetProject: Map<Target, Project> = new Map();
+
+  public get targets(): Target[] {
+    return this._targets;
+  }
+
+  public get target(): Target | undefined {
+    return this._target;
+  }
+  public set target(v: Target | undefined) {
+    if (v && this._targetProject.has(v)) {
+      this._target = v;
+      this._project = this._targetProject.get(v)!;
+    } else {
+      this._target = undefined;
+    }
+    this.updateContext();
+  }
 
   public get name(): string {
-    return path.basename(this.sourceFolder.path);
+    return path.basename(this.sourceUri.path);
   }
 
   public get generator(): string {
-    if (this.cmakeConfig.generator) {
-      return this.cmakeConfig.generator;
+    if (this.configuration.generator) {
+      return this.configuration.generator;
     } else {
-      return vscode.workspace.getConfiguration("cmake", this.sourceFolder).get("generator", "Ninja");
+      return vscode.workspace.getConfiguration("cmake", this.sourceUri).get("generator", "Ninja");
     }
   }
 
@@ -94,15 +137,15 @@ abstract class CMake implements vscode.Disposable {
 
   public get buildDirectory(): string {
     let buildDirectory: string;
-    if (this.cmakeConfig.buildDirectory) {
-      buildDirectory = this.cmakeConfig.buildDirectory;
+    if (this.configuration.buildDirectory) {
+      buildDirectory = this.configuration.buildDirectory;
     } else {
-      buildDirectory = vscode.workspace.getConfiguration("cmake", this.sourceFolder).get("buildDirectory", "${sourceFolder}/build");
+      buildDirectory = vscode.workspace.getConfiguration("cmake", this.sourceUri).get("buildDirectory", "${sourceFolder}/build");
     }
     buildDirectory = this.replaceVariables(buildDirectory);
 
     if (!path.isAbsolute) {
-      buildDirectory = path.join(this.sourceFolder.fsPath, buildDirectory);
+      buildDirectory = path.join(this.sourceUri.fsPath, buildDirectory);
     }
 
     return buildDirectory;
@@ -110,20 +153,20 @@ abstract class CMake implements vscode.Disposable {
 
   public get environment(): { [key: string]: string | undefined } {
     let configEnv: { [key: string]: string };
-    if (this.cmakeConfig.env) {
-      configEnv = this.cmakeConfig.env;
+    if (this.configuration.env) {
+      configEnv = this.configuration.env;
     } else {
-      configEnv = vscode.workspace.getConfiguration("cmake", this.sourceFolder).get("env", {});
+      configEnv = vscode.workspace.getConfiguration("cmake", this.sourceUri).get("env", {});
     }
     let processEnv = process.env;
     return { ...processEnv, ...configEnv };
   }
 
   public get variables(): { [key: string]: string | undefined } {
-    if (this.cmakeConfig.variables) {
-      return this.cmakeConfig.variables;
+    if (this.configuration.variables) {
+      return this.configuration.variables;
     } else {
-      return vscode.workspace.getConfiguration("cmake", this.sourceFolder).get<any>("cacheEntries", {});
+      return vscode.workspace.getConfiguration("cmake", this.sourceUri).get<any>("cacheEntries", {});
     }
   }
 
@@ -139,7 +182,7 @@ abstract class CMake implements vscode.Disposable {
   protected replaceVariables(value: string): string {
     let vars = new Map<string, string>();
 
-    // Add environment 
+    // Add environment
     let env = this.environment;
     for (const key in this.environment) {
       if (env[key] !== undefined) {
@@ -148,8 +191,8 @@ abstract class CMake implements vscode.Disposable {
     }
 
     vars.set("workspaceFolder", this.workspaceFolder.uri.fsPath);
-    vars.set("sourceFolder", this.sourceFolder.fsPath);
-    vars.set("name", this.cmakeConfig.name);
+    vars.set("sourceFolder", this.sourceUri.fsPath);
+    vars.set("name", this.configuration.name);
     vars.set("generator", this.generator);
 
     return value.replace(/\${((?:\w+\.)?\w+)}/g, (substring: string, ...args: any[]) => {
