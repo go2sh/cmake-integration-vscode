@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as util from 'util';
 import * as vscode from 'vscode';
 import { Project, Target, CacheValue } from './model';
+import { CMakeConfiguration, getDefaultConfigurations } from './config';
 
 const readdir = util.promisify(fs.readdir);
 const stat = util.promisify(fs.stat);
@@ -11,12 +12,6 @@ const unlink = util.promisify(fs.unlink);
 const mkdir = util.promisify(fs.mkdir);
 const rmdir = util.promisify(fs.rmdir);
 
-interface CMakeConfiguration {
-  name: string;
-  buildDirectory?: string;
-  generator?: string;
-  env?: { [key: string]: string };
-  variables?: { [key: string]: string };
 }
 
 abstract class CMake implements vscode.Disposable {
@@ -24,7 +19,6 @@ abstract class CMake implements vscode.Disposable {
   protected console: vscode.OutputChannel;
   protected diagnostics: vscode.DiagnosticCollection;
 
-  protected cmakeConfig: CMakeConfiguration;
 
   constructor(
     public readonly sourceFolder: vscode.Uri,
@@ -46,10 +40,20 @@ abstract class CMake implements vscode.Disposable {
 
   abstract buildTypes : string[];
   abstract buildType : string;
+  protected _configs: CMakeConfiguration[] = getDefaultConfigurations();
+  protected _config: CMakeConfiguration = { name: "Debug", buildType: "Debug" };
+  public get configurations(): CMakeConfiguration[] {
+    return this._configs;
+  }
 
   abstract project: Project | undefined;
   abstract readonly projects : Project[];
   public get projectTargets() : Target[] {
+  public get configuration(): CMakeConfiguration {
+    return this._config;
+  }
+
+  abstract updateConfiguration(config: CMakeConfiguration): Promise<void>;
     if (this.project) {
       return this.project.targets;
     } else {
@@ -116,7 +120,6 @@ abstract class CMake implements vscode.Disposable {
     this.diagnostics.dispose();
   }
 
-  abstract setConfiguration(config: CMakeConfiguration): void;
   abstract build(target?: string): Promise<void>;
   abstract configure(): Promise<void>;
   abstract getCacheValue(key : string) : CacheValue | undefined;
@@ -189,4 +192,4 @@ abstract class CMake implements vscode.Disposable {
   }
 }
 
-export { CMake, CMakeConfiguration };
+export { CMake };
