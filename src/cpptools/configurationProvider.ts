@@ -20,7 +20,7 @@
 import * as path from 'path';
 import * as os from 'os';
 
-import { Uri } from 'vscode';
+import { Uri, Disposable } from 'vscode';
 import { CancellationToken } from 'vscode-jsonrpc';
 import { CustomConfigurationProvider, SourceFileConfiguration, SourceFileConfigurationItem, WorkspaceBrowseConfiguration } from 'vscode-cpptools';
 import { Target } from '../cmake/model';
@@ -40,6 +40,7 @@ interface ClientInfo {
   cppConfiguration?: SourceFileConfiguration;
 
   ready: boolean;
+  disposables: Disposable[];
 }
 
 class ConfigurationProvider implements CustomConfigurationProvider {
@@ -410,7 +411,8 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     this.clientInfos.set(client, {
       targetInfos: new Map(),
       clientFiles: new Set(),
-      ready: false
+      ready: false,
+      disposables: [client.onModelChange((e) => this.updateClient(e))]
     });
   }
 
@@ -420,6 +422,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     for (const file of info.clientFiles.values()) {
       this.sourceFiles.delete(file);
     }
+    info.disposables.map((d) => d.dispose());
     // Remove from cache
     this.clientInfos.delete(client);
     this._updateBrowsingConfiguration();
@@ -441,7 +444,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
         let clientInfo = this.clientInfos.get(client)!;
         let configuration: SourceFileConfiguration | undefined;
 
-        if (filePath.startsWith(client.sourceFolder.fsPath)) {
+        if (filePath.startsWith(client.sourceUri.fsPath)) {
           if (filePath.match(/\.[cC]$/)) {
             configuration = clientInfo.cConfiguration;
           } else {
