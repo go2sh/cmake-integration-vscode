@@ -19,7 +19,7 @@
  */
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { ProjectContext, pickProject, pickTarget, pickClient } from './helpers/quickPick';
+import { ProjectContext, pickProject, pickTarget, pickClient, pickConfiguration } from './helpers/quickPick';
 import { Dependency, DependencySpecification, DependencyResolver } from './helpers/dependencyResolver';
 
 import { CppToolsApi, Version, getCppToolsApi } from 'vscode-cpptools';
@@ -37,7 +37,7 @@ export class WorkspaceManager implements vscode.Disposable {
     private _workspaceWatcher: Map<vscode.WorkspaceFolder, vscode.FileSystemWatcher> = new Map();
 
     private _projectItem: vscode.StatusBarItem;
-    private _buildTypeItem: vscode.StatusBarItem;
+    private _configItem: vscode.StatusBarItem;
     private _targetItem: vscode.StatusBarItem;
 
     private _currentProject: ProjectContext | undefined;
@@ -65,11 +65,11 @@ export class WorkspaceManager implements vscode.Disposable {
 
         this._projectItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 12);
         this._targetItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 11);
-        this._buildTypeItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 10);
+        this._configItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 10);
 
         this._projectItem.command = "cmake.selectProject";
         this._targetItem.command = "cmake.selectTarget";
-        this._buildTypeItem.command = "cmake.selectBuildType";
+        this._configItem.command = "cmake.selectBuildType";
 
         this.cppProvider = new ConfigurationProvider();
     }
@@ -176,11 +176,11 @@ export class WorkspaceManager implements vscode.Disposable {
                 this._targetItem.hide();
             }
             this._projectItem.show();
-            this._buildTypeItem.text = this.currentClient.buildType;
-            this._buildTypeItem.show();
+            this._configItem.text = this.currentClient.configuration.name;
+            this._configItem.show();
         } else {
             this._projectItem.hide();
-            this._buildTypeItem.hide();
+            this._configItem.hide();
             this._targetItem.hide();
         }
     }
@@ -220,7 +220,7 @@ export class WorkspaceManager implements vscode.Disposable {
 
         let client: CMake;
         try {
-            client = new CommandClient(sourceFolder, workspaceFolder!);
+            client = new CommandClient(sourceFolder, workspaceFolder!, this._context);
             client.onModelChange((e) => this.onModelChange(e));
 
             this._clients.set(uri.fsPath, client);
@@ -443,16 +443,14 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     async selectBuildType() {
-        if (this.currentClient === undefined) {
+        if (this.currentProject === undefined) {
             await this.selectProject();
             await this.selectTarget();
         }
-        if (this.currentClient) {
-            let buildType = await vscode.window.showQuickPick(this.currentClient.buildTypes, {
-                placeHolder: this.currentClient.buildType
-            });
-            if (buildType) {
-                this.currentClient.buildType = buildType;
+        if (this.currentProject) {
+            let config = await pickConfiguration(this.currentProject);
+            if (config) {
+                await this.currentProject.client.updateConfiguration(config);
             }
         }
         this.updateStatusBar();

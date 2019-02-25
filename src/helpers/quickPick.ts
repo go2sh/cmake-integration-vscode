@@ -19,6 +19,7 @@
 import * as vscode from "vscode";
 import * as model from '../cmake/model';
 import { CMake } from "../cmake/cmake";
+import { CMakeConfiguration } from "../cmake/config";
 
 interface CMakeItem extends vscode.QuickPickItem {
     client: CMake;
@@ -31,7 +32,7 @@ async function pickClient(clients: CMake[]): Promise<CMake | undefined> {
         return {
             client: value,
             label: value.name,
-            description: value.sourceFolder.fsPath
+            description: value.sourceUri.fsPath
         } as CMakeItem;
     });
     clientPick.show();
@@ -156,4 +157,46 @@ async function pickTarget(context: ProjectContext): Promise<model.Target | undef
     });
 }
 
-export { ProjectContext, pickProject, pickTarget, pickClient };
+interface CMakeConfigurationItem extends vscode.QuickPickItem{
+    config : CMakeConfiguration
+}
+async function pickConfiguration(context: ProjectContext): Promise<CMakeConfiguration | undefined> {
+    let configPick = vscode.window.createQuickPick<CMakeConfigurationItem>();
+    configPick.items = context.client.configurations.map((value) => {
+        return {
+            config: value,
+            label: value.name,
+            description: value.description
+        };
+    });
+    configPick.show();
+
+    return new Promise<CMakeConfiguration | undefined>((resolve) => {
+        let activeItem: CMakeConfigurationItem;
+        configPick.onDidChangeSelection((e) => {
+            const result = configPick.activeItems[0];
+            if (result) {
+                resolve(result.config);
+                configPick.hide();
+            }
+        });
+        configPick.onDidChangeValue(value => {
+            if (activeItem && !value && (configPick.activeItems.length !== 1 || configPick.activeItems[0] !== activeItem)) {
+                configPick.activeItems = [activeItem];
+            }
+        });
+        configPick.onDidAccept((e) => {
+            const result = configPick.activeItems[0];
+            if (result) {
+                resolve(result.config);
+                configPick.hide();
+            }
+        });
+        configPick.onDidHide((e) => {
+            resolve(undefined);
+            configPick.dispose();
+        });
+    });
+}
+
+export { ProjectContext, pickProject, pickTarget, pickClient, pickConfiguration };
