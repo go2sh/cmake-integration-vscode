@@ -4,13 +4,9 @@ import * as util from 'util';
 import * as vscode from 'vscode';
 import { Project, Target, CacheValue } from './model';
 import { CMakeConfiguration, getDefaultConfigurations } from './config';
+import { removeDir, makeRecursivDirectory } from '../helpers/fs';
 
-const readdir = util.promisify(fs.readdir);
 const stat = util.promisify(fs.stat);
-const lstat = util.promisify(fs.lstat);
-const unlink = util.promisify(fs.unlink);
-const mkdir = util.promisify(fs.mkdir);
-const rmdir = util.promisify(fs.rmdir);
 
 class ProjectContext {
   currentTargetName: string = "";
@@ -218,30 +214,10 @@ abstract class CMake implements vscode.Disposable {
   }
 
   public async createBuildDirectory() {
-    await mkdir(this.buildDirectory, {
-      recursive: true
-    });
+    await makeRecursivDirectory(this.buildDirectory);
   }
 
   public async removeBuildDirectory() {
-    let removeDir = async (dir: string) => {
-      try {
-        await lstat(dir);
-      } catch (e) {
-        return;
-      }
-      let files = await readdir(dir);
-      await Promise.all(files.map(async (file) => {
-        let p = path.join(dir, file);
-        const stat = await lstat(p);
-        if (stat.isDirectory()) {
-          await removeDir(p);
-        } else {
-          await unlink(p);
-        }
-      }));
-      await rmdir(dir);
-    };
     await removeDir(this.buildDirectory);
   }
 
