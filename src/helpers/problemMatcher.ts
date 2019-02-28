@@ -187,8 +187,33 @@ class GCCMatcher implements ProblemMatcher {
     }
 }
 
+class CMakeMatcher implements ProblemMatcher {
+
+    private _diagnostics: Map<vscode.Uri, vscode.Diagnostic[]> = new Map();
+
+    constructor(public buildPath : string) {
+
+    }
+
+    match(line : string) {
+
+    }
+
+    getDiagnostics(): [vscode.Uri, vscode.Diagnostic[] | undefined][] {
+        let diag: [vscode.Uri, vscode.Diagnostic[] | undefined][] = [];
+        for (let key of this._diagnostics.keys()) {
+            diag.push([key, this._diagnostics.get(key)]);
+        }
+        return diag;
+    }
+
+    clear(): void {
+        this._diagnostics.clear();
+    }
+}
+
 function getProblemMatchers(buildPath: string): ProblemMatcher[] {
     return [new CLMatcher(buildPath), new GCCMatcher(buildPath)];
 }
 
-export { ProblemMatcher, getProblemMatchers };
+export { CMakeMatcher, ProblemMatcher, getProblemMatchers };

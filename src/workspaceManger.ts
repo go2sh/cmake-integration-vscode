@@ -224,6 +224,7 @@ export class WorkspaceManager implements vscode.Disposable {
         try {
             client = new CommandClient(sourceFolder, workspaceFolder!, this._context);
             client.onModelChange((e) => this.onModelChange(e));
+            await client.initialize();
 
             this._clients.set(uri.fsPath, client);
             this.cppProvider.addClient(client);
@@ -453,6 +454,7 @@ export class WorkspaceManager implements vscode.Disposable {
             let config = await pickConfiguration(this.currentProject);
             if (config) {
                 await this.currentProject.client.updateConfiguration(config);
+                await this.currentProject.client.configure();
             }
         }
         this.updateStatusBar();

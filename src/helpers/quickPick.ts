@@ -158,7 +158,7 @@ async function pickTarget(context: ProjectContext): Promise<model.Target | undef
 }
 
 interface CMakeConfigurationItem extends vscode.QuickPickItem{
-    config : CMakeConfiguration
+    config : CMakeConfiguration;
 }
 async function pickConfiguration(context: ProjectContext): Promise<CMakeConfiguration | undefined> {
     let configPick = vscode.window.createQuickPick<CMakeConfigurationItem>();
