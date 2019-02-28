@@ -115,7 +115,9 @@ export class WorkspaceManager implements vscode.Disposable {
                 client: client
             }));
         }
-        this.onModelChange(contexts[0].client);
+        if (contexts.length > 0) {
+            this.onModelChange(contexts[0].client);
+        }
         return contexts;
     }
 
