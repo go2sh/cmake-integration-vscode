@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as util from 'util';
 import * as vscode from 'vscode';
 import { Project, Target, CacheValue } from './model';
-import { CMakeConfiguration, getDefaultConfigurations } from './config';
+import { CMakeConfiguration, getDefaultConfigurations, buildToolchainFile, loadConfigurations } from './config';
 import { removeDir, makeRecursivDirectory } from '../helpers/fs';
 
 const stat = util.promisify(fs.stat);
@@ -18,6 +18,7 @@ interface ProjectContextMap {
 
 class ClientContext {
   currentProjectName: string = "";
+  currentBuildDirectory : string = "";
   currentConfiguration: string = "Debug";
   projectContexts: ProjectContextMap = {};
 }
@@ -28,6 +29,8 @@ abstract class CMake implements vscode.Disposable {
   protected diagnostics: vscode.DiagnosticCollection;
 
   protected sourcePath: string;
+
+  private configFileWatcher : vscode.FileSystemWatcher;
 
   constructor(
     public readonly sourceUri: vscode.Uri,
@@ -40,6 +43,13 @@ abstract class CMake implements vscode.Disposable {
     this.diagnostics = vscode.languages.createDiagnosticCollection("cmake-" + this.name);
 
     this.clientContext = this.extensionContext.workspaceState.get(this.name + "-context", new ClientContext());
+    this.buildDirectory = this.clientContext.currentBuildDirectory || "";
+    this._configs = getDefaultConfigurations();
+    this._config = this._configs[0];
+    this.configFileWatcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(workspaceFolder, ".vscode/CMakeConfig.json"));
+    this.configFileWatcher.onDidChange((e) => this.initialize());
+    this.configFileWatcher.onDidCreate((e) => this.initialize());
+    this.configFileWatcher.onDidDelete((e) => this.initialize());
   }
 
   /*
@@ -48,8 +58,8 @@ abstract class CMake implements vscode.Disposable {
   protected _onModelChange: vscode.EventEmitter<CMake> = new vscode.EventEmitter();
   readonly onModelChange: vscode.Event<CMake> = this._onModelChange.event;
 
-  protected _configs: CMakeConfiguration[] = getDefaultConfigurations();
-  protected _config: CMakeConfiguration = { name: "Debug", buildType: "Debug" };
+  protected _configs: CMakeConfiguration[];
+  protected _config: CMakeConfiguration;
   public get configurations(): CMakeConfiguration[] {
     return this._configs;
   }
@@ -57,8 +67,6 @@ abstract class CMake implements vscode.Disposable {
   public get configuration(): CMakeConfiguration {
     return this._config;
   }
-
-  abstract updateConfiguration(config: CMakeConfiguration): Promise<void>;
 
   private _project: Project | undefined = undefined;
   private _projectTargets: Map<Project, Target[]> = new Map();
@@ -119,86 +127,101 @@ abstract class CMake implements vscode.Disposable {
     return path.basename(this.sourceUri.path);
   }
 
-  public get generator(): string {
-    if (this.configuration.generator) {
-      return this.configuration.generator;
-    } else {
-      return vscode.workspace.getConfiguration("cmake", this.sourceUri).get("generator", "Ninja");
-    }
-  }
+  protected generator: string = "";
+  protected buildDirectory: string;
+  protected buildType: string = "";
+  protected toolchainFile: string | undefined;
+  protected environment: { [key: string]: string | undefined } = {};
+  protected variables: { [key: string]: string | undefined } = {};
 
   public get isConfigurationGenerator(): boolean {
     return this.generator.match(/^Visual Studio/) !== null;
   }
 
-  public get buildDirectory(): string {
-    let buildDirectory: string;
-    if (this.configuration.buildDirectory) {
-      buildDirectory = this.configuration.buildDirectory;
-    } else {
-      buildDirectory = vscode.workspace.getConfiguration("cmake", this.sourceUri).get("buildDirectory", "${sourceFolder}/build");
-    }
-    buildDirectory = this.replaceVariables(buildDirectory);
-
-    if (!path.isAbsolute) {
-      buildDirectory = path.join(this.sourceUri.fsPath, buildDirectory);
-    }
-
-    return buildDirectory;
-  }
-
-  public get environment(): { [key: string]: string | undefined } {
-    let configEnv: { [key: string]: string };
-    if (this.configuration.env) {
-      configEnv = this.configuration.env;
-    } else {
-      configEnv = vscode.workspace.getConfiguration("cmake", this.sourceUri).get("env", {});
-    }
-    let processEnv = process.env;
-    return { ...processEnv, ...configEnv };
-  }
-
-  public get variables(): { [key: string]: string | undefined } {
-    if (this.configuration.variables) {
-      return this.configuration.variables;
-    } else {
-      return vscode.workspace.getConfiguration("cmake", this.sourceUri).get<any>("cacheEntries", {});
-    }
-  }
-
   protected cache: Map<string, CacheValue> = new Map();
-
   public getCacheValue(key: string): CacheValue | undefined {
     return this.cache.get(key);
+  }
+
+  public async updateConfiguration(config: CMakeConfiguration): Promise<void> {
+    let vars = new Map<string, string>();
+    let nextGenerator = config.generator ||
+      vscode.workspace.getConfiguration("cmake", this.sourceUri).get("generator", "Ninja");
+    let nextBuildDirectory = config.buildDirectory ||
+      vscode.workspace.getConfiguration("cmake", this.sourceUri).get(
+        "buildDirectory",
+        "${workspaceFolder}/build/");
+    let nextBuildType = config.buildType || vscode.workspace.getConfiguration("cmake", this.sourceUri).get("buildType", "Debug");
+    let nextToolchainFile = await buildToolchainFile(this.workspaceFolder, config);
+
+    vars.set("workspaceFolder", this.workspaceFolder.uri.fsPath);
+    vars.set("sourceFolder", this.sourceUri.fsPath);
+    vars.set("name", config.name);
+    vars.set("generator", nextGenerator);
+
+    this.environment = { ...process.env };
+    for (let key in process.env) {
+      vars.set("env." + key, process.env[key]!);
+    }
+    for (let key in config.env) {
+      let value = config.env[key].replace(/\${((?:\w+\.)?\w+)}/g, (substring: string, ...args: any[]) => {
+        return vars.get(args[0]) || "";
+      });
+      vars.set("env." + key, value);
+      this.environment[key] = value;
+    }
+    nextBuildDirectory = nextBuildDirectory.replace(
+      /\${((?:\w+\.)?\w+)}/g,
+      (substring: string, ...args: any[]) => {
+        return vars.get(args[0]) || "";
+      }
+    );
+    if (!path.isAbsolute(nextBuildDirectory)) {
+      nextBuildDirectory = path.join(this.sourceUri.fsPath, nextBuildDirectory);
+    }
+
+    let buildDirectoryDiff = this.buildDirectory !== nextBuildDirectory;
+    let generatorDiff = this.generator !== nextGenerator;
+    let toolchainDiff = this.toolchainFile !== nextToolchainFile;
+
+    if ((toolchainDiff || generatorDiff) && !buildDirectoryDiff) {
+      await this.removeBuildDirectory();
+    }
+
+    this._config = config;
+    this.clientContext.currentConfiguration = config.name;
+    this.updateContext();
+
+    this.generator = nextGenerator;
+    this.buildType = nextBuildType;
+    this.buildDirectory = nextBuildDirectory;
+    this.toolchainFile = nextToolchainFile;
+    this.buildDirectory = nextBuildDirectory;
+
+    await this.regenerateBuildDirectory();
   }
 
   public dispose() {
     this.console.dispose();
     this.diagnostics.dispose();
+    this.configFileWatcher.dispose();
   }
 
+  abstract regenerateBuildDirectory(): Promise<void>;
   abstract build(target?: string): Promise<void>;
   abstract configure(): Promise<void>;
 
-  protected replaceVariables(value: string): string {
-    let vars = new Map<string, string>();
-
-    // Add environment
-    let env = this.environment;
-    for (const key in this.environment) {
-      if (env[key] !== undefined) {
-        vars.set("env." + key, env[key]!);
-      }
-    }
-
-    vars.set("workspaceFolder", this.workspaceFolder.uri.fsPath);
-    vars.set("sourceFolder", this.sourceUri.fsPath);
-    vars.set("name", this.configuration.name);
-    vars.set("generator", this.generator);
-
-    return value.replace(/\${((?:\w+\.)?\w+)}/g, (substring: string, ...args: any[]) => {
-      return vars.get(args[0]) || "";
-    });
+  public async initialize() {
+    this._configs = await loadConfigurations(
+      path.join(
+        this.sourceUri.fsPath, ".vscode", "CMakeConfig.json"
+      ),
+      path.join(
+        this.extensionContext.extensionPath, "schema", "build_configuration.json"
+      )
+    );
+    this._config = this._configs.find((value) => value.name === this.clientContext.currentConfiguration) || this._configs[0];
+    await this.updateConfiguration(this.configuration);
   }
 
   public async hasBuildDirectory() {
