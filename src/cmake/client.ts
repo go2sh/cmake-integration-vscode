@@ -57,8 +57,6 @@ export class CMakeClient extends CMake {
 
     private _model: protocol.CodeModel | undefined;
 
-    private _buildDirectory: string;
-
     private _matchers: ProblemMatcher[];
 
 
@@ -68,10 +66,7 @@ export class CMakeClient extends CMake {
         context: vscode.ExtensionContext
     ) {
         super(uri, workspaceFolder, context);
-
-        this._buildDirectory = path.join(this.sourcePath, vscode.workspace.getConfiguration("cmake", this.sourceUri).get("buildDirectory", "build")).replace(/\\/g, "/");
-
-        this._matchers = getProblemMatchers(this._buildDirectory);
+        this._matchers = getProblemMatchers(this.buildDirectory);
     }
 
     public get extraGenerator(): string | undefined {
@@ -112,7 +107,7 @@ export class CMakeClient extends CMake {
         if (this._connection && msg) {
             let handshake: protocol.Handshake = {
                 sourceDirectory: this.sourcePath,
-                buildDirectory: this._buildDirectory,
+                buildDirectory: this.buildDirectory,
                 protocolVersion: msg.supportedProtocolVersions[0],
                 generator: this.generator,
                 extraGenerator: this.extraGenerator,
@@ -124,6 +119,9 @@ export class CMakeClient extends CMake {
     }
 
     async stop() {
+        if (this._state === ClientState.STOPPED) {
+            return;
+        }
         await new Promise((resolve, reject) => {
             if (!this._process || this._state === ClientState.STOPPED) {
                 return Promise.resolve();
@@ -193,9 +191,10 @@ export class CMakeClient extends CMake {
 
         await this._connection.compute();
         this._state = ClientState.GENERATED;
+        await this.updateModel();
     }
 
-    async updateModel() {
+    private async updateModel() {
         if (!this._connection || this._state < ClientState.GENERATED) {
             return;
         }
@@ -217,10 +216,7 @@ export class CMakeClient extends CMake {
 
     async build(target?: string) {
         if (this._state < ClientState.GENERATED) {
-            vscode.window.showWarningMessage(
-                "Build directory for " + this.name + " needs to be generated first."
-            );
-            return;
+            await this.configure();
         }
         if (this._state === ClientState.BUILDING) {
             return;
@@ -230,7 +226,7 @@ export class CMakeClient extends CMake {
 
         let cmakePath = vscode.workspace.getConfiguration("cmake", this.sourceUri).get("cmakePath", "cmake");
         let args: string[] = [];
-        args.push("--build", this._buildDirectory);
+        args.push("--build", this.buildDirectory);
         if (target) {
             args.push("--target", target);
         }
@@ -283,12 +279,14 @@ export class CMakeClient extends CMake {
             (value) => value.name === this.buildType)!.projects.map((sP) => {
                 return {
                     name: sP.name,
-                    targets: sP.targets.map((st) => {
+                    targets: sP.targets
+                        .filter((value) => value.type !== "INTERFACE_LIBRARY")
+                        .map((st) => {
                         return {
                             name: st.name,
                             sourceDirectory: st.sourceDirectory,
                             type: st.type,
-                            compileGroups: st.fileGroups.map((sFG) => {
+                            compileGroups: (st.fileGroups || []).map((sFG) => {
                                 return {
                                     compileFlags: sFG.compileFlags,
                                     compilerPath: "",
@@ -306,6 +304,7 @@ export class CMakeClient extends CMake {
                     })
                 } as model.Project;
             });
+        this.isModelValid = true;
         this.selectContext();
     }
 

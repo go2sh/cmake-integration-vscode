@@ -306,7 +306,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
         } else {
           filePath = path.normalize(path.join(target.sourceDirectory, source));
         }
-        filePath = filePath.replace(/\w\:\\/, (c) => c.toUpperCase()).replace(/\\/g,"/");
+        filePath = filePath.replace(/\w\:\\/, (c) => c.toUpperCase()).replace(/\\/g, "/");
         uri = Uri.file(filePath);
 
         clientInfo.clientFiles.add(filePath);
@@ -430,8 +430,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
 
   async canProvideConfiguration(uri: Uri, token?: CancellationToken) {
     let filePath = uri.fsPath;
-    //FIXME: Convert drive letters to uppercase
-    filePath = filePath.replace(/^\w\:\\/, c => c.toUpperCase()).replace(/\\/g,"/");
+    filePath = filePath.replace(/^\w\:\\/, c => c.toUpperCase()).replace(/\\/g, "/");
 
     let status = this.sourceFiles.has(filePath);
     // Look for other sources
@@ -465,8 +464,8 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     let items: SourceFileConfigurationItem[] = [];
     for (const uri of uris) {
       let path = uri.fsPath;
-      //FIXME: Convert drive letters to uppercase
-      path = path.replace(/^\w\:\\/, c => c.toUpperCase()).replace(/\\/g,"/");
+      path = path.replace(/^\w\:\\/, c => c.toUpperCase()).replace(/\\/g, "/");
+
       let item = this.sourceFiles.get(path);
       if (item) {
         items.push(item);
