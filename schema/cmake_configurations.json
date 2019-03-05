@@ -1,0 +1,271 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "vs_toolchain": {
+      "type": "object",
+      "properties": {
+        "CMAKE_GENERATOR_PLATFORM": {
+          "type": "string",
+          "description": "The target platform",
+          "enum": [
+            "Win32",
+            "x64",
+            "ARM",
+            "ARM64"
+          ]
+        },
+        "CMAKE_GENERATOR_TOOLSET": {
+          "type": "string",
+          "description": "The toolset to select",
+          "pattern": "^(v\\d\\d\\d)?((^|,)((version|cuda)=\\d+\\.\\d+|host=(x86|x64)))*$"
+        },
+        "CMAKE_SYSTEM_NAME": {
+          "type": "string",
+          "description": "The system name to target e.g WindowsStore",
+          "examples": [
+            "WindowsStore",
+            "WindowsPhone",
+            "WindowsCE"
+          ]
+        },
+        "CMAKE_SYSTEM_VERSION": {
+          "type": "string",
+          "description": "The target system verion to use e.g. 8.1 10.0",
+          "examples": [
+            "8.0",
+            "8.1",
+            "10.0"
+          ]
+        },
+        "CMAKE_SYSTEM_PROCESSOR": {
+          "type": "string",
+          "description": "The name of the target CPU. Used only for Windows CE. See CMAKE_GENERATOR_PLATFORM"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "CMAKE_GENERATOR_PLATFORM"
+      ]
+    },
+    "toolchain_file": {
+      "type": "string"
+    },
+    "compiler_toolchain": {
+      "type": "object",
+      "properties": {
+        "CMAKE_SYSTEM_NAME": {
+          "type": "string",
+          "description": "The target system name",
+          "examples": [
+            "Linux",
+            "Windows",
+            "Darwin"
+          ]
+        },
+        "CMAKE_SYSTEM_PROCESSOR": {
+          "type": "string",
+          "description": "The target processor type"
+        },
+        "CMAKE_SYSROOT": {
+          "type": "string",
+          "description": "The sysroot passed to the compiler"
+        },
+        "CMAKE_STAGING_PREFIX": {
+          "type": "string",
+          "description": "The path to install to"
+        },
+        "CMAKE_C_COMPILER": {
+          "type": "string",
+          "description": "The path or executable name of the C compiler",
+          "examples": [
+            "cc",
+            "gcc",
+            "clang",
+            "cl.exe"
+          ]
+        },
+        "CMAKE_C_COMPILER_TARGET": {
+          "type": "string",
+          "description": "The C compiler target for cross-compiling (e.g. for clang)"
+        },
+        "CMAKE_CXX_COMPILER": {
+          "type": "string",
+          "description": "The path or executable name of the C++ compiler",
+          "examples": [
+            "c++",
+            "g++",
+            "clang++",
+            "cl.exe"
+          ]
+        },
+        "CMAKE_CXX_COMPILER_TARGET": {
+          "type": "string",
+          "description": "The C++ compiler target for cross-compiling (e.g. for clang)"
+        }
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "buildDirectory": {
+          "type": "string"
+        },
+        "generator": {
+          "type": "string",
+          "enum": [
+            "Borland Makefiles",
+            "MSYS Makefiles",
+            "MinGW Makefiles",
+            "NMake Makefiles",
+            "NMake Makefiles JOM",
+            "Unix Makefiles",
+            "Watcom WMake",
+            "Ninja",
+            "Visual Studio 6",
+            "Visual Studio 7",
+            "Visual Studio 7 .NET 2003",
+            "Visual Studio 8 2005",
+            "Visual Studio 9 2008",
+            "Visual Studio 10 2010",
+            "Visual Studio 11 2012",
+            "Visual Studio 12 2013",
+            "Visual Studio 14 2015",
+            "Visual Studio 15 2017",
+            "Visual Studio 16 2019",
+            "Xcode",
+            "Green Hills MULTI"
+          ]
+        },
+        "buildType": {
+          "type": "string",
+          "description": "The CMake build type (see CMAKE_BUILD_TYPE)",
+          "examples": [
+            "",
+            "Debug",
+            "Release",
+            "RelWithDebInfo",
+            "MinSizeRel"
+          ]
+        },
+        "toolchain": {
+          "description": "The toolchain for your generator selection"
+        },
+        "env": {
+          "type": "object",
+          "description": "Additional environment variables",
+          "patternProperties": {
+            "\\w+": {
+              "type": "string"
+            }
+          }
+        },
+        "cacheEntries": {
+          "type": "array",
+          "description": "Additional CMake cache entries added to the command line",
+          "additionalItems": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Entry name"
+              },
+              "value": {
+                "type": "string",
+                "description": "Entry value"
+              },
+              "type": {
+                "type": "string",
+                "description": "Entry type",
+                "enum": [
+                  "BOOL",
+                  "FILEPATH",
+                  "PATH",
+                  "STRING",
+                  "INTERNAL"
+                ],
+                "required": [
+                  "name",
+                  "value",
+                  "type"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "required": [
+        "name",
+        "buildType"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "generator": {
+                "pattern": "Visual Studio.+"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "toolchain": {
+                "oneOf": [
+                  {
+                    "$ref": "#/definitions/toolchain_file"
+                  },
+                  {
+                    "$ref": "#/definitions/vs_toolchain"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "generator": {
+                "pattern": ".*(Ninja|Makefiles|WMake).*"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "toolchain": {
+                "oneOf": [
+                  {
+                    "$ref": "#/definitions/toolchain_file"
+                  },
+                  {
+                    "$ref": "#/definitions/compiler_toolchain"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "configurations": {
+      "type": "array",
+      "description": "List of configurations",
+      "items": {
+        "$ref": "#/definitions/configuration"
+      }
+    }
+  },
+  "required": [
+    "configurations"
+  ],
+  "additionalProperties": false
+}
