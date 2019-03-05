@@ -20,11 +20,11 @@
 import * as path from 'path';
 import * as os from 'os';
 
-import { Uri } from 'vscode';
+import { Uri, Disposable } from 'vscode';
 import { CancellationToken } from 'vscode-jsonrpc';
 import { CustomConfigurationProvider, SourceFileConfiguration, SourceFileConfigurationItem, WorkspaceBrowseConfiguration } from 'vscode-cpptools';
-import { Target } from '../cmake/protocol';
-import { CMakeClient } from '../cmake/client';
+import { Target } from '../cmake/model';
+import { CMake } from '../cmake/cmake';
 
 interface TargetInfo {
   cConfiguration?: SourceFileConfiguration;
@@ -40,6 +40,7 @@ interface ClientInfo {
   cppConfiguration?: SourceFileConfiguration;
 
   ready: boolean;
+  disposables: Disposable[];
 }
 
 class ConfigurationProvider implements CustomConfigurationProvider {
@@ -48,7 +49,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   extensionId: string = "go2sh.cmake-integration";
 
   /* Storage of precompiled infos per client */
-  private clientInfos: Map<CMakeClient, ClientInfo> = new Map();
+  private clientInfos: Map<CMake, ClientInfo> = new Map();
   /* Fast look up map for Items */
   private sourceFiles: Map<string, SourceFileConfigurationItem> = new Map();
   /* Precompiled browseConfig */
@@ -193,7 +194,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     }
   }
 
-  updateClient(client: CMakeClient) {
+  updateClient(client: CMake) {
     let clientInfo: ClientInfo = this.clientInfos.get(client)!;
     let windowsSdkVersion: string | undefined;
     let cCompiler: string | undefined;
@@ -238,11 +239,11 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   ) {
     let info: TargetInfo = {};
 
-    if (!target.type.match(/(?:STATIC_LIBRARY|MODULE_LIBRARY|SHARED_LIBRARY|OBJECT_LIBRARY|INTERFACE_LIBRARY|EXECUTABLE)/) || !target.fileGroups) {
+    if (!target.type.match(/(?:STATIC_LIBRARY|MODULE_LIBRARY|SHARED_LIBRARY|OBJECT_LIBRARY|INTERFACE_LIBRARY|EXECUTABLE)/) || !target.compileGroups) {
       return;
     }
 
-    for (const fg of target.fileGroups) {
+    for (const fg of target.compileGroups) {
       let language: "c" | "c++" = "c";
       let compilerPath: string | undefined;
       let defines: string[] = [];
@@ -261,17 +262,13 @@ class ConfigurationProvider implements CustomConfigurationProvider {
         standard = "c11";
       }
 
-      if (fg.includePath) {
-        fg.includePath.forEach((value) => {
-          let incPath = path.normalize(value.path);
-          includePath.push(incPath);
-        });
-      }
-      if (fg.defines) {
-        fg.defines.forEach((value) => {
-          defines.push(value);
-        });
-      }
+      fg.includePaths.forEach((value) => {
+        let incPath = path.normalize(value.path);
+        includePath.push(incPath);
+      });
+      fg.defines.forEach((value) => {
+        defines.push(value);
+      });
 
       if (compilerPath) {
         standard = ConfigurationProvider.getStandard(compilerPath, fg.compileFlags, language);
@@ -410,20 +407,22 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     };
   }
 
-  addClient(client: CMakeClient) {
+  addClient(client: CMake) {
     this.clientInfos.set(client, {
       targetInfos: new Map(),
       clientFiles: new Set(),
-      ready: false
+      ready: false,
+      disposables: [client.onModelChange((e) => this.updateClient(e))]
     });
   }
 
-  deleteClient(client: CMakeClient) {
+  deleteClient(client: CMake) {
     let info = this.clientInfos.get(client)!;
     // Remove from source files
     for (const file of info.clientFiles.values()) {
       this.sourceFiles.delete(file);
     }
+    info.disposables.map((d) => d.dispose());
     // Remove from cache
     this.clientInfos.delete(client);
     this._updateBrowsingConfiguration();
@@ -445,7 +444,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
         let clientInfo = this.clientInfos.get(client)!;
         let configuration: SourceFileConfiguration | undefined;
 
-        if (filePath.startsWith(client.sourceDirectory)) {
+        if (filePath.startsWith(client.sourceUri.fsPath)) {
           if (filePath.match(/\.[cC]$/)) {
             configuration = clientInfo.cConfiguration;
           } else {
