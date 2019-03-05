@@ -237,6 +237,7 @@ class CommandClient extends CMake {
 
     await this.buildModel(index, codeModel);
     this.selectContext();
+    this.isModelValid = true;
     this._onModelChange.fire(this);
   }
 

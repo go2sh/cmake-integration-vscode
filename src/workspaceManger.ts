@@ -31,6 +31,7 @@ import { CMakeClient } from './cmake/client';
 import { Project, Target } from './cmake/model';
 
 export class WorkspaceManager implements vscode.Disposable {
+
     private _context: vscode.ExtensionContext;
     private _events: vscode.Disposable[] = [];
     private _clients: Map<string, CMake> = new Map<string, CMake>();
@@ -69,7 +70,7 @@ export class WorkspaceManager implements vscode.Disposable {
 
         this._projectItem.command = "cmake.selectProject";
         this._targetItem.command = "cmake.selectTarget";
-        this._configItem.command = "cmake.selectBuildType";
+        this._configItem.command = "cmake.selectConfiguration";
 
         this.cppProvider = new ConfigurationProvider();
     }
@@ -80,7 +81,7 @@ export class WorkspaceManager implements vscode.Disposable {
     private set currentProject(value: ProjectContext | undefined) {
         this._currentProject = value;
         if (value) {
-            this._context.workspaceState.update("currentProject", value.project);
+            this._context.workspaceState.update("currentProject", value.project.name);
         }
     }
 
@@ -122,7 +123,11 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     private onModelChange(e: CMake) {
-        if (this.currentProject === undefined) {
+        if (this.currentProject === undefined &&
+            [...this._clients.values()].reduce(
+                (ready, client) => ready = ready && client.isModelValid, true
+            )
+        ) {
             let client: CMake | undefined;
             let projectName: string | undefined;
 
@@ -222,12 +227,19 @@ export class WorkspaceManager implements vscode.Disposable {
 
         let client: CMake;
         try {
-            client = new CommandClient(sourceFolder, workspaceFolder!, this._context);
+            if (vscode.workspace.getConfiguration("cmake").get("useFileAPI", false)) {
+                client = new CommandClient(sourceFolder, workspaceFolder!, this._context);
+            } else {
+                client = new CMakeClient(sourceFolder, workspaceFolder!, this._context);
+            }
+
             client.onModelChange((e) => this.onModelChange(e));
-            await client.initialize();
+            client.onDidChangeConfiguration(() => this.updateStatusBar());
 
             this._clients.set(uri.fsPath, client);
             this.cppProvider.addClient(client);
+
+            await client.loadConfigurations();
 
             if (vscode.workspace.getConfiguration("cmake").get("configureOnStart", true)) {
                 try {
@@ -445,7 +457,7 @@ export class WorkspaceManager implements vscode.Disposable {
         this.updateStatusBar();
     }
 
-    async selectBuildType() {
+    async selectConfiguration() {
         if (this.currentProject === undefined) {
             await this.selectProject();
             await this.selectTarget();
@@ -454,7 +466,9 @@ export class WorkspaceManager implements vscode.Disposable {
             let config = await pickConfiguration(this.currentProject);
             if (config) {
                 await this.currentProject.client.updateConfiguration(config);
-                await this.currentProject.client.configure();
+                if (vscode.workspace.getConfiguration("cmake").get("configureOnStart", true)) {
+                    await this.currentProject.client.configure();
+                }
             }
         }
         this.updateStatusBar();
@@ -492,6 +506,22 @@ export class WorkspaceManager implements vscode.Disposable {
                     "Failed to restart CMake Server (" + client.name + "): " + e.message
                 );
             }
+        }
+    }
+
+    async editConfiguration() {
+        let client = await pickClient([...this._clients.values()]);
+        if (client) {
+            let textDocument = await vscode.workspace.openTextDocument(vscode.Uri.parse("untitled:" + client.configurationsFile));
+            let editor = await vscode.window.showTextDocument(textDocument);
+            editor.edit((builder) => {
+                builder.insert(
+                    new vscode.Position(0, 0),
+                    JSON.stringify({
+                        configurations: client!.configurations
+                    }, undefined, 2)
+                );
+            });
         }
     }
 

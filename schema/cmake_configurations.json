@@ -142,10 +142,11 @@
             "Green Hills MULTI"
           ]
         },
-        "configuration": {
+        "buildType": {
           "type": "string",
-          "description": "The CMake configuration type (see CMAKE_BUILD_TYPE)",
+          "description": "The CMake build type (see CMAKE_BUILD_TYPE)",
           "examples": [
+            "",
             "Debug",
             "Release",
             "RelWithDebInfo",
@@ -164,18 +165,43 @@
             }
           }
         },
-        "variables": {
-          "type": "object",
-          "description": "Additional CMake variables added to the command line",
-          "patternProperties": {
-            "\\w+": {
-              "type": "string"
+        "cacheEntries": {
+          "type": "array",
+          "description": "Additional CMake cache entries added to the command line",
+          "additionalItems": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Entry name"
+              },
+              "value": {
+                "type": "string",
+                "description": "Entry value"
+              },
+              "type": {
+                "type": "string",
+                "description": "Entry type",
+                "enum": [
+                  "BOOL",
+                  "FILEPATH",
+                  "PATH",
+                  "STRING",
+                  "INTERNAL"
+                ],
+                "required": [
+                  "name",
+                  "value",
+                  "type"
+                ]
+              }
             }
           }
         }
       },
       "required": [
-        "name"
+        "name",
+        "buildType"
       ],
       "additionalProperties": false,
       "allOf": [

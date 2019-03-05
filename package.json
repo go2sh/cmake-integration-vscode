@@ -40,6 +40,12 @@
     ],
     "main": "./dist/extension",
     "contributes": {
+        "jsonValidation": [
+            {
+                "fileMatch": ".vscode/cmake_configurations.json",
+                "url": "./schema/cmake_configurations.json"
+            }
+        ],
         "commands": [
             {
                 "command": "cmake.configureProject",
@@ -117,8 +123,13 @@
                 "category": "CMake"
             },
             {
-                "command": "cmake.selectBuildType",
-                "title": "Select CMake Build Type",
+                "command": "cmake.selectConfiguration",
+                "title": "Select CMake Configuration",
+                "category": "CMake"
+            },
+            {
+                "command": "cmake.editConfiguration",
+                "title": "Edit CMake Configurations",
                 "category": "CMake"
             }
         ],
@@ -136,7 +147,8 @@
                 "cmake.configureOnStart": {
                     "type": "boolean",
                     "title": "Configure on server start",
-                    "description": "Configure the project when a server is started (e.g. on open, on add)",
+                    "description": "Configure the project on start",
+                    "scope": "window",
                     "default": "true"
                 },
                 "cmake.showConsoleAutomatically": {
@@ -156,7 +168,7 @@
                 "cmake.generator": {
                     "type": "string",
                     "title": "Build System Generator",
-                    "description": "Select a build system generator",
+                    "description": "Default build system generator",
                     "scope": "resource",
                     "enum": [
                         "Ninja",
@@ -182,22 +194,10 @@
                     ],
                     "default": "Ninja"
                 },
-                "cmake.generatorPlatform": {
-                    "type": "string",
-                    "title": "Generator Platform",
-                    "description": "Set the target platform for the generator. (See CMAKE_GENERATOR_PLATFORM)",
-                    "scope": "resource"
-                },
-                "cmake.generatorToolset": {
-                    "type": "string",
-                    "title": "Generator Toolset",
-                    "description": "Set the toolset to use for the generator. (See CMAKE_GENERATOR_TOOLSET)",
-                    "scope": "resource"
-                },
                 "cmake.extraGenerator": {
                     "type": "string",
                     "title": "Extra Generator",
-                    "description": "Extra generator for an auxiliary IDE tool.",
+                    "description": "Default extra generator for an auxiliary IDE tool.",
                     "scope": "resource",
                     "enum": [
                         "CodeBlocks",
@@ -207,37 +207,26 @@
                         "Sublime Text 2"
                     ]
                 },
-                "cmake.buildTypes": {
-                    "type": "array",
-                    "title": "Additional Build Types",
-                    "description": "Add additional Build Types (Configurations)",
+                "cmake.buildDirectory": {
+                    "type": "string",
+                    "title": "Build Type",
+                    "description": "Default build directory",
                     "scope": "resource",
-                    "items": {
-                        "type": "string"
-                    }
+                    "default": "${workspaceFolder}/build"
                 },
-                "cmake.cacheEntries": {
+                "cmake.variables": {
                     "type": "object",
                     "title": "Additional Cache Entries",
-                    "description": "Speciefies additional cache entries for CMake. (Same as -D argument)",
+                    "description": "Default additional cache entries for CMake. (Same as -D argument)",
                     "scope": "resource",
                     "additionalProperties": {
                         "type": "string"
                     }
                 },
-                "cmake.configureEnviroment": {
+                "cmake.env": {
                     "type": "object",
-                    "title": "Configuration Environment",
-                    "description": "Additional environment variables for the configuration process.",
-                    "scope": "resource",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "cmake.buildEnvironment": {
-                    "type": "object",
-                    "title": "Build Environment",
-                    "description": "Additional environment variables for the build process.",
+                    "title": "CMake Environment",
+                    "description": "Default environment variables for CMake",
                     "scope": "resource",
                     "additionalProperties": {
                         "type": "string"
@@ -315,9 +304,9 @@
         ]
     },
     "scripts": {
-        "vscode:prepublish": "webpack --compile --mode production webpack.config.js",
-        "compile": "tsc -p ./",
-        "watch": "tsc -watch -p ./",
+        "vscode:prepublish": "npm run compile",
+        "compile": "webpack --compile --mode production webpack.config.js",
+        "watch": "webpack --watch --mode development webpack.config.js",
         "postinstall": "node ./node_modules/vscode/bin/install",
         "test": "npm run compile && node ./node_modules/vscode/bin/test"
     },

@@ -1,3 +1,21 @@
+/*
+ * Copyright 2019 Christoph Seitz
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+*/
+/*
+ * Base class for all CMake clients
+ */
 import * as fs from 'fs';
 import * as path from 'path';
 import * as util from 'util';
@@ -18,64 +36,79 @@ interface ProjectContextMap {
 
 class ClientContext {
   currentProjectName: string = "";
-  currentBuildDirectory : string = "";
   currentConfiguration: string = "Debug";
   projectContexts: ProjectContextMap = {};
 }
 
 abstract class CMake implements vscode.Disposable {
 
-  protected console: vscode.OutputChannel;
-  protected diagnostics: vscode.DiagnosticCollection;
-
-  protected sourcePath: string;
-
-  private configFileWatcher : vscode.FileSystemWatcher;
-
+  /**
+   * Create a new CMake client in a given source folder
+   *
+   * @param sourceUri A (uri)[#vscode.Uri] to the source folder
+   * @param workspaceFolder A (workspace folder)[vscode.WorkspaceFolder] containing the source
+   * @param extensionContext The (extension context)[vscode.extensionContext]
+   */
   constructor(
     public readonly sourceUri: vscode.Uri,
     public readonly workspaceFolder: vscode.WorkspaceFolder,
     protected readonly extensionContext: vscode.ExtensionContext
   ) {
-    this.sourcePath = path.dirname(this.sourceUri.fsPath).replace(/\\/g, "/").replace(/^\w\:\//, (c) => c.toUpperCase());
+    this.sourcePath = this.sourceUri.fsPath.replace(/\\/g, "/").replace(/^\w\:\//, (c) => c.toUpperCase());
 
     this.console = vscode.window.createOutputChannel(this.name);
     this.diagnostics = vscode.languages.createDiagnosticCollection("cmake-" + this.name);
 
     this.clientContext = this.extensionContext.workspaceState.get(this.name + "-context", new ClientContext());
-    this.buildDirectory = this.clientContext.currentBuildDirectory || "";
-    this._configs = getDefaultConfigurations();
-    this._config = this._configs[0];
-    this.configFileWatcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(workspaceFolder, ".vscode/CMakeConfig.json"));
-    this.configFileWatcher.onDidChange((e) => this.initialize());
-    this.configFileWatcher.onDidCreate((e) => this.initialize());
-    this.configFileWatcher.onDidDelete((e) => this.initialize());
+
+    this.configFileWatcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(workspaceFolder, ".vscode/cmake_configurations.json")
+    );
+    this.configFileWatcher.onDidChange(
+      (e) => this.loadConfigurations()
+    );
+    this.configFileWatcher.onDidCreate((e) => this.loadConfigurations());
+    this.configFileWatcher.onDidDelete((e) => this.loadConfigurations());
+    this.configurationsFile = path.join(
+      this.sourceUri.fsPath, ".vscode", "cmake_configurations.json"
+    );
+  }
+
+  protected sourcePath: string;
+
+  public get name(): string {
+    return path.basename(this.sourceUri.path);
   }
 
   /*
-   * Properties
+   * Model functions
    */
+
   protected _onModelChange: vscode.EventEmitter<CMake> = new vscode.EventEmitter();
+
+  /**
+   * An [event](#vscode.Event) which fires when the internal model got updated.
+   */
   readonly onModelChange: vscode.Event<CMake> = this._onModelChange.event;
 
-  protected _configs: CMakeConfiguration[];
-  protected _config: CMakeConfiguration;
-  public get configurations(): CMakeConfiguration[] {
-    return this._configs;
-  }
-
-  public get configuration(): CMakeConfiguration {
-    return this._config;
-  }
+  public isModelValid: boolean = false;
 
   private _project: Project | undefined = undefined;
   private _projectTargets: Map<Project, Target[]> = new Map();
   protected _projects: Project[] = [];
 
+  /**
+   * The projects of the CMake client
+   */
   public get projects(): Project[] {
     return this._projects;
   }
 
+  /**
+   * The currently selected project.
+   *
+   * Note: Changing the project might change the target as well.
+   */
   public get project(): Project | undefined {
     return this._project;
   }
@@ -85,7 +118,7 @@ abstract class CMake implements vscode.Disposable {
 
       this._target = this.projectTargets.find(
         (value) =>
-          value.name === this.currentProjectContext!.currentTargetName
+          value.name === this.projectContext!.currentTargetName
       ) || this.projectTargets[0];
     } else {
       this._project = undefined;
@@ -94,6 +127,9 @@ abstract class CMake implements vscode.Disposable {
     this.updateContext();
   }
 
+  /**
+   * The targets of the currently selected project
+   */
   public get projectTargets(): Target[] {
     if (this.project) {
       return this.project.targets;
@@ -106,10 +142,18 @@ abstract class CMake implements vscode.Disposable {
   private _target: Target | undefined;
   private _targetProject: Map<Target, Project> = new Map();
 
+  /**
+   * The targets of the CMake client
+   */
   public get targets(): Target[] {
     return this._targets;
   }
 
+  /**
+   * The currently select target
+   *
+   * Note: Changing the target might change the project as well.
+   */
   public get target(): Target | undefined {
     return this._target;
   }
@@ -123,41 +167,122 @@ abstract class CMake implements vscode.Disposable {
     this.updateContext();
   }
 
-  public get name(): string {
-    return path.basename(this.sourceUri.path);
+  protected cache: Map<string, CacheValue> = new Map();
+
+  /**
+   * Returns a value from the CMake Cache.
+   *
+   * @param key A CMake Cache property name
+   * @returns A [value](#CacheValue) or undefined if not found
+   */
+  public getCacheValue(key: string): CacheValue | undefined {
+    return this.cache.get(key);
+  }
+
+  /*
+   * Configuration
+   */
+
+  private configFileWatcher: vscode.FileSystemWatcher;
+  private configChangeEvent: vscode.EventEmitter<void> = new vscode.EventEmitter();
+  public onDidChangeConfiguration: vscode.Event<void> = this.configChangeEvent.event;
+  public readonly configurationsFile: string;
+  protected _configs: CMakeConfiguration[] = getDefaultConfigurations();
+  protected _config: CMakeConfiguration = this._configs[0];
+
+  /**
+   * Configurations of the client
+   */
+  public get configurations(): CMakeConfiguration[] {
+    return this._configs;
+  }
+
+  /**
+   * The current configuration.
+   *
+   * Note: Use [updateConfiguration](#updateConfiguration) for setting a
+   * new configuration.
+   *
+   * @see updateConfiguration
+   */
+  public get configuration(): CMakeConfiguration {
+    return this._config;
   }
 
   protected generator: string = "";
-  protected buildDirectory: string;
+  protected buildDirectory: string = "";
   protected buildType: string = "";
   protected toolchainFile: string | undefined;
   protected environment: { [key: string]: string | undefined } = {};
   protected variables: { [key: string]: string | undefined } = {};
 
-  public get isConfigurationGenerator(): boolean {
-    return this.generator.match(/^Visual Studio/) !== null;
-  }
-
-  protected cache: Map<string, CacheValue> = new Map();
-  public getCacheValue(key: string): CacheValue | undefined {
-    return this.cache.get(key);
-  }
-
+  /**
+   * Update the client to a new configuration
+   *
+   * @param config The configuration to use
+   */
   public async updateConfiguration(config: CMakeConfiguration): Promise<void> {
-    let vars = new Map<string, string>();
+    let vars = this.setupVariables(config);
+
+    /* Load new config values */
     let nextGenerator = config.generator ||
       vscode.workspace.getConfiguration("cmake", this.sourceUri).get("generator", "Ninja");
     let nextBuildDirectory = config.buildDirectory ||
       vscode.workspace.getConfiguration("cmake", this.sourceUri).get(
         "buildDirectory",
         "${workspaceFolder}/build/");
-    let nextBuildType = config.buildType || vscode.workspace.getConfiguration("cmake", this.sourceUri).get("buildType", "Debug");
-    let nextToolchainFile = await buildToolchainFile(this.workspaceFolder, config);
+    let nextBuildType = config.buildType ||
+      vscode.workspace.getConfiguration("cmake", this.sourceUri).get("buildType", "Debug");
+    let nextToolchainFile =
+      await buildToolchainFile(this.workspaceFolder, config);
+
+    /* Resolve build directory */
+    nextBuildDirectory = nextBuildDirectory.replace(
+      /\${((?:\w+\.)?\w+)}/g,
+      (substring: string, ...args: any[]) => {
+        return vars.get(args[0]) || "";
+      }
+    );
+    if (!path.isAbsolute(nextBuildDirectory)) {
+      nextBuildDirectory = path.join(this.sourceUri.fsPath, nextBuildDirectory);
+    }
+
+    /* Check if build directory needs to be removed */
+    let buildDirectoryDiff = this.buildDirectory !== nextBuildDirectory;
+    let generatorDiff = this.generator !== nextGenerator;
+    let toolchainDiff = this.toolchainFile !== nextToolchainFile;
+
+    if ((toolchainDiff || generatorDiff) && !buildDirectoryDiff) {
+      await this.removeBuildDirectory();
+    }
+
+    /* Set new config values */
+    this._config = config;
+    this.updateContext();
+    this.configChangeEvent.fire();
+
+    this.generator = nextGenerator;
+    this.buildType = nextBuildType;
+    this.buildDirectory = nextBuildDirectory;
+    this.toolchainFile = nextToolchainFile;
+    this.buildDirectory = nextBuildDirectory;
+
+    if (buildDirectoryDiff || toolchainDiff || generatorDiff) {
+      await this.regenerateBuildDirectory();
+    }
+  }
+
+  private setupVariables(config: CMakeConfiguration): Map<string, string> {
+    let vars: Map<string, string> = new Map();
 
     vars.set("workspaceFolder", this.workspaceFolder.uri.fsPath);
     vars.set("sourceFolder", this.sourceUri.fsPath);
     vars.set("name", config.name);
-    vars.set("generator", nextGenerator);
+    vars.set("generator",
+      config.generator ||
+      vscode.workspace.getConfiguration("cmake", this.sourceUri).get("generator", "Ninja")
+    );
+    vars.set("buildType", config.buildType);
 
     this.environment = { ...process.env };
     for (let key in process.env) {
@@ -170,61 +295,101 @@ abstract class CMake implements vscode.Disposable {
       vars.set("env." + key, value);
       this.environment[key] = value;
     }
-    nextBuildDirectory = nextBuildDirectory.replace(
-      /\${((?:\w+\.)?\w+)}/g,
-      (substring: string, ...args: any[]) => {
-        return vars.get(args[0]) || "";
+    return vars;
+  }
+
+  /**
+   * Wether this client uses a multi configuration generator.
+   * (Visual Studio, Xcode)
+   */
+  public get isConfigurationGenerator(): boolean {
+    return this.generator.match(/^(Xcode|Visual Studio)/) !== null;
+  }
+
+  /*
+   * Workflow functions
+   */
+
+  /**
+   * Initialize the CMake client. It tries to load the
+   * CMakeConfig.json file and parses it. Then a configuration
+   * gets selected and the client will be set up arcordingly.
+   */
+  public async loadConfigurations() {
+    let fileConfigs;
+    try {
+      fileConfigs = await loadConfigurations(
+        this.configurationsFile
+      );
+    } catch (e) {
+      let item = await vscode.window.showWarningMessage(
+        "Failed to validate CMake Configurations for " +
+        this.name + ": " + e.message,
+        "Edit Configurations"
+      );
+      if (item) {
+        vscode.window.showTextDocument(vscode.Uri.file(this.configurationsFile));
       }
-    );
-    if (!path.isAbsolute(nextBuildDirectory)) {
-      nextBuildDirectory = path.join(this.sourceUri.fsPath, nextBuildDirectory);
     }
 
-    let buildDirectoryDiff = this.buildDirectory !== nextBuildDirectory;
-    let generatorDiff = this.generator !== nextGenerator;
-    let toolchainDiff = this.toolchainFile !== nextToolchainFile;
-
-    if ((toolchainDiff || generatorDiff) && !buildDirectoryDiff) {
-      await this.removeBuildDirectory();
+    if (fileConfigs) {
+      this._configs = fileConfigs;
+    } else {
+      this._configs = getDefaultConfigurations();
     }
 
-    this._config = config;
-    this.clientContext.currentConfiguration = config.name;
-    this.updateContext();
-
-    this.generator = nextGenerator;
-    this.buildType = nextBuildType;
-    this.buildDirectory = nextBuildDirectory;
-    this.toolchainFile = nextToolchainFile;
-    this.buildDirectory = nextBuildDirectory;
-
-    await this.regenerateBuildDirectory();
-  }
-
-  public dispose() {
-    this.console.dispose();
-    this.diagnostics.dispose();
-    this.configFileWatcher.dispose();
-  }
-
-  abstract regenerateBuildDirectory(): Promise<void>;
-  abstract build(target?: string): Promise<void>;
-  abstract configure(): Promise<void>;
-
-  public async initialize() {
-    this._configs = await loadConfigurations(
-      path.join(
-        this.sourceUri.fsPath, ".vscode", "CMakeConfig.json"
-      ),
-      path.join(
-        this.extensionContext.extensionPath, "schema", "build_configuration.json"
-      )
-    );
-    this._config = this._configs.find((value) => value.name === this.clientContext.currentConfiguration) || this._configs[0];
+    let config = this._configs.find((value) => value.name === this.clientContext.currentConfiguration);
+    if (config) {
+      this._config = config;
+    } else {
+      this._config = this._configs[0];
+    }
     await this.updateConfiguration(this.configuration);
   }
 
-  public async hasBuildDirectory() {
+  /**
+   * Regenerate the build directory files. After a build
+   * directory change, it handles the necessary steps to
+   * generate the new build directory.
+   */
+  abstract regenerateBuildDirectory(): Promise<void>;
+
+  /**
+   * Build a target
+   *
+   * @param target A target name to build or undefined for all
+   */
+  abstract build(target?: string): Promise<void>;
+
+  /**
+   * Configure the build system. This function configures and
+   * generates the build system. Afterwards, the client is ready
+   * to build.
+   */
+  abstract configure(): Promise<void>;
+
+  /**
+   * VSCode connection
+   */
+
+  protected console: vscode.OutputChannel;
+  protected diagnostics: vscode.DiagnosticCollection;
+
+  protected mayShowConsole() {
+    if (vscode.workspace.getConfiguration("cmake").get("showConsoleAutomatically", true)) {
+      this.console.show();
+    }
+  }
+
+  /*
+   * Build directory function
+   */
+
+  /** Check if build directory exists
+   *
+   * @return true if directory exists
+   */
+  public async hasBuildDirectory(): Promise<boolean> {
     let result = await stat(this.buildDirectory).catch((e) => undefined);
     if (result) {
       if (result.isDirectory) {
@@ -236,27 +401,26 @@ abstract class CMake implements vscode.Disposable {
     return false;
   }
 
+  /**
+   * Create the build directory recursivly.
+   */
   public async createBuildDirectory() {
     await makeRecursivDirectory(this.buildDirectory);
   }
 
+  /**
+   * Remove build directory
+   */
   public async removeBuildDirectory() {
     await removeDir(this.buildDirectory);
   }
 
-  protected mayShowConsole() {
-    if (vscode.workspace.getConfiguration("cmake").get("showConsoleAutomatically", true)) {
-      this.console.show();
-    }
-  }
-
   /*
    * Context handling
-   *
    */
   protected clientContext: ClientContext;
 
-  protected get currentProjectContext(): ProjectContext | undefined {
+  protected get projectContext(): ProjectContext | undefined {
     if (this.project) {
       let projectContext: ProjectContext;
       if (!this.clientContext.projectContexts.hasOwnProperty(this.project.name)) {
@@ -275,13 +439,10 @@ abstract class CMake implements vscode.Disposable {
       this.clientContext.currentProjectName = this.project.name;
 
       if (this.target) {
-        this.currentProjectContext!.currentTargetName = this.target.name;
-      } else {
-        this.currentProjectContext!.currentTargetName = "";
+        this.projectContext!.currentTargetName = this.target.name;
       }
-    } else {
-      this.clientContext.currentProjectName = "";
     }
+    this.clientContext.currentConfiguration = this.configuration.name;
     this.extensionContext.workspaceState.update(this.name + "-context", this.clientContext);
   }
 
@@ -299,7 +460,7 @@ abstract class CMake implements vscode.Disposable {
       this._project = this._projects.find((value) => value.name === this.clientContext.currentProjectName) || this._projects[0];
       this.clientContext.currentProjectName = this._project.name;
 
-      let context = this.currentProjectContext!;
+      let context = this.projectContext!;
       let targets = this.projectTargets;
       if (targets && targets.length > 0) {
         let target = targets.find((value) => context.currentTargetName === value.name) || targets[0];
@@ -308,10 +469,17 @@ abstract class CMake implements vscode.Disposable {
       } else {
         this._target = undefined;
       }
+      this.updateContext();
     } else {
       this._project = undefined;
       this._target = undefined;
     }
+  }
+
+  public dispose() {
+    this.console.dispose();
+    this.diagnostics.dispose();
+    this.configFileWatcher.dispose();
   }
 }
 

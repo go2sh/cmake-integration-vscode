@@ -122,8 +122,8 @@ export async function activate(context: vscode.ExtensionContext) {
     );
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake.selectBuildType",
-            async () => await manager.selectBuildType()
+            "cmake.selectConfiguration",
+            async () => await manager.selectConfiguration()
         )
     );
 
@@ -132,6 +132,14 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand(
             "cmake.cleanRestartClient",
             async () => await manager.restartClient(true)
+        )
+    );
+
+    /* Configuration commands */
+    disposables.push(
+        vscode.commands.registerCommand(
+            "cmake.editConfiguration",
+            async () => await manager.editConfiguration()
         )
     );
 
