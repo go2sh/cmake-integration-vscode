@@ -305,8 +305,8 @@
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",
-        "compile": "webpack --compile --mode production webpack.config.js",
-        "watch": "webpack --watch --mode development webpack.config.js",
+        "compile": "webpack --compile --mode production --config webpack.config.js",
+        "watch": "webpack --watch --mode development --config webpack.config.js",
         "postinstall": "node ./node_modules/vscode/bin/install",
         "test": "npm run compile && node ./node_modules/vscode/bin/test"
     },
