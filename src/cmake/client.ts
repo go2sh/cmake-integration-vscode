@@ -235,20 +235,26 @@ export class CMakeClient extends CMake {
         if (this.isConfigurationGenerator) {
             args.push("--config", this.buildType);
         }
-
         let buildProc = child_process.execFile(cmakePath, args, {
             env: this.environment
         });
         buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
             this.console.appendLine(chunk);
-            this.handleBuildLine(chunk);
+            for (let matcher of this._matchers) {
+                matcher.match(chunk);
+            }
         });
         buildProc.stderr.pipe(new LineTransform()).on("data", (chunk: string) => {
             this.console.appendLine(chunk);
-            this.handleBuildLine(chunk);
+            for (let matcher of this._matchers) {
+                matcher.match(chunk);
+            }
         });
 
-        this._matchers.forEach((value) => value.clear());
+        this._matchers.forEach((value) => {
+            value.buildPath = this.buildDirectory;
+            value.clear();
+        });
         this._state = ClientState.BUILDING;
 
         return new Promise<void>((resolve, reject) => {
@@ -407,11 +413,5 @@ export class CMakeClient extends CMake {
 
     private onMessage(msg: protocol.Display) {
         this.console.appendLine(msg.message);
-    }
-
-    private handleBuildLine(line: string) {
-        for (let matcher of this._matchers) {
-            matcher.match(line);
-        }
     }
 }

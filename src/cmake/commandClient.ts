@@ -25,7 +25,7 @@ import * as vscode from 'vscode';
 
 import { CMake } from "./cmake";
 import { LineTransform } from '../helpers/stream';
-import { getProblemMatchers, CMakeMatcher } from '../helpers/problemMatcher';
+import { getProblemMatchers, CMakeMatcher, ProblemMatcher } from '../helpers/problemMatcher';
 import { makeRecursivDirectory } from '../helpers/fs';
 import { IndexFile, CodeModelFile, ClientResponse, ReplyFileReference, TargetFile, CacheFile } from './fileApi';
 import { Target, Project, CacheValue } from './model';
@@ -60,7 +60,7 @@ class CommandClient extends CMake {
     let args: string[] = [];
     let matcher = new CMakeMatcher(this.buildDirectory);
 
-    args.push("-G"+this.generator);
+    args.push("-G" + this.generator);
     if (!this.isConfigurationGenerator) {
       args.push("-DCMAKE_BUILD_TYPE=", this.buildType);
     }
@@ -106,10 +106,11 @@ class CommandClient extends CMake {
     });
   }
 
+  private _matchers : ProblemMatcher[] = getProblemMatchers(this.buildDirectory);
+
   async build(target?: string): Promise<void> {
     let cmakePath = vscode.workspace.getConfiguration("cmake", this.sourceUri).get("cmakePath", "cmake");
     let args: string[] = [];
-    let matchers = getProblemMatchers(this.buildDirectory);
 
     args.push("--build", this.buildDirectory);
     if (target) {
@@ -124,11 +125,16 @@ class CommandClient extends CMake {
     });
     buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
       this.console.appendLine(chunk);
-      matchers.forEach((matcher) => matcher.match(chunk));
+      this._matchers.forEach((matcher) => matcher.match(chunk));
     });
     buildProc.stderr.pipe(new LineTransform()).on("data", (chunk: string) => {
       this.console.appendLine(chunk);
-      matchers.forEach((matcher) => matcher.match(chunk));
+      this._matchers.forEach((matcher) => matcher.match(chunk));
+    });
+
+    this._matchers.forEach((value) => {
+      value.buildPath = this.buildDirectory;
+      value.clear();
     });
 
     this.mayShowConsole();
@@ -141,7 +147,7 @@ class CommandClient extends CMake {
       });
       buildProc.on("exit", (code, signal) => {
         this.diagnostics.set(
-          matchers.reduce((previous, current) =>
+          this._matchers.reduce((previous, current) =>
             previous.concat(current.getDiagnostics()),
             [] as [vscode.Uri, vscode.Diagnostic[] | undefined][])
         );
