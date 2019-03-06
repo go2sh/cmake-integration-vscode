@@ -2,7 +2,7 @@
 .vscode-test/**
 src/**
 test/**
-schema/**
+dist/*.map
 .gitignore
 .gitattributes
 tsconfig.json
