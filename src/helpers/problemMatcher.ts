@@ -75,7 +75,7 @@ class CLMatcher implements ProblemMatcher {
 class GCCMatcher implements ProblemMatcher {
 
     private static DIAG_REGEX = /^([\.\w/].+?):(\d+):(\d+): (error|warning|note): (.+)$/;
-    private static RANGE_REGEX = /^(\s*)([\^\~]+)(\s*)$/;
+    private static RANGE_REGEX = /^(\s*)((?:\~+\s*)?\^(?:\s*\~+)?)(\s*)$/;
     private static INCLUDE_START_REGEX = /^In file included from ([\.\w/].+?):(\d+)(?:\,|\:)$/;
     private static INCLUDE_REGEX = /^\s+from ([\.\w/].+?):(\d+)(?:\,|\:)$/;
     private _diagnostics: Map<vscode.Uri, vscode.Diagnostic[]> = new Map();
@@ -131,7 +131,7 @@ class GCCMatcher implements ProblemMatcher {
             if (this._lastDiag) {
                 let startLine = this._lastDiag.range.start.line;
                 this._lastDiag.range = new vscode.Range(
-                    startLine, matches[1].length - 1,
+                    startLine, matches[1].length,
                     startLine, matches[1].length + matches[2].length - 1
                 );
             }
