@@ -207,6 +207,7 @@
       "allOf": [
         {
           "if": {
+            "required": ["generator"],
             "properties": {
               "generator": {
                 "pattern": "Visual Studio.+"
