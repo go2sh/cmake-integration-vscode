@@ -175,10 +175,12 @@ export class CMakeClient extends CMake {
         for (let entry in cacheEntries) {
             args.push("-D" + entry + "=" + cacheEntries[entry]);
         }
-
         if (!this.isConfigurationGenerator) {
             args.push("-DCMAKE_BUILD_TYPE=" + this.buildType);
         }
+        if (this.toolchainFile) {
+            args.push("-DCMAKE_TOOLCHAIN_FILE=" + this.toolchainFile);
+          }
 
         this._state = ClientState.RUNNING;
         try {
