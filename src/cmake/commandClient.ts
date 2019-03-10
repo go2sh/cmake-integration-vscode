@@ -267,6 +267,7 @@ class CommandClient extends CMake {
               compilerPath: "",
               defines: [],
               includePaths: [],
+              sysroot: cg.sysroot ? cg.sysroot.path || "" : "",
               language: cg.language,
               sources: cg.sourceIndexes.map((index) => targetFile.sources[index].path)
             };

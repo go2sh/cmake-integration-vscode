@@ -7,6 +7,7 @@ interface Target {
     language: string;
     compilerPath: string;
     compileFlags: string;
+    sysroot: string;
     sources: string[];
     defines: string[];
     includePaths: {
