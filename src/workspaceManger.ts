@@ -27,7 +27,7 @@ import { ConfigurationProvider } from './cpptools/configurationProvider';
 
 import { CMake } from './cmake/cmake';
 import { CommandClient } from './cmake/commandClient';
-import { CMakeClient } from './cmake/client';
+import { CMakeClient } from './cmake/serverClient';
 import { Project, Target } from './cmake/model';
 
 export class WorkspaceManager implements vscode.Disposable {
