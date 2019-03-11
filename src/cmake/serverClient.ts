@@ -29,8 +29,6 @@ import * as util from 'util';
 
 import * as model from './model';
 import * as protocol from './protocol';
-import { LineTransform } from '../helpers/stream';
-import { ProblemMatcher, getProblemMatchers } from '../helpers/problemMatcher';
 import { CMake } from './cmake';
 
 //const readdir = util.promisify(fs.readdir);
@@ -75,10 +73,6 @@ export class CMakeClient extends CMake {
 
     public get generatorToolset(): string | undefined {
         return vscode.workspace.getConfiguration("cmake", this.sourceUri).get("generatorToolset");
-    }
-
-    public get sourceDirectory(): string {
-        return this.sourcePath;
     }
 
     private get pipeName(): string {
@@ -164,29 +158,41 @@ export class CMakeClient extends CMake {
             return;
         }
 
-        this.mayShowConsole();
-
         let args: string[] = [];
-        for (let entry in this.variables) {
-            args.push("-D" + entry + "=" + this.variables[entry]);
-        }
         if (!this.isConfigurationGenerator) {
             args.push("-DCMAKE_BUILD_TYPE=" + this.buildType);
         }
         if (this.toolchainFile) {
             args.push("-DCMAKE_TOOLCHAIN_FILE=" + this.toolchainFile);
-          }
+        }
+        for (let entry in this.variables) {
+            args.push("-D" + entry + "=" + this.variables[entry]);
+        }
+
+        this.mayShowConsole();
+
+        this._cmakeMatcher.buildPath = this.sourcePath;
+        this._cmakeMatcher.getDiagnostics().forEach(
+            (uri) => this.diagnostics.delete(uri[0])
+        );
+        this._cmakeMatcher.clear();
 
         this._state = ClientState.RUNNING;
         try {
             await this._connection.configure(args);
             this._state = ClientState.CONFIGURED;
         } catch (e) {
-            // Fail siliently as it is reported via diagnostics
+            this.diagnostics.set(this._cmakeMatcher.getDiagnostics());
             return;
         }
 
-        await this._connection.compute();
+        try {
+            await this._connection.compute();
+        } catch (e) {
+            this.diagnostics.set(this._cmakeMatcher.getDiagnostics());
+            return;
+        }
+        this.diagnostics.set(this._cmakeMatcher.getDiagnostics());
         this._state = ClientState.GENERATED;
         await this.updateModel();
     }
@@ -360,5 +366,8 @@ export class CMakeClient extends CMake {
 
     private onMessage(msg: protocol.Display) {
         this.console.appendLine(msg.message);
+        msg.message.split("\n").forEach(
+            (line) => this._cmakeMatcher.match(line)
+        );
     }
 }

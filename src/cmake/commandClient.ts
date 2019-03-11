@@ -46,8 +46,8 @@ class CommandClient extends CMake {
     this.readFileApiReply();
   }
 
-  /* 
-   * Interface 
+  /*
+   * Interface
    */
 
   async regenerateBuildDirectory() {
@@ -57,7 +57,6 @@ class CommandClient extends CMake {
   async configure(): Promise<void> {
     let cmakePath = vscode.workspace.getConfiguration("cmake", this.sourceUri).get("cmakePath", "cmake");
     let args: string[] = [];
-    let matcher = new CMakeMatcher(this.buildDirectory);
 
     args.push("-G" + this.generator);
     if (!this.isConfigurationGenerator) {
@@ -79,12 +78,18 @@ class CommandClient extends CMake {
     });
     buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
       this.console.appendLine(chunk);
-      matcher.match(chunk);
+      this._cmakeMatcher.match(chunk);
     });
     buildProc.stderr.pipe(new LineTransform()).on("data", (chunk: string) => {
       this.console.appendLine(chunk);
-      matcher.match(chunk);
+      this._cmakeMatcher.match(chunk);
     });
+
+    this._cmakeMatcher.buildPath = this.sourcePath;
+    this._cmakeMatcher.getDiagnostics().forEach(
+      (uri) => this.diagnostics.delete(uri[0])
+    );
+    this._cmakeMatcher.clear();
 
     this.mayShowConsole();
 
@@ -95,7 +100,7 @@ class CommandClient extends CMake {
         reject(err);
       });
       buildProc.on("exit", (code, signal) => {
-        this.diagnostics.set(matcher.getDiagnostics());
+        this.diagnostics.set(this._cmakeMatcher.getDiagnostics());
         this.readFileApiReply().then(() => {
           if (!error) {
             resolve();
@@ -110,7 +115,7 @@ class CommandClient extends CMake {
   }
 
   /*
-   * Private methods 
+   * Private methods
    */
 
   private get requestFolder(): string {

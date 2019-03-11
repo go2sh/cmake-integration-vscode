@@ -358,7 +358,7 @@ abstract class CMake implements vscode.Disposable {
   abstract regenerateBuildDirectory(): Promise<void>;
 
   protected _cmakeMatcher = new CMakeMatcher(this.sourcePath);
-  private _matchers : ProblemMatcher[] = getProblemMatchers(this.buildDirectory);
+  private _matchers: ProblemMatcher[] = getProblemMatchers(this.buildDirectory);
 
   /**
    * Build a target
@@ -392,7 +392,15 @@ abstract class CMake implements vscode.Disposable {
     this._matchers.forEach((value) => {
       value.buildPath = this.buildDirectory;
       value.clear();
+      value.getDiagnostics().forEach(
+        (diag) => this.diagnostics.delete(diag[0])
+      );
     });
+    this._cmakeMatcher.buildPath = this.sourcePath;
+    this._cmakeMatcher.getDiagnostics().forEach(
+      (uri) => this.diagnostics.delete(uri[0])
+    );
+    this._cmakeMatcher.clear();
 
     this.mayShowConsole();
 
@@ -408,6 +416,7 @@ abstract class CMake implements vscode.Disposable {
             previous.concat(current.getDiagnostics()),
             [] as [vscode.Uri, vscode.Diagnostic[] | undefined][])
         );
+        this.diagnostics.set(this._cmakeMatcher.getDiagnostics());
         if (!error) {
           resolve();
         }

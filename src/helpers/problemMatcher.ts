@@ -1,12 +1,12 @@
-/*     
+/*
  * Copyright 2018 Christoph Seitz
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -51,7 +51,7 @@ class CLMatcher implements ProblemMatcher {
                 severity = vscode.DiagnosticSeverity.Warning;
             }
 
-            let uri: vscode.Uri = vscode.Uri.file(matches[1].replace(/\\/g, "/"));//.replace(/projekte/,"Projekte"));  
+            let uri: vscode.Uri = vscode.Uri.file(matches[1].replace(/\\/g, "/"));//.replace(/projekte/,"Projekte"));
             if (!this._diagnostics.has(uri)) {
                 this._diagnostics.set(uri, []);
             }
@@ -107,7 +107,7 @@ class GCCMatcher implements ProblemMatcher {
             } else if (matches[4] === "note") {
                 severity = vscode.DiagnosticSeverity.Information;
             }
-            
+
             let filePath: string = matches[1];
             if (!path.isAbsolute(filePath)) {
                 filePath = path.normalize(path.join(this.buildPath, filePath));
@@ -119,7 +119,7 @@ class GCCMatcher implements ProblemMatcher {
                 this._diagnostics.set(uri, []);
             }
             this._lastDiag = new vscode.Diagnostic(range, matches[5], severity);
-            
+
             if (this._includeInfo) {
                 this._lastDiag.relatedInformation = this._includeInfo;
                 this._includeInfo = undefined;
@@ -189,18 +189,79 @@ class GCCMatcher implements ProblemMatcher {
 
 class CMakeMatcher implements ProblemMatcher {
 
-    private _diagnostics: Map<vscode.Uri, vscode.Diagnostic[]> = new Map();
+    static MAIN_REGEX = /^CMake Error at (.+):(\d+)/;
+    static ADD_REGEX = /^  (.+)$/;
+    static STOP_REGEX = /^Generation done/;
 
-    constructor(public buildPath : string) {
+    private _diagnostics: Map<vscode.Uri, vscode.Diagnostic[]> = new Map();
+    private _lastDiag: vscode.Diagnostic | undefined;
+    private _messages: string[] = [];
+    private _stop: boolean = false;
+
+    constructor(public buildPath: string) {
 
     }
 
-    match(line : string) {
+    match(line: string) {
+        let matches;
 
+        if (this._stop) {
+            return;
+        }
+
+        matches = line.match(CMakeMatcher.STOP_REGEX);
+        this._stop = matches !== null;
+
+        matches = line.match(CMakeMatcher.MAIN_REGEX);
+        if (matches) {
+            if (this._lastDiag) {
+                this._lastDiag.message = this._messages.join("\n");
+            }
+            this._messages = [];
+
+            let range: vscode.Range;
+            range = new vscode.Range(
+                new vscode.Position(parseInt(matches[2]) - 1, 0),
+                new vscode.Position(parseInt(matches[2]), 0)
+            );
+
+            let filePath: string = matches[1];
+            if (!path.isAbsolute(filePath)) {
+                filePath = path.normalize(path.join(this.buildPath, filePath));
+            }
+
+            let uri: vscode.Uri = vscode.Uri.file(filePath);
+            if (!this._diagnostics.has(uri)) {
+                this._diagnostics.set(uri, []);
+            }
+            this._lastDiag = new vscode.Diagnostic(
+                range, "",
+                vscode.DiagnosticSeverity.Error
+            );
+
+
+            this._diagnostics.get(uri)!.push(this._lastDiag);
+            return;
+        }
+
+        if (this._lastDiag === undefined) {
+            return;
+        }
+
+        matches = line.match(CMakeMatcher.ADD_REGEX);
+        if (matches) {
+            this._messages.push(matches[1]);
+            return;
+        }
     }
 
     getDiagnostics(): [vscode.Uri, vscode.Diagnostic[] | undefined][] {
         let diag: [vscode.Uri, vscode.Diagnostic[] | undefined][] = [];
+
+        if (this._lastDiag) {
+            this._lastDiag.message = this._messages.join("\n");
+        }
+
         for (let key of this._diagnostics.keys()) {
             diag.push([key, this._diagnostics.get(key)]);
         }
@@ -209,6 +270,7 @@ class CMakeMatcher implements ProblemMatcher {
 
     clear(): void {
         this._diagnostics.clear();
+        this._stop = false;
     }
 }
 
