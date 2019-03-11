@@ -25,7 +25,6 @@ import * as vscode from 'vscode';
 
 import { CMake } from "./cmake";
 import { LineTransform } from '../helpers/stream';
-import { getProblemMatchers, CMakeMatcher, ProblemMatcher } from '../helpers/problemMatcher';
 import { makeRecursivDirectory } from '../helpers/fs';
 import { IndexFile, CodeModelFile, ClientResponse, ReplyFileReference, TargetFile, CacheFile } from './fileApi';
 import { Target, Project, CacheValue } from './model';
@@ -102,58 +101,6 @@ class CommandClient extends CMake {
             resolve();
           }
         }).catch((e) => reject(e));
-      });
-    });
-  }
-
-  private _matchers : ProblemMatcher[] = getProblemMatchers(this.buildDirectory);
-
-  async build(target?: string): Promise<void> {
-    let cmakePath = vscode.workspace.getConfiguration("cmake", this.sourceUri).get("cmakePath", "cmake");
-    let args: string[] = [];
-
-    args.push("--build", this.buildDirectory);
-    if (target) {
-      args.push("--target", target);
-    }
-    if (this.isConfigurationGenerator) {
-      args.push("--config", this.buildType);
-    }
-
-    let buildProc = child_process.execFile(cmakePath, args, {
-      env: this.environment
-    });
-    buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
-      this.console.appendLine(chunk);
-      this._matchers.forEach((matcher) => matcher.match(chunk));
-    });
-    buildProc.stderr.pipe(new LineTransform()).on("data", (chunk: string) => {
-      this.console.appendLine(chunk);
-      this._matchers.forEach((matcher) => matcher.match(chunk));
-    });
-
-    this._matchers.forEach((value) => {
-      value.buildPath = this.buildDirectory;
-      value.clear();
-    });
-
-    this.mayShowConsole();
-
-    return new Promise((resolve, reject) => {
-      let error = false;
-      buildProc.on("error", (err) => {
-        error = true;
-        reject(err);
-      });
-      buildProc.on("exit", (code, signal) => {
-        this.diagnostics.set(
-          this._matchers.reduce((previous, current) =>
-            previous.concat(current.getDiagnostics()),
-            [] as [vscode.Uri, vscode.Diagnostic[] | undefined][])
-        );
-        if (!error) {
-          resolve();
-        }
       });
     });
   }

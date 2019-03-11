@@ -16,6 +16,7 @@
 /*
  * Base class for all CMake clients
  */
+import * as child_process from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as util from 'util';
@@ -23,6 +24,8 @@ import * as vscode from 'vscode';
 import { Project, Target, CacheValue } from './model';
 import { CMakeConfiguration, getDefaultConfigurations, buildToolchainFile, loadConfigurations } from './config';
 import { removeDir, makeRecursivDirectory } from '../helpers/fs';
+import { ProblemMatcher, getProblemMatchers, CMakeMatcher } from '../helpers/problemMatcher';
+import { LineTransform } from '../helpers/stream';
 
 const stat = util.promisify(fs.stat);
 
@@ -354,12 +357,63 @@ abstract class CMake implements vscode.Disposable {
    */
   abstract regenerateBuildDirectory(): Promise<void>;
 
+  protected _cmakeMatcher = new CMakeMatcher(this.sourcePath);
+  private _matchers : ProblemMatcher[] = getProblemMatchers(this.buildDirectory);
+
   /**
    * Build a target
    *
    * @param target A target name to build or undefined for all
    */
-  abstract build(target?: string): Promise<void>;
+  async build(target?: string): Promise<void> {
+    let cmakePath = vscode.workspace.getConfiguration("cmake", this.sourceUri).get("cmakePath", "cmake");
+    let args: string[] = [];
+
+    args.push("--build", this.buildDirectory);
+    if (target) {
+      args.push("--target", target);
+    }
+    if (this.isConfigurationGenerator) {
+      args.push("--config", this.buildType);
+    }
+
+    let buildProc = child_process.execFile(cmakePath, args, {
+      env: this.environment
+    });
+    buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
+      this.console.appendLine(chunk);
+      this._matchers.forEach((matcher) => matcher.match(chunk));
+    });
+    buildProc.stderr.pipe(new LineTransform()).on("data", (chunk: string) => {
+      this.console.appendLine(chunk);
+      this._matchers.forEach((matcher) => matcher.match(chunk));
+    });
+
+    this._matchers.forEach((value) => {
+      value.buildPath = this.buildDirectory;
+      value.clear();
+    });
+
+    this.mayShowConsole();
+
+    return new Promise((resolve, reject) => {
+      let error = false;
+      buildProc.on("error", (err) => {
+        error = true;
+        reject(err);
+      });
+      buildProc.on("exit", (code, signal) => {
+        this.diagnostics.set(
+          this._matchers.reduce((previous, current) =>
+            previous.concat(current.getDiagnostics()),
+            [] as [vscode.Uri, vscode.Diagnostic[] | undefined][])
+        );
+        if (!error) {
+          resolve();
+        }
+      });
+    });
+  }
 
   /**
    * Configure the build system. This function configures and

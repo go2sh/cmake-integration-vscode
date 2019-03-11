@@ -57,16 +57,12 @@ export class CMakeClient extends CMake {
 
     private _model: protocol.CodeModel | undefined;
 
-    private _matchers: ProblemMatcher[];
-
-
     constructor(
         uri: vscode.Uri,
         workspaceFolder: vscode.WorkspaceFolder,
         context: vscode.ExtensionContext
     ) {
         super(uri, workspaceFolder, context);
-        this._matchers = getProblemMatchers(this.buildDirectory);
     }
 
     public get extraGenerator(): string | undefined {
@@ -223,58 +219,9 @@ export class CMakeClient extends CMake {
             return;
         }
 
-        this.mayShowConsole();
-
-        let cmakePath = vscode.workspace.getConfiguration("cmake", this.sourceUri).get("cmakePath", "cmake");
-        let args: string[] = [];
-        args.push("--build", this.buildDirectory);
-        if (target) {
-            args.push("--target", target);
-        }
-        if (this.isConfigurationGenerator) {
-            args.push("--config", this.buildType);
-        }
-        let buildProc = child_process.execFile(cmakePath, args, {
-            env: this.environment
-        });
-        buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
-            this.console.appendLine(chunk);
-            for (let matcher of this._matchers) {
-                matcher.match(chunk);
-            }
-        });
-        buildProc.stderr.pipe(new LineTransform()).on("data", (chunk: string) => {
-            this.console.appendLine(chunk);
-            for (let matcher of this._matchers) {
-                matcher.match(chunk);
-            }
-        });
-
-        this._matchers.forEach((value) => {
-            value.buildPath = this.buildDirectory;
-            value.clear();
-        });
         this._state = ClientState.BUILDING;
-
-        return new Promise<void>((resolve, reject) => {
-            let error = false;
-            buildProc.on("error", (err) => {
-                this._state = ClientState.GENERATED;
-                error = true;
-                reject(err);
-            });
-            buildProc.on("exit", (code, signal) => {
-                this.diagnostics.set(
-                    this._matchers.reduce((previous, current) =>
-                        previous.concat(current.getDiagnostics()),
-                        [] as [vscode.Uri, vscode.Diagnostic[] | undefined][])
-                );
-                this._state = ClientState.GENERATED;
-                if (!error) {
-                    resolve();
-                }
-            });
-        });
+        await super.build(target);
+        this._state = ClientState.GENERATED;
     }
 
     dispose() {
