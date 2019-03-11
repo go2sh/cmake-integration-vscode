@@ -291,6 +291,7 @@ export class CMakeClient extends CMake {
                                     compileFlags: sFG.compileFlags,
                                     compilerPath: "",
                                     defines: sFG.defines || [],
+                                    sysroot: st.sysroot || "",
                                     includePaths: (sFG.includePath || []).map((sI) => {
                                         return {
                                             path: sI.path
