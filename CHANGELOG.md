@@ -3,6 +3,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.4.0-beta4] 2019-03-11
+### Fixed
+ - CMake Server Client respects cache entries from configurations (#13)
+## Added
+ - cpptools API now receives command line options @bjosa (#14)
+ - Added setting to switch between file API and server
+ - Added diagnostics for CMake errors
+
 ## [0.4.0-beta3] 2019-03-06
 ### Fixed
 - Fixed schema for configs with no generator
