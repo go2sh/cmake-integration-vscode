@@ -171,9 +171,8 @@ export class CMakeClient extends CMake {
         this.mayShowConsole();
 
         let args: string[] = [];
-        let cacheEntries = vscode.workspace.getConfiguration("cmake", this.sourceUri).get<any>("cacheEntries", {});
-        for (let entry in cacheEntries) {
-            args.push("-D" + entry + "=" + cacheEntries[entry]);
+        for (let entry in this.variables) {
+            args.push("-D" + entry + "=" + this.variables[entry]);
         }
         if (!this.isConfigurationGenerator) {
             args.push("-DCMAKE_BUILD_TYPE=" + this.buildType);
