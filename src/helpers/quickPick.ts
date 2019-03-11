@@ -18,14 +18,14 @@
  */
 import * as vscode from "vscode";
 import * as model from '../cmake/model';
-import { CMake } from "../cmake/cmake";
+import { CMakeClient } from "../cmake/cmake";
 import { CMakeConfiguration } from "../cmake/config";
 
 interface CMakeItem extends vscode.QuickPickItem {
-    client: CMake;
+    client: CMakeClient;
 }
 
-async function pickClient(clients: CMake[]): Promise<CMake | undefined> {
+async function pickClient(clients: CMakeClient[]): Promise<CMakeClient | undefined> {
 
     let clientPick = vscode.window.createQuickPick<CMakeItem>();
     clientPick.items = clients.map((value) => {
@@ -37,7 +37,7 @@ async function pickClient(clients: CMake[]): Promise<CMake | undefined> {
     });
     clientPick.show();
 
-    return new Promise<CMake | undefined>((resolve) => {
+    return new Promise<CMakeClient | undefined>((resolve) => {
         let activeItem: CMakeItem;
         clientPick.onDidChangeSelection((e) => {
             const result = clientPick.activeItems[0];
@@ -66,7 +66,7 @@ async function pickClient(clients: CMake[]): Promise<CMake | undefined> {
 }
 
 interface ProjectContext {
-    client: CMake;
+    client: CMakeClient;
     project: model.Project;
 }
 

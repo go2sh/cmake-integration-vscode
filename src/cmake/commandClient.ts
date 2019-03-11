@@ -23,7 +23,7 @@ import * as path from 'path';
 import { promisify } from 'util';
 import * as vscode from 'vscode';
 
-import { CMake } from "./cmake";
+import { CMakeClient } from "./cmake";
 import { LineTransform } from '../helpers/stream';
 import { makeRecursivDirectory } from '../helpers/fs';
 import { IndexFile, CodeModelFile, ClientResponse, ReplyFileReference, TargetFile, CacheFile } from './fileApi';
@@ -35,7 +35,7 @@ const readdir = promisify(fs.readdir);
 const readFile = promisify(fs.readFile);
 const unlink = promisify(fs.unlink);
 
-class CommandClient extends CMake {
+class CMakeFileAPIClient extends CMakeClient {
 
   constructor(
     sourceFolder: vscode.Uri,
@@ -248,4 +248,4 @@ class CommandClient extends CMake {
   }
 }
 
-export { CommandClient };
+export { CMakeFileAPIClient };

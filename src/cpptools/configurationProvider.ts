@@ -24,7 +24,7 @@ import { Uri, Disposable } from 'vscode';
 import { CancellationToken } from 'vscode-jsonrpc';
 import { CustomConfigurationProvider, SourceFileConfiguration, SourceFileConfigurationItem, WorkspaceBrowseConfiguration } from 'vscode-cpptools';
 import { Target } from '../cmake/model';
-import { CMake } from '../cmake/cmake';
+import { CMakeClient } from '../cmake/cmake';
 
 interface TargetInfo {
   cConfiguration?: SourceFileConfiguration;
@@ -49,7 +49,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   extensionId: string = "go2sh.cmake-integration";
 
   /* Storage of precompiled infos per client */
-  private clientInfos: Map<CMake, ClientInfo> = new Map();
+  private clientInfos: Map<CMakeClient, ClientInfo> = new Map();
   /* Fast look up map for Items */
   private sourceFiles: Map<string, SourceFileConfigurationItem> = new Map();
   /* Precompiled browseConfig */
@@ -194,7 +194,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     }
   }
 
-  updateClient(client: CMake) {
+  updateClient(client: CMakeClient) {
     let clientInfo: ClientInfo = this.clientInfos.get(client)!;
     let windowsSdkVersion: string | undefined;
     let cCompiler: string | undefined;
@@ -415,7 +415,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     };
   }
 
-  addClient(client: CMake) {
+  addClient(client: CMakeClient) {
     this.clientInfos.set(client, {
       targetInfos: new Map(),
       clientFiles: new Set(),
@@ -424,7 +424,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     });
   }
 
-  deleteClient(client: CMake) {
+  deleteClient(client: CMakeClient) {
     let info = this.clientInfos.get(client)!;
     // Remove from source files
     for (const file of info.clientFiles.values()) {

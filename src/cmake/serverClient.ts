@@ -29,7 +29,7 @@ import * as util from 'util';
 
 import * as model from './model';
 import * as protocol from './protocol';
-import { CMake } from './cmake';
+import { CMakeClient } from './cmake';
 
 //const readdir = util.promisify(fs.readdir);
 const lstat = util.promisify(fs.lstat);
@@ -45,7 +45,7 @@ enum ClientState {
     BUILDING
 }
 
-export class CMakeClient extends CMake {
+export class CMakeServerClient extends CMakeClient {
 
     private _socket: net.Socket | undefined;
     private _process: child_process.ChildProcess | undefined;

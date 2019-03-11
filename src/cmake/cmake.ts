@@ -43,7 +43,7 @@ class ClientContext {
   projectContexts: ProjectContextMap = {};
 }
 
-abstract class CMake implements vscode.Disposable {
+abstract class CMakeClient implements vscode.Disposable {
 
   /**
    * Create a new CMake client in a given source folder
@@ -87,12 +87,12 @@ abstract class CMake implements vscode.Disposable {
    * Model functions
    */
 
-  protected _onModelChange: vscode.EventEmitter<CMake> = new vscode.EventEmitter();
+  protected _onModelChange: vscode.EventEmitter<CMakeClient> = new vscode.EventEmitter();
 
   /**
    * An [event](#vscode.Event) which fires when the internal model got updated.
    */
-  readonly onModelChange: vscode.Event<CMake> = this._onModelChange.event;
+  readonly onModelChange: vscode.Event<CMakeClient> = this._onModelChange.event;
 
   public isModelValid: boolean = false;
 
@@ -546,4 +546,4 @@ abstract class CMake implements vscode.Disposable {
   }
 }
 
-export { CMake };
+export { CMakeClient };

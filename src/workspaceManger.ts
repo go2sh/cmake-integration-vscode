@@ -25,16 +25,16 @@ import { Dependency, DependencySpecification, DependencyResolver } from './helpe
 import { CppToolsApi, Version, getCppToolsApi } from 'vscode-cpptools';
 import { ConfigurationProvider } from './cpptools/configurationProvider';
 
-import { CMake } from './cmake/cmake';
-import { CommandClient } from './cmake/commandClient';
-import { CMakeClient } from './cmake/serverClient';
+import { CMakeClient } from './cmake/cmake';
+import { CMakeFileAPIClient } from './cmake/commandClient';
+import { CMakeServerClient } from './cmake/serverClient';
 import { Project, Target } from './cmake/model';
 
 export class WorkspaceManager implements vscode.Disposable {
 
     private _context: vscode.ExtensionContext;
     private _events: vscode.Disposable[] = [];
-    private _clients: Map<string, CMake> = new Map<string, CMake>();
+    private _clients: Map<string, CMakeClient> = new Map<string, CMakeClient>();
     private _workspaceWatcher: Map<vscode.WorkspaceFolder, vscode.FileSystemWatcher> = new Map();
 
     private _projectItem: vscode.StatusBarItem;
@@ -85,7 +85,7 @@ export class WorkspaceManager implements vscode.Disposable {
         }
     }
 
-    private get currentClient(): CMake | undefined {
+    private get currentClient(): CMakeClient | undefined {
         if (this.currentProject) {
             return this.currentProject.client;
         }
@@ -99,7 +99,7 @@ export class WorkspaceManager implements vscode.Disposable {
         }
     }
 
-    getClientByProjectName(project: string): CMake | undefined {
+    getClientByProjectName(project: string): CMakeClient | undefined {
         for (let client of this._clients.values()) {
             if (client.projects.find((value) => value.name === project)) {
                 return client;
@@ -122,13 +122,13 @@ export class WorkspaceManager implements vscode.Disposable {
         return contexts;
     }
 
-    private onModelChange(e: CMake) {
+    private onModelChange(e: CMakeClient) {
         if (this.currentProject === undefined &&
             [...this._clients.values()].reduce(
                 (ready, client) => ready = ready && client.isModelValid, true
             )
         ) {
-            let client: CMake | undefined;
+            let client: CMakeClient | undefined;
             let projectName: string | undefined;
 
 
@@ -225,7 +225,7 @@ export class WorkspaceManager implements vscode.Disposable {
 
         let sourceFolder = vscode.Uri.file(path.dirname(uri.fsPath));
 
-        let client: CMake;
+        let client: CMakeClient;
         try {
             if (vscode.workspace.getConfiguration("cmake").get("useFileAPI", false)) {
                 client = new CommandClient(sourceFolder, workspaceFolder!, this._context);
@@ -280,7 +280,7 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     async configureProject(current?: boolean) {
-        let client: CMake | undefined;
+        let client: CMakeClient | undefined;
         if (current) {
             client = this.currentClient;
         } else {
@@ -328,7 +328,7 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     async buildProject(current: boolean = false) {
-        let client: CMake | undefined;
+        let client: CMakeClient | undefined;
         let project: Project | undefined;
 
         if (current) {
@@ -413,7 +413,7 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     async cleanProject(current?: boolean) {
-        let client: CMake | undefined;
+        let client: CMakeClient | undefined;
 
         if (current) {
             client = this.currentClient;
@@ -487,7 +487,7 @@ export class WorkspaceManager implements vscode.Disposable {
 
     async restartClient(clean?: boolean) {
         let client = await pickClient([...this._clients.values()]);
-        if (client && client instanceof CMakeClient) {
+        if (client && client instanceof CMakeServerClient) {
             try {
                 await client.stop();
                 if (clean) {
