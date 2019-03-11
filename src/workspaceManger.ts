@@ -26,7 +26,7 @@ import { CppToolsApi, Version, getCppToolsApi } from 'vscode-cpptools';
 import { ConfigurationProvider } from './cpptools/configurationProvider';
 
 import { CMakeClient } from './cmake/cmake';
-import { CMakeFileAPIClient } from './cmake/commandClient';
+import { CMakeFileAPIClient } from './cmake/fileAPIClient';
 import { CMakeServerClient } from './cmake/serverClient';
 import { Project, Target } from './cmake/model';
 
