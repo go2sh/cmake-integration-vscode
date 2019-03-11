@@ -191,7 +191,7 @@ class CMakeMatcher implements ProblemMatcher {
 
     static MAIN_REGEX = /^CMake Error at (.+):(\d+)/;
     static ADD_REGEX = /^  (.+)$/;
-    static STOP_REGEX = /^Generation done/;
+    static STOP_REGEX = /^(?:--)? Generating done/;
 
     private _diagnostics: Map<vscode.Uri, vscode.Diagnostic[]> = new Map();
     private _lastDiag: vscode.Diagnostic | undefined;
