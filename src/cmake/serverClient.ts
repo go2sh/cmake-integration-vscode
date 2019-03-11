@@ -242,27 +242,27 @@ export class CMakeClient extends CMake {
                     targets: sP.targets
                         .filter((value) => value.type !== "INTERFACE_LIBRARY")
                         .map((st) => {
-                        return {
-                            name: st.name,
-                            sourceDirectory: st.sourceDirectory,
-                            type: st.type,
-                            compileGroups: (st.fileGroups || []).map((sFG) => {
-                                return {
-                                    compileFlags: sFG.compileFlags,
-                                    compilerPath: "",
-                                    defines: sFG.defines || [],
-                                    sysroot: st.sysroot || "",
-                                    includePaths: (sFG.includePath || []).map((sI) => {
-                                        return {
-                                            path: sI.path
-                                        };
-                                    }),
-                                    language: sFG.language,
-                                    sources: sFG.sources
-                                } as model.Target["compileGroups"][0];
-                            })
-                        } as model.Target;
-                    })
+                            return {
+                                name: st.name,
+                                sourceDirectory: st.sourceDirectory,
+                                type: st.type,
+                                compileGroups: (st.fileGroups || []).map((sFG) => {
+                                    return {
+                                        compileFlags: sFG.compileFlags,
+                                        compilerPath: "",
+                                        defines: sFG.defines || [],
+                                        sysroot: st.sysroot || "",
+                                        includePaths: (sFG.includePath || []).map((sI) => {
+                                            return {
+                                                path: sI.path
+                                            };
+                                        }),
+                                        language: sFG.language,
+                                        sources: sFG.sources
+                                    } as model.Target["compileGroups"][0];
+                                })
+                            } as model.Target;
+                        })
                 } as model.Project;
             });
         this.isModelValid = true;

@@ -66,7 +66,7 @@ class CommandClient extends CMake {
       args.push("-DCMAKE_TOOLCHAIN_FILE=" + this.toolchainFile);
     }
     for (const key in this.variables) {
-      args.push("-D" + key + "=" + this.variables);
+      args.push("-D" + key + "=" + this.variables[key]);
     }
     args.push(this.sourceUri.fsPath);
 
