@@ -144,6 +144,17 @@
                     "default": "cmake",
                     "scope": "resource"
                 },
+                "cmake.cmakeAPI": {
+                    "type": "string",
+                    "title": "CMake API",
+                    "description": "Choose CMake API to use (CMake File API is 3.14+)",
+                    "enum":[
+                        "Server",
+                        "File API"
+                    ],
+                    "default": "Server",
+                    "scope": "resource"
+                },
                 "cmake.configureOnStart": {
                     "type": "boolean",
                     "title": "Configure on server start",

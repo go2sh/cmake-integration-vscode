@@ -227,10 +227,10 @@ export class WorkspaceManager implements vscode.Disposable {
 
         let client: CMakeClient;
         try {
-            if (vscode.workspace.getConfiguration("cmake").get("useFileAPI", false)) {
-                client = new CommandClient(sourceFolder, workspaceFolder!, this._context);
+            if (vscode.workspace.getConfiguration("cmake").get<"Server"|"File API">("cmakeAPI", "Server") === "Server") {
+                client = new CMakeServerClient(sourceFolder, workspaceFolder!, this._context);
             } else {
-                client = new CMakeClient(sourceFolder, workspaceFolder!, this._context);
+                client = new CMakeFileAPIClient(sourceFolder, workspaceFolder!, this._context);
             }
 
             client.onModelChange((e) => this.onModelChange(e));
