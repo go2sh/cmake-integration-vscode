@@ -160,13 +160,20 @@ export class CMakeServerClient extends CMakeClient {
 
         let args: string[] = [];
         if (!this.isConfigurationGenerator) {
-            args.push("-DCMAKE_BUILD_TYPE=" + this.buildType);
+            args.push("-D");
+            args.push(`CMAKE_BUILD_TYPE:STRING=${this.buildType}`);
         }
         if (this.toolchainFile) {
-            args.push("-DCMAKE_TOOLCHAIN_FILE=" + this.toolchainFile);
+            args.push("-D");
+            args.push(`CMAKE_TOOLCHAIN_FILE:FILEPATH=${this.toolchainFile}`);
         }
-        for (let entry in this.variables) {
-            args.push("-D" + entry + "=" + this.variables[entry]);
+        for (let cacheEntry of this.cacheEntries) {
+            args.push("-D");
+            if (cacheEntry.type) {
+                args.push(`${cacheEntry.name}:${cacheEntry.type}=${cacheEntry.value}`);
+            } else {
+                args.push(`${cacheEntry.name}=${cacheEntry.value}`);
+            }
         }
 
         this.mayShowConsole();

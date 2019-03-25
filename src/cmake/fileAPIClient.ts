@@ -58,22 +58,33 @@ class CMakeFileAPIClient extends CMakeClient {
     let cmakePath = vscode.workspace.getConfiguration("cmake", this.sourceUri).get("cmakePath", "cmake");
     let args: string[] = [];
 
-    args.push("-G" + this.generator);
+    args.push("-G");
+    args.push(this.generator);
     if (!this.isConfigurationGenerator) {
-      args.push("-DCMAKE_BUILD_TYPE=", this.buildType);
+      args.push("-D");
+      args.push(`CMAKE_BUILD_TYPE:STRING=${this.buildType}`);
     }
     if (this.toolchainFile) {
-      args.push("-DCMAKE_TOOLCHAIN_FILE=" + this.toolchainFile);
+      args.push("-D");
+      args.push(`CMAKE_TOOLCHAIN_FILE:FILEPATH=${this.toolchainFile}`);
     }
-    for (const key in this.variables) {
-      args.push("-D" + key + "=" + this.variables[key]);
+    for (var cacheEntry of this.cacheEntries) {
+      args.push("-D");
+      if (cacheEntry.type) {
+        args.push(`${cacheEntry.name}:${cacheEntry.type}=${cacheEntry.value}`);
+      } else {
+        args.push(`${cacheEntry.name}=${cacheEntry.value}`);
+      }
     }
+    args.push("-S");
     args.push(this.sourceUri.fsPath);
+    args.push("-B");
+    args.push(this.buildDirectory);
 
     this.makeFileApiRequest();
 
     let buildProc = child_process.execFile(cmakePath, args, {
-      cwd: this.buildDirectory,
+      cwd: this.workspaceFolder.uri.fsPath,
       env: this.environment
     });
     buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
