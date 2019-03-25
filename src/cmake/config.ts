@@ -18,7 +18,7 @@ interface CMakeConfiguration {
   generator?: string;
   toolchain?: string | { [key: string]: string };
   env?: { [key: string]: string };
-  variables?: CacheValue[];
+  cacheEntries?: CacheValue[];
 }
 
 function getDefaultConfigurations(): CMakeConfiguration[] {

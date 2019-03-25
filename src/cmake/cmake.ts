@@ -217,7 +217,7 @@ abstract class CMakeClient implements vscode.Disposable {
   protected buildType: string = "";
   protected toolchainFile: string | undefined;
   protected environment: { [key: string]: string | undefined } = {};
-  protected variables: { [key: string]: string | undefined } = {};
+  protected cacheEntries: CacheValue[] = [];
 
   /**
    * Update the client to a new configuration
@@ -289,14 +289,22 @@ abstract class CMakeClient implements vscode.Disposable {
 
     this.environment = { ...process.env };
     for (let key in process.env) {
-      vars.set("env." + key, process.env[key]!);
+      vars.set("env:" + key, process.env[key]!);
     }
     for (let key in config.env) {
-      let value = config.env[key].replace(/\${((?:\w+\.)?\w+)}/g, (substring: string, ...args: any[]) => {
+      let value = config.env[key].replace(/\${((?:\w+\:)?\w+)}/g, (substring: string, ...args: any[]) => {
         return vars.get(args[0]) || "";
       });
-      vars.set("env." + key, value);
+      vars.set("env:" + key, value);
       this.environment[key] = value;
+    }
+
+    this.cacheEntries = [];
+    for (let cacheEntry of config.cacheEntries || []) {
+      cacheEntry.value = cacheEntry.value.replace(/\${((?:\w+\:)?\w+)}/g, (substring: string, ...args: any[]) => {
+        return vars.get(args[0]) || "";
+      });
+      this.cacheEntries.push(cacheEntry);
     }
     return vars;
   }

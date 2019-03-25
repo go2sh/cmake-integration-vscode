@@ -24,7 +24,7 @@ interface Project {
 interface CacheValue {
   name: string;
   value: string;
-  type: "BOOL" | "FILEPATH" | "PATH" | "STRING" | "INTERNAL";
+  type?: "BOOL" | "FILEPATH" | "PATH" | "STRING" | "INTERNAL";
 }
 
 export { Target, Project, CacheValue };

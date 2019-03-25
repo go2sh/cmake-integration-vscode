@@ -168,7 +168,7 @@
         "cacheEntries": {
           "type": "array",
           "description": "Additional CMake cache entries added to the command line",
-          "additionalItems": {
+          "items": {
             "type": "object",
             "properties": {
               "name": {
@@ -191,8 +191,7 @@
                 ],
                 "required": [
                   "name",
-                  "value",
-                  "type"
+                  "value"
                 ]
               }
             }
