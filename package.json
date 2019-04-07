@@ -49,7 +49,7 @@
         "commands": [
             {
                 "command": "cmake.configureProject",
-                "title": "Configure a project",
+                "title": "Configure a project folder",
                 "category": "Configure"
             },
             {
@@ -74,7 +74,7 @@
             },
             {
                 "command": "cmake.buildProject",
-                "title": "Build a project",
+                "title": "Build a project folder",
                 "category": "Build"
             },
             {
@@ -89,7 +89,7 @@
             },
             {
                 "command": "cmake.cleanProject",
-                "title": "Clean a project",
+                "title": "Clean a project folder",
                 "category": "Clean"
             },
             {
@@ -109,7 +109,7 @@
             },
             {
                 "command": "cmake.cleanRestartClient",
-                "title": "Restart CMake (Clean)",
+                "title": "Restart CMake",
                 "category": "CMake"
             },
             {
@@ -148,7 +148,7 @@
                     "type": "string",
                     "title": "CMake API",
                     "description": "Choose CMake API to use (CMake File API is 3.14+)",
-                    "enum":[
+                    "enum": [
                         "Server",
                         "File API"
                     ],

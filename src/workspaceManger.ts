@@ -284,10 +284,7 @@ export class WorkspaceManager implements vscode.Disposable {
         if (current) {
             client = this.currentClient;
         } else {
-            let projectContext = await pickProject(this.getProjectContexts());
-            if (projectContext) {
-                client = projectContext.client;
-            }
+            client = await pickClient([...this._clients.values()]);
         }
         if (client) {
             try {
@@ -418,10 +415,7 @@ export class WorkspaceManager implements vscode.Disposable {
         if (current) {
             client = this.currentClient;
         } else {
-            let project = await pickProject(this.getProjectContexts());
-            if (project) {
-                client = project.client;
-            }
+            client = await pickClient([... this._clients.values()]);
         }
 
         if (!client) {
