@@ -59,7 +59,7 @@ abstract class CMakeClient implements vscode.Disposable {
   ) {
     this.sourcePath = this.sourceUri.fsPath.replace(/\\/g, "/").replace(/^\w\:\//, (c) => c.toUpperCase());
 
-    this.console = vscode.window.createOutputChannel(this.name);
+    this.console = vscode.window.createOutputChannel(`CMake - ${this.name}`);
     this.diagnostics = vscode.languages.createDiagnosticCollection("cmake-" + this.name);
 
     this.clientContext = this.extensionContext.workspaceState.get(this.name + "-context", new ClientContext());
