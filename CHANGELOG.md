@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] 2019-06-06
+### Fixed
+ - Fixed default setting for configurations
+ - Fixed compability for TS 3.5
+ - Add correct cache arguments
+ - Fix edit configurations command
+
+### Changed
+ - Renamed CMake cache entries setting to `cacheEntries` 
+ - Aligned settings `cacheEntries` to configuration type
+ - Let configure tasks pick a source folder
+
+### Added
+ - Version information on update
+ - Documentation
+ - Add edit current configurations
+
 ## [0.4.0-beta4] 2019-03-11
 ### Fixed
  - CMake Server Client respects cache entries from configurations (#13)

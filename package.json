@@ -6,7 +6,7 @@
         "name": "Christoph Seitz",
         "email": "christoph.seitz@posteo.de"
     },
-    "version": "0.4.0-beta4",
+    "version": "0.4.0",
     "preview": true,
     "license": "Apache-2.0",
     "publisher": "go2sh",
@@ -136,7 +136,7 @@
                 "command": "cmake.editCurrentConfigurations",
                 "title": "Edit current CMake Configurations",
                 "category": "CMake"
-            }
+            }  
         ],
         "configuration": {
             "type": "object",
@@ -234,7 +234,7 @@
                     "type": "array",
                     "description": "Additional CMake cache entries added to the command line",
                     "items": {
-                    "type": "object",
+                        "type": "object",
                         "properties": {
                             "name": {
                                 "type": "string",

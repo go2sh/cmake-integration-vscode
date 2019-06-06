@@ -7,6 +7,11 @@ fine control over projects, targets and configurations, project dependencies, wo
 Setup your build environment to through the settings editor and launch your configure and build process from
 keyboard or the VSCode command palette.
 
+For more information:
+ - Go to the [website](https://go2sh.github.io/cmake-integration-vscode/).
+ - Checkout the out the [guides](https://go2sh.github.io/cmake-integration-vscode/start/quickstart.html).
+ - Advanced information can be found in the [reference](https://go2sh.github.io/cmake-integration-vscode/reference/commands.html).
+
 ## Features
 
 The CMake Integration for Visual Studio Code supports:
@@ -52,9 +57,6 @@ important settings are:
  
   * `cmake.generator`: The generator to generate the build system. Set this to
     an apropriate user default. (See Pitfalls)
-  * `cmake.cacheEntries`: Additional CMake cache entries for configuration 
-    (like the -D option). The object key specifies the entry name and the value 
-    the entry value. (e.g. `{ "USE_GTK": "true" }` equals `-DUSE_GTK=true`)
 
 Options `cmake.workspaceTargets` and `cmake.targetDependencies` can be used
 to configure an andvanced build workflow.
