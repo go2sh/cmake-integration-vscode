@@ -503,19 +503,32 @@ export class WorkspaceManager implements vscode.Disposable {
         }
     }
 
-    async editConfiguration() {
-        let client = await pickClient([...this._clients.values()]);
-        if (client) {
-            let textDocument = await vscode.workspace.openTextDocument(vscode.Uri.parse("untitled:" + client.configurationsFile));
-            let editor = await vscode.window.showTextDocument(textDocument);
-            editor.edit((builder) => {
-                builder.insert(
-                    new vscode.Position(0, 0),
-                    JSON.stringify({
-                        configurations: client!.configurations
-                    }, undefined, 2)
-                );
-            });
+    async editConfigurations(current?: boolean) {
+        let client: CMakeClient | undefined;
+
+        if (current) {
+            client = this.currentClient;
+        } else {
+            client = await pickClient([... this._clients.values()]);
+        }
+
+        if (client) { 
+            let doc : vscode.TextDocument;
+            if (await client.hasConfigurationsFile()) {
+                doc = await vscode.workspace.openTextDocument(vscode.Uri.file(client.configurationsFile));
+            } else {
+                doc = await vscode.workspace.openTextDocument(vscode.Uri.parse("untitled:" + client.configurationsFile));
+                let editor = await vscode.window.showTextDocument(doc);
+                await editor.edit((builder) => {
+                    builder.insert(
+                        new vscode.Position(0, 0),
+                        JSON.stringify({
+                            configurations: client!.configurations
+                        }, undefined, 2)
+                    );
+                });
+            }
+            await vscode.window.showTextDocument(doc);
         }
     }
 

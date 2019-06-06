@@ -128,8 +128,13 @@
                 "category": "CMake"
             },
             {
-                "command": "cmake.editConfiguration",
+                "command": "cmake.editConfigurations",
                 "title": "Edit CMake Configurations",
+                "category": "CMake"
+            },
+            {
+                "command": "cmake.editCurrentConfigurations",
+                "title": "Edit current CMake Configurations",
                 "category": "CMake"
             }
         ],

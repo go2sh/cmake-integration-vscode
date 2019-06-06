@@ -138,8 +138,14 @@ export async function activate(context: vscode.ExtensionContext) {
     /* Configuration commands */
     disposables.push(
         vscode.commands.registerCommand(
-            "cmake.editConfiguration",
-            async () => await manager.editConfiguration()
+            "cmake.editConfigurations",
+            async () => await manager.editConfigurations()
+        )
+    );
+    disposables.push(
+        vscode.commands.registerCommand(
+            "cmake.editCurrentConfigurations",
+            async () => await manager.editConfigurations(true)
         )
     );
 

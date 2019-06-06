@@ -83,6 +83,15 @@ abstract class CMakeClient implements vscode.Disposable {
     return path.basename(this.sourceUri.path);
   }
 
+  async hasConfigurationsFile() {
+    try {
+      await stat(this.configurationsFile);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   /*
    * Model functions
    */
@@ -301,7 +310,7 @@ abstract class CMakeClient implements vscode.Disposable {
     }
 
     this.cacheEntries = [];
-    let cacheEntries = config.cacheEntries || vscode.workspace.getConfiguration("cmake", this.sourceUri).get("cacheEntries", []);
+    let cacheEntries = config.cacheEntries || vscode.workspace.getConfiguration("cmake", this.sourceUri).get("cacheEntries", [] as CacheValue[]);
     for (let cacheEntry of cacheEntries) {
       cacheEntry.value = cacheEntry.value.replace(/\${((?:\w+\:)?\w+)}/g, (substring: string, ...args: any[]) => {
         return vars.get(args[0]) || "";
