@@ -20,6 +20,8 @@
 'use strict';
 import * as vscode from 'vscode';
 import { WorkspaceManager } from './workspaceManger';
+import { checkForUpdate } from './helpers/update';
+import * as pkg from '../package.json';
 
 
 let manager: WorkspaceManager;
@@ -28,6 +30,10 @@ let disposables: vscode.Disposable[];
 export async function activate(context: vscode.ExtensionContext) {
     disposables = [];
     manager = new WorkspaceManager(context);
+    const oldVersion = context.globalState.get("version", "0.0.0");
+    const version = pkg.version || "0.0.0";
+    checkForUpdate(oldVersion, version);
+    context.globalState.update("version", version);
 
     /* Configure commands */
     disposables.push(

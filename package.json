@@ -12,7 +12,7 @@
     "publisher": "go2sh",
     "icon": "images/cmake-logo.png",
     "engines": {
-        "vscode": "^1.30.0"
+        "vscode": "^1.32.0"
     },
     "categories": [
         "Other"
