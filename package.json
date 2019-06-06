@@ -231,12 +231,35 @@
                     "default": "${workspaceFolder}/build"
                 },
                 "cmake.cacheEntries": {
+                    "type": "array",
+                    "description": "Additional CMake cache entries added to the command line",
+                    "items": {
                     "type": "object",
-                    "title": "Additional Cache Entries",
-                    "description": "Default additional cache entries for CMake. (Same as -D argument)",
-                    "scope": "resource",
-                    "additionalProperties": {
-                        "type": "string"
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "Entry name"
+                            },
+                            "value": {
+                                "type": "string",
+                                "description": "Entry value"
+                            },
+                            "type": {
+                                "type": "string",
+                                "description": "Entry type",
+                                "enum": [
+                                "BOOL",
+                                "FILEPATH",
+                                "PATH",
+                                "STRING",
+                                "INTERNAL"
+                                ],
+                                "required": [
+                                "name",
+                                "value"
+                                ]
+                            }
+                        }
                     }
                 },
                 "cmake.env": {
