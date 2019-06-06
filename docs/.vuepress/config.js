@@ -2,6 +2,7 @@ module.exports = {
   title: 'CMake Integration',
   description: 'CMake Integration Extension for Visual Studio Code.',
   plugins: ['@vuepress/blog'],
+  base: "/cmake-integration-vscode/",
   themeConfig: {
     nav: [
       { text: 'Home', link: '/' },
