@@ -157,18 +157,21 @@ async function pickTarget(context: ProjectContext): Promise<model.Target | undef
     });
 }
 
-interface CMakeConfigurationItem extends vscode.QuickPickItem{
+interface CMakeConfigurationItem extends vscode.QuickPickItem {
     config : CMakeConfiguration;
+    edit?: boolean;
 }
 async function pickConfiguration(context: ProjectContext): Promise<CMakeConfiguration | undefined> {
     let configPick = vscode.window.createQuickPick<CMakeConfigurationItem>();
-    configPick.items = context.client.configurations.map((value) => {
+    let items = context.client.configurations.map((value) => {
         return {
             config: value,
             label: value.name,
             description: value.description
-        };
+        } as CMakeConfigurationItem;
     });
+    items.push({ config: {} as CMakeConfiguration, label: "Edit Configurations...", edit: true});
+    configPick.items = items;
     configPick.show();
 
     return new Promise<CMakeConfiguration | undefined>((resolve) => {
@@ -176,7 +179,11 @@ async function pickConfiguration(context: ProjectContext): Promise<CMakeConfigur
         configPick.onDidChangeSelection((e) => {
             const result = configPick.activeItems[0];
             if (result) {
-                resolve(result.config);
+                if (!result.edit) {
+                    resolve(result.config);
+                } else {
+                    vscode.commands.executeCommand("cmake.editCurrentConfigurations").then(() => resolve(undefined));
+                }
                 configPick.hide();
             }
         });
@@ -188,7 +195,11 @@ async function pickConfiguration(context: ProjectContext): Promise<CMakeConfigur
         configPick.onDidAccept((e) => {
             const result = configPick.activeItems[0];
             if (result) {
-                resolve(result.config);
+                if (!result.edit) {
+                    resolve(result.config);
+                } else {
+                    vscode.commands.executeCommand("cmake.editCurrentConfigurations").then(() => resolve(undefined));
+                }
                 configPick.hide();
             }
         });
