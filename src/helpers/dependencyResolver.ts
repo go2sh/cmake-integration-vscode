@@ -124,7 +124,7 @@ class DependencyResolver {
                     result.push(currentStep);
                     currentStep = [];
                 }
-                currentStep.push(target); 
+                currentStep.push(target);
             }
         }
 
@@ -144,7 +144,7 @@ class DependencyResolver {
         while (unresolvedDeps.size > 0) {
             let circulaDeps = true;
             for (const dep of unresolvedDeps.values()) {
-                if (dep.children.length === 0 || dep.children.reduce((old, value) => old && resolvedDeps.has(value), true)) {
+                if (dep.children.length === 0 || dep.children.reduce<boolean>((old, value) => old && resolvedDeps.has(value), true)) {
                     unresolvedDeps.delete(dep);
                     resolvedDeps.add(dep);
                     if (currentStep.find((value) => value.project === dep.project)) {

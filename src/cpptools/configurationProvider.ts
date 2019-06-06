@@ -59,7 +59,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   }
 
   public get isReady(): boolean {
-    return [...this.clientInfos.values()].reduce(
+    return [...this.clientInfos.values()].reduce<boolean>(
       (old, value) =>
         old && (value.ready),
       true);
