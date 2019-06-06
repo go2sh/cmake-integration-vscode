@@ -13,7 +13,7 @@ const readFile = promisify(fs.readFile);
 interface CMakeConfiguration {
   name: string;
   description?: string;
-  buildType: string;
+  buildType?: string;
   buildDirectory?: string;
   generator?: string;
   toolchain?: string | { [key: string]: string };

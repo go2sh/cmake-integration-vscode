@@ -285,14 +285,15 @@ abstract class CMakeClient implements vscode.Disposable {
       config.generator ||
       vscode.workspace.getConfiguration("cmake", this.sourceUri).get("generator", "Ninja")
     );
-    vars.set("buildType", config.buildType);
+    vars.set("buildType", config.buildType || vscode.workspace.getConfiguration("cmake", this.sourceUri).get("buildType", "Debug"));
 
     this.environment = { ...process.env };
     for (let key in process.env) {
       vars.set("env:" + key, process.env[key]!);
     }
-    for (let key in config.env) {
-      let value = config.env[key].replace(/\${((?:\w+\:)?\w+)}/g, (substring: string, ...args: any[]) => {
+    const env = config.env || vscode.workspace.getConfiguration("cmake", this.sourceUri).get("env");
+    for (let key in env) {
+      let value = env[key].replace(/\${((?:\w+\:)?\w+)}/g, (substring: string, ...args: any[]) => {
         return vars.get(args[0]) || "";
       });
       vars.set("env:" + key, value);
@@ -300,7 +301,8 @@ abstract class CMakeClient implements vscode.Disposable {
     }
 
     this.cacheEntries = [];
-    for (let cacheEntry of config.cacheEntries || []) {
+    let cacheEntries = config.cacheEntries || vscode.workspace.getConfiguration("cmake", this.sourceUri).get("cacheEntries", []);
+    for (let cacheEntry of cacheEntries) {
       cacheEntry.value = cacheEntry.value.replace(/\${((?:\w+\:)?\w+)}/g, (substring: string, ...args: any[]) => {
         return vars.get(args[0]) || "";
       });

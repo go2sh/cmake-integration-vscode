@@ -225,7 +225,7 @@
                     "scope": "resource",
                     "default": "${workspaceFolder}/build"
                 },
-                "cmake.variables": {
+                "cmake.cacheEntries": {
                     "type": "object",
                     "title": "Additional Cache Entries",
                     "description": "Default additional cache entries for CMake. (Same as -D argument)",
