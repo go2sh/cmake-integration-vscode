@@ -240,6 +240,23 @@ abstract class CMakeClient implements vscode.Disposable {
   public get cacheEntries(): CacheValue[] {
     return this._cacheEntries;
   }
+
+  private varPattern = /(?<=(?:^|[^\$]))\${((?:\w+\:)?\w+)}/g;
+  private escaptePattern = /\$(\${(?:\w+\:)?\w+})/g;
+
+  private replaceVariables(value: string, vars: Map<string, string>) {
+    value = value.replace(
+      this.varPattern,
+      (substring: string, ...args: any[]) => {
+        return vars.get(args[0]) || "";
+      }
+    );
+    value = value.replace(this.escaptePattern, (substring: string, ...args: any[]) => {
+      return args[0];
+    });
+    return value;
+  }
+
   /**
    * Update the client to a new configuration
    *
@@ -261,12 +278,7 @@ abstract class CMakeClient implements vscode.Disposable {
       await buildToolchainFile(this.workspaceFolder, config);
 
     /* Resolve build directory */
-    nextBuildDirectory = nextBuildDirectory.replace(
-      /\${((?:\w+\.)?\w+)}/g,
-      (substring: string, ...args: any[]) => {
-        return vars.get(args[0]) || "";
-      }
-    );
+    nextBuildDirectory = this.replaceVariables(nextBuildDirectory, vars);
     if (!path.isAbsolute(nextBuildDirectory)) {
       nextBuildDirectory = path.join(this.sourceUri.fsPath, nextBuildDirectory);
     }
@@ -313,9 +325,7 @@ abstract class CMakeClient implements vscode.Disposable {
     }
     const env = config.env || vscode.workspace.getConfiguration("cmake", this.sourceUri).get("env");
     for (let key in env) {
-      let value = env[key].replace(/\${((?:\w+\:)?\w+)}/g, (substring: string, ...args: any[]) => {
-        return vars.get(args[0]) || "";
-      });
+      let value = this.replaceVariables(env[key], vars);
       vars.set("env:" + key, value);
       this._environment[key] = value;
     }
@@ -323,9 +333,7 @@ abstract class CMakeClient implements vscode.Disposable {
     this._cacheEntries = [];
     let cacheEntries = config.cacheEntries || vscode.workspace.getConfiguration("cmake", this.sourceUri).get("cacheEntries", [] as CacheValue[]);
     for (let cacheEntry of cacheEntries) {
-      cacheEntry.value = cacheEntry.value.replace(/\${((?:\w+\:)?\w+)}/g, (substring: string, ...args: any[]) => {
-        return vars.get(args[0]) || "";
-      });
+      cacheEntry.value = this.replaceVariables(cacheEntry.value, vars);
       this._cacheEntries.push(cacheEntry);
     }
     return vars;
