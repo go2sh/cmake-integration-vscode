@@ -97,7 +97,7 @@ export class CMakeServerClient extends CMakeClient {
         if (this._connection && msg) {
             let handshake: protocol.Handshake = {
                 sourceDirectory: this.sourcePath,
-                buildDirectory: this.buildDirectory,
+                buildDirectory: this._buildDirectory,
                 protocolVersion: msg.supportedProtocolVersions[0],
                 generator: this.generator,
                 extraGenerator: this.extraGenerator,
@@ -167,7 +167,7 @@ export class CMakeServerClient extends CMakeClient {
             args.push("-D");
             args.push(`CMAKE_TOOLCHAIN_FILE:FILEPATH=${this.toolchainFile}`);
         }
-        for (let cacheEntry of this.cacheEntries) {
+        for (let cacheEntry of this._cacheEntries) {
             args.push("-D");
             if (cacheEntry.type) {
                 args.push(`${cacheEntry.name}:${cacheEntry.type}=${cacheEntry.value}`);

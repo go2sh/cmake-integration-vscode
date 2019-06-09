@@ -222,12 +222,24 @@ abstract class CMakeClient implements vscode.Disposable {
   }
 
   protected generator: string = "";
-  protected buildDirectory: string = "";
+
+  protected _buildDirectory: string = "";
+  public get buildDirectory(): string {
+    return this._buildDirectory;
+  }
+
   protected buildType: string = "";
   protected toolchainFile: string | undefined;
-  protected environment: { [key: string]: string | undefined } = {};
-  protected cacheEntries: CacheValue[] = [];
 
+  protected _environment: { [key: string]: string | undefined } = {};
+  public get environment(): { [key: string]: string | undefined } {
+    return this._environment;
+  }
+
+  protected _cacheEntries: CacheValue[] = [];
+  public get cacheEntries(): CacheValue[] {
+    return this._cacheEntries;
+  }
   /**
    * Update the client to a new configuration
    *
@@ -260,7 +272,7 @@ abstract class CMakeClient implements vscode.Disposable {
     }
 
     /* Check if build directory needs to be removed */
-    let buildDirectoryDiff = this.buildDirectory !== nextBuildDirectory;
+    let buildDirectoryDiff = this._buildDirectory !== nextBuildDirectory;
     let generatorDiff = this.generator !== nextGenerator;
     let toolchainDiff = this.toolchainFile !== nextToolchainFile;
 
@@ -275,9 +287,8 @@ abstract class CMakeClient implements vscode.Disposable {
 
     this.generator = nextGenerator;
     this.buildType = nextBuildType;
-    this.buildDirectory = nextBuildDirectory;
+    this._buildDirectory = nextBuildDirectory;
     this.toolchainFile = nextToolchainFile;
-    this.buildDirectory = nextBuildDirectory;
 
     if (buildDirectoryDiff || toolchainDiff || generatorDiff) {
       await this.regenerateBuildDirectory();
@@ -296,7 +307,7 @@ abstract class CMakeClient implements vscode.Disposable {
     );
     vars.set("buildType", config.buildType || vscode.workspace.getConfiguration("cmake", this.sourceUri).get("buildType", "Debug"));
 
-    this.environment = { ...process.env };
+    this._environment = { ...process.env };
     for (let key in process.env) {
       vars.set("env:" + key, process.env[key]!);
     }
@@ -306,16 +317,16 @@ abstract class CMakeClient implements vscode.Disposable {
         return vars.get(args[0]) || "";
       });
       vars.set("env:" + key, value);
-      this.environment[key] = value;
+      this._environment[key] = value;
     }
 
-    this.cacheEntries = [];
+    this._cacheEntries = [];
     let cacheEntries = config.cacheEntries || vscode.workspace.getConfiguration("cmake", this.sourceUri).get("cacheEntries", [] as CacheValue[]);
     for (let cacheEntry of cacheEntries) {
       cacheEntry.value = cacheEntry.value.replace(/\${((?:\w+\:)?\w+)}/g, (substring: string, ...args: any[]) => {
         return vars.get(args[0]) || "";
       });
-      this.cacheEntries.push(cacheEntry);
+      this._cacheEntries.push(cacheEntry);
     }
     return vars;
   }
@@ -377,7 +388,7 @@ abstract class CMakeClient implements vscode.Disposable {
   abstract regenerateBuildDirectory(): Promise<void>;
 
   protected _cmakeMatcher = new CMakeMatcher(this.sourcePath);
-  private _matchers: ProblemMatcher[] = getProblemMatchers(this.buildDirectory);
+  private _matchers: ProblemMatcher[] = getProblemMatchers(this._buildDirectory);
 
   /**
    * Build a target
@@ -388,7 +399,7 @@ abstract class CMakeClient implements vscode.Disposable {
     let cmakePath = vscode.workspace.getConfiguration("cmake", this.sourceUri).get("cmakePath", "cmake");
     let args: string[] = [];
 
-    args.push("--build", this.buildDirectory);
+    args.push("--build", this._buildDirectory);
     if (target) {
       args.push("--target", target);
     }
@@ -397,7 +408,7 @@ abstract class CMakeClient implements vscode.Disposable {
     }
 
     let buildProc = child_process.execFile(cmakePath, args, {
-      env: this.environment
+      env: this._environment
     });
     buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
       this.console.appendLine(chunk);
@@ -409,7 +420,7 @@ abstract class CMakeClient implements vscode.Disposable {
     });
 
     this._matchers.forEach((value) => {
-      value.buildPath = this.buildDirectory;
+      value.buildPath = this._buildDirectory;
       value.clear();
       value.getDiagnostics().forEach(
         (diag) => this.diagnostics.delete(diag[0])
@@ -472,12 +483,12 @@ abstract class CMakeClient implements vscode.Disposable {
    * @return true if directory exists
    */
   public async hasBuildDirectory(): Promise<boolean> {
-    let result = await stat(this.buildDirectory).catch((e) => undefined);
+    let result = await stat(this._buildDirectory).catch((e) => undefined);
     if (result) {
       if (result.isDirectory) {
         return true;
       } else {
-        throw new Error("Build directory (" + this.buildDirectory + ") exists, but is not a directory.");
+        throw new Error("Build directory (" + this._buildDirectory + ") exists, but is not a directory.");
       }
     }
     return false;
@@ -487,14 +498,14 @@ abstract class CMakeClient implements vscode.Disposable {
    * Create the build directory recursivly.
    */
   public async createBuildDirectory() {
-    await makeRecursivDirectory(this.buildDirectory);
+    await makeRecursivDirectory(this._buildDirectory);
   }
 
   /**
    * Remove build directory
    */
   public async removeBuildDirectory() {
-    await removeDir(this.buildDirectory);
+    await removeDir(this._buildDirectory);
   }
 
   /*

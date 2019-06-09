@@ -51,7 +51,7 @@ class CMakeFileAPIClient extends CMakeClient {
    */
 
   async regenerateBuildDirectory() {
-    await makeRecursivDirectory(this.buildDirectory);
+    await makeRecursivDirectory(this._buildDirectory);
   }
 
   async configure(): Promise<void> {
@@ -68,7 +68,7 @@ class CMakeFileAPIClient extends CMakeClient {
       args.push("-D");
       args.push(`CMAKE_TOOLCHAIN_FILE:FILEPATH=${this.toolchainFile}`);
     }
-    for (var cacheEntry of this.cacheEntries) {
+    for (var cacheEntry of this._cacheEntries) {
       args.push("-D");
       if (cacheEntry.type) {
         args.push(`${cacheEntry.name}:${cacheEntry.type}=${cacheEntry.value}`);
@@ -79,13 +79,13 @@ class CMakeFileAPIClient extends CMakeClient {
     args.push("-S");
     args.push(this.sourceUri.fsPath);
     args.push("-B");
-    args.push(this.buildDirectory);
+    args.push(this._buildDirectory);
 
     this.makeFileApiRequest();
 
     let buildProc = child_process.execFile(cmakePath, args, {
       cwd: this.workspaceFolder.uri.fsPath,
-      env: this.environment
+      env: this._environment
     });
     buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
       this.console.appendLine(chunk);
@@ -130,7 +130,7 @@ class CMakeFileAPIClient extends CMakeClient {
    */
 
   private get requestFolder(): string {
-    return path.join(this.buildDirectory, ".cmake", "api", "v1", "query", "client-integration-vscode");
+    return path.join(this._buildDirectory, ".cmake", "api", "v1", "query", "client-integration-vscode");
   }
 
   private async makeFileApiRequest() {
@@ -162,7 +162,7 @@ class CMakeFileAPIClient extends CMakeClient {
   }
 
   private get replyFolder(): string {
-    return path.join(this.buildDirectory, ".cmake", "api", "v1", "reply");
+    return path.join(this._buildDirectory, ".cmake", "api", "v1", "reply");
   }
 
   private async readFileApiReply() {
