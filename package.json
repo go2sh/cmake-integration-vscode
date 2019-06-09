@@ -136,7 +136,7 @@
                 "command": "cmake.editCurrentConfigurations",
                 "title": "Edit current CMake Configurations",
                 "category": "CMake"
-            }  
+            }
         ],
         "configuration": {
             "type": "object",
@@ -233,6 +233,7 @@
                 "cmake.cacheEntries": {
                     "type": "array",
                     "description": "Additional CMake cache entries added to the command line",
+                    "scope": "resource",
                     "items": {
                         "type": "object",
                         "properties": {
@@ -248,15 +249,15 @@
                                 "type": "string",
                                 "description": "Entry type",
                                 "enum": [
-                                "BOOL",
-                                "FILEPATH",
-                                "PATH",
-                                "STRING",
-                                "INTERNAL"
+                                    "BOOL",
+                                    "FILEPATH",
+                                    "PATH",
+                                    "STRING",
+                                    "INTERNAL"
                                 ],
                                 "required": [
-                                "name",
-                                "value"
+                                    "name",
+                                    "value"
                                 ]
                             }
                         }
