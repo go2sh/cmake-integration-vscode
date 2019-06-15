@@ -50,62 +50,62 @@
             {
                 "command": "cmake.configureProject",
                 "title": "Configure a project folder",
-                "category": "Configure"
+                "category": "CMake"
             },
             {
                 "command": "cmake.configureCurrentProject",
                 "title": "Configure current project",
-                "category": "Configure"
+                "category": "CMake"
             },
             {
                 "command": "cmake.configureWorkspace",
                 "title": "Configure workspace",
-                "category": "Configure"
+                "category": "CMake"
             },
             {
                 "command": "cmake.buildTarget",
                 "title": "Build a target",
-                "category": "Build"
+                "category": "CMake"
             },
             {
                 "command": "cmake.buildCurrentTarget",
                 "title": "Build current target",
-                "category": "Build"
+                "category": "CMake"
             },
             {
                 "command": "cmake.buildProject",
                 "title": "Build a project folder",
-                "category": "Build"
+                "category": "CMake"
             },
             {
                 "command": "cmake.buildCurrentProject",
                 "title": "Build current project",
-                "category": "Build"
+                "category": "CMake"
             },
             {
                 "command": "cmake.buildWorkspace",
                 "title": "Build workspace",
-                "category": "Build"
+                "category": "CMake"
             },
             {
                 "command": "cmake.cleanProject",
                 "title": "Clean a project folder",
-                "category": "Clean"
+                "category": "CMake"
             },
             {
                 "command": "cmake.cleanCurrentProject",
                 "title": "Clean current project",
-                "category": "Clean"
+                "category": "CMake"
             },
             {
                 "command": "cmake.cleanWorkspace",
                 "title": "Clean workspace",
-                "category": "Clean"
+                "category": "CMake"
             },
             {
                 "command": "cmake.removeBuildDirectory",
                 "title": "Remove build directory",
-                "category": "Clean"
+                "category": "CMake"
             },
             {
                 "command": "cmake.cleanRestartClient",
