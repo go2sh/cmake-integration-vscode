@@ -21,6 +21,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as util from 'util';
 import * as vscode from 'vscode';
+import * as kill from 'tree-kill';
 import { Project, Target, CacheValue } from './model';
 import { CMakeConfiguration, getDefaultConfigurations, buildToolchainFile, loadConfigurations } from './config';
 import { removeDir, makeRecursivDirectory } from '../helpers/fs';
@@ -397,6 +398,7 @@ abstract class CMakeClient implements vscode.Disposable {
 
   protected _cmakeMatcher = new CMakeMatcher(this.sourcePath);
   private _matchers: ProblemMatcher[] = getProblemMatchers(this._buildDirectory);
+  private buildProc : child_process.ChildProcess | undefined;
 
   /**
    * Build a target
@@ -415,14 +417,14 @@ abstract class CMakeClient implements vscode.Disposable {
       args.push("--config", this.buildType);
     }
 
-    let buildProc = child_process.execFile(cmakePath, args, {
+    this.buildProc = child_process.execFile(cmakePath, args, {
       env: this._environment
     });
-    buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
+    this.buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
       this.console.appendLine(chunk);
       this._matchers.forEach((matcher) => matcher.match(chunk));
     });
-    buildProc.stderr.pipe(new LineTransform()).on("data", (chunk: string) => {
+    this.buildProc.stderr.pipe(new LineTransform()).on("data", (chunk: string) => {
       this.console.appendLine(chunk);
       this._matchers.forEach((matcher) => matcher.match(chunk));
     });
@@ -444,22 +446,33 @@ abstract class CMakeClient implements vscode.Disposable {
 
     return new Promise((resolve, reject) => {
       let error = false;
-      buildProc.on("error", (err) => {
+      if (!this.buildProc) {
+        resolve();
+      }
+      this.buildProc!.on("error", (err) => {
         error = true;
         reject(err);
       });
-      buildProc.on("exit", (code, signal) => {
+      this.buildProc!.on("exit", (code, signal) => {
         this.diagnostics.set(
           this._matchers.reduce((previous, current) =>
             previous.concat(current.getDiagnostics()),
             [] as [vscode.Uri, vscode.Diagnostic[] | undefined][])
         );
         this.diagnostics.set(this._cmakeMatcher.getDiagnostics());
+        this.buildProc = undefined;
         if (!error) {
           resolve();
         }
       });
     });
+  }
+
+  public stopBuild() : void {
+    if (this.buildProc) {
+      kill.default(this.buildProc.pid);
+      this.buildProc = undefined;
+    }
   }
 
   /**

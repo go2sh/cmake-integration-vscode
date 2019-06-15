@@ -411,6 +411,24 @@ export class WorkspaceManager implements vscode.Disposable {
         }
     }
 
+    async stopBuild(current? : boolean) {
+        let client: CMakeClient | undefined;
+
+        if (current) {
+            client = this.currentClient;
+        } else {
+            let context = await pickProject(this.getProjectContexts());
+            if (context) {
+                client = context.client;
+            }
+        }
+
+        if (!client) {
+            return;
+        }
+        client.stopBuild();
+    }
+
     async cleanWorkspace() {
         try {
             for (const client of this._clients.values()) {

@@ -93,6 +93,16 @@
                 "category": "CMake"
             },
             {
+                "command": "cmake.stopCurrentBuild",
+                "title": "Stop current build process",
+                "category": "CMake"
+            },
+            {
+                "command": "cmake.stopBuild",
+                "title": "Stop a build process",
+                "category": "CMake"
+            },
+            {
                 "command": "cmake.cleanCurrentProject",
                 "title": "Clean current project",
                 "category": "CMake"
@@ -374,6 +384,7 @@
     },
     "dependencies": {
         "ajv": "^6.9.2",
+        "tree-kill": "^1.2.1",
         "vscode-cpptools": "^2.1.2"
     }
 }

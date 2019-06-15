@@ -112,6 +112,18 @@ export async function activate(context: vscode.ExtensionContext) {
             async () => await manager.buildWorkspace()
         )
     );
+    disposables.push(
+        vscode.commands.registerCommand(
+            "cmake.stopBuild",
+            async () => await manager.stopBuild(false)
+        )
+    );
+    disposables.push(
+        vscode.commands.registerCommand(
+            "cmake.stopCurrentBuild",
+            async () => await manager.stopBuild(true)
+        )
+    );
 
     /* Select commands */
     disposables.push(
