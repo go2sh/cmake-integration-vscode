@@ -40,6 +40,7 @@ export class WorkspaceManager implements vscode.Disposable {
     private _projectItem: vscode.StatusBarItem;
     private _configItem: vscode.StatusBarItem;
     private _targetItem: vscode.StatusBarItem;
+    private _buildItem: vscode.StatusBarItem;
 
     private _currentProject: ProjectContext | undefined;
 
@@ -67,10 +68,19 @@ export class WorkspaceManager implements vscode.Disposable {
         this._projectItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 12);
         this._targetItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 11);
         this._configItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 10);
+        this._buildItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 9);
 
         this._projectItem.command = "cmake.selectProject";
         this._targetItem.command = "cmake.selectTarget";
         this._configItem.command = "cmake.selectConfiguration";
+        this._buildItem.command = "cmake.buildCurrentTarget";
+
+        this._buildItem.text = "$(beaker)";
+
+        this._projectItem.tooltip = "Current CMake project";
+        this._targetItem.tooltip = "Current CMake target";
+        this._configItem.tooltip = "Current CMake configuration";
+        this._buildItem.tooltip = "Build current CMake target";
 
         this.cppProvider = new ConfigurationProvider();
     }
@@ -185,10 +195,12 @@ export class WorkspaceManager implements vscode.Disposable {
             this._projectItem.show();
             this._configItem.text = this.currentClient.configuration.name;
             this._configItem.show();
+            this._buildItem.show();
         } else {
             this._projectItem.hide();
             this._configItem.hide();
             this._targetItem.hide();
+            this._buildItem.hide();
         }
     }
 
