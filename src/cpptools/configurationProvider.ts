@@ -20,7 +20,7 @@
 import * as path from 'path';
 import * as os from 'os';
 
-import { Uri, Disposable } from 'vscode';
+import { Uri, Disposable, workspace } from 'vscode';
 import { CancellationToken } from 'vscode-jsonrpc';
 import { CustomConfigurationProvider, SourceFileConfiguration, SourceFileConfigurationItem, WorkspaceBrowseConfiguration } from 'vscode-cpptools';
 import { Target } from '../cmake/model';
@@ -55,7 +55,31 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   /* Precompiled browseConfig */
   private browseConfig: WorkspaceBrowseConfiguration | undefined;
 
+  private ignoreCase: boolean;
+
+  private disposables: Disposable[] = [];
+
   constructor() {
+    this.ignoreCase = workspace
+      .getConfiguration("cmake")
+      .get("ignoreCaseInProvider", false);
+
+    this.disposables.push(
+      workspace.onDidChangeConfiguration(e => {
+        if (e.affectsConfiguration("cmake.ignoreCaseInProvider")) {
+          this.ignoreCase = workspace
+            .getConfiguration("cmake")
+            .get("ignoreCaseInProvider", false);
+
+          //
+          let clients = [...this.clientInfos.keys()];
+          clients.forEach(e => {
+            this.deleteClient(e);
+            this.addClient(e);
+          });
+        }
+      })
+    );
   }
 
   public get isReady(): boolean {
@@ -314,7 +338,12 @@ class ConfigurationProvider implements CustomConfigurationProvider {
         } else {
           filePath = path.normalize(path.join(target.sourceDirectory, source));
         }
-        filePath = filePath.replace(/\w\:\\/, (c) => c.toUpperCase()).replace(/\\/g, "/");
+        filePath = filePath
+          .replace(/\w\:\\/, c => c.toUpperCase())
+          .replace(/\\/g, "/");
+        if (this.ignoreCase) {
+          filePath = filePath.toLowerCase();
+        }
         uri = Uri.file(filePath);
 
         clientInfo.clientFiles.add(filePath);
@@ -438,7 +467,12 @@ class ConfigurationProvider implements CustomConfigurationProvider {
 
   async canProvideConfiguration(uri: Uri, token?: CancellationToken) {
     let filePath = uri.fsPath;
-    filePath = filePath.replace(/^\w\:\\/, c => c.toUpperCase()).replace(/\\/g, "/");
+    filePath = filePath
+      .replace(/^\w\:\\/, c => c.toUpperCase())
+      .replace(/\\/g, "/");
+    if (this.ignoreCase) {
+      filePath = filePath.toLowerCase();
+    }
 
     let status = this.sourceFiles.has(filePath);
     // Look for other sources
@@ -450,8 +484,12 @@ class ConfigurationProvider implements CustomConfigurationProvider {
       for (const client of this.clientInfos.keys()) {
         let clientInfo = this.clientInfos.get(client)!;
         let configuration: SourceFileConfiguration | undefined;
+        let clientPath = client.sourceUri.fsPath;
+        if (this.ignoreCase) {
+          clientPath = clientPath.toLowerCase();
+        }
 
-        if (filePath.startsWith(client.sourceUri.fsPath)) {
+        if (filePath.startsWith(clientPath)) {
           if (filePath.match(/\.[cC]$/)) {
             configuration = clientInfo.cConfiguration;
           } else {
@@ -473,6 +511,9 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     for (const uri of uris) {
       let path = uri.fsPath;
       path = path.replace(/^\w\:\\/, c => c.toUpperCase()).replace(/\\/g, "/");
+      if (this.ignoreCase) {
+        path = path.toLowerCase();
+      }
 
       let item = this.sourceFiles.get(path);
       if (item) {
@@ -491,9 +532,10 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   }
 
   dispose() {
-
+    this.disposables.forEach(e => {
+      e.dispose();
+    });
   }
-
 }
 
 export { ConfigurationProvider };
