@@ -28,6 +28,7 @@ import { LineTransform } from '../helpers/stream';
 import { makeRecursivDirectory } from '../helpers/fs';
 import { IndexFile, CodeModelFile, ClientResponse, ReplyFileReference, TargetFile, CacheFile } from './fileApi';
 import { Target, Project, CacheValue } from './model';
+import { buildArgs } from '../helpers/config';
 
 const stat = promisify(fs.stat);
 const writeFile = promisify(fs.writeFile);
@@ -76,6 +77,7 @@ class CMakeFileAPIClient extends CMakeClient {
         args.push(`${cacheEntry.name}=${cacheEntry.value}`);
       }
     }
+    args.push(...buildArgs(this.sourceUri, "configureArguments"));
     args.push("-S");
     args.push(this.sourceUri.fsPath);
     args.push("-B");

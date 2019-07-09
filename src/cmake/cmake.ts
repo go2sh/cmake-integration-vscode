@@ -27,6 +27,7 @@ import { CMakeConfiguration, getDefaultConfigurations, buildToolchainFile, loadC
 import { removeDir, makeRecursivDirectory } from '../helpers/fs';
 import { ProblemMatcher, getProblemMatchers, CMakeMatcher } from '../helpers/problemMatcher';
 import { LineTransform } from '../helpers/stream';
+import { buildArgs } from '../helpers/config';
 
 const stat = util.promisify(fs.stat);
 
@@ -416,6 +417,7 @@ abstract class CMakeClient implements vscode.Disposable {
     if (this.isConfigurationGenerator) {
       args.push("--config", this.buildType);
     }
+    args.push(...buildArgs(this.sourceUri, "buildArguments"));
 
     this.buildProc = child_process.execFile(cmakePath, args, {
       env: this._environment
