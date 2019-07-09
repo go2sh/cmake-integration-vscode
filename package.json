@@ -175,28 +175,28 @@
                     "title": "Configure on server start",
                     "description": "Configure the project on start",
                     "scope": "window",
-                    "default": "true"
+                    "default": true
                 },
                 "cmake.showConsoleAutomatically": {
                     "type": "boolean",
                     "title": "Automatically show CMake output",
                     "description": "Show the CMake output during configuration or build.",
                     "scope": "window",
-                    "default": "true"
+                    "default": true
                 },
                 "cmake.reconfigureOnChange": {
                     "type": "boolean",
                     "title": "Reconfigure project on Change",
                     "description": "Reconfigure the project on change to the CMake files.",
                     "scope": "window",
-                    "default": "false"
+                    "default": false
                 },
                 "cmake.ignoreCaseInProvider": {
                     "type": "boolean",
                     "title": "Ignore filename case for cpptools provider",
                     "description": "Ignore the case to workaround limits of case-insensitiv filesystems.",
                     "scope": "window",
-                    "default": "false"
+                    "default": false
                 },
                 "cmake.generator": {
                     "type": "string",
