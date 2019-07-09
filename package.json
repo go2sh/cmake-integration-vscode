@@ -379,7 +379,6 @@
         "test-compile": "tsc -p ./",
         "test-watch": "tsc --watch -p ./",
         "watch": "webpack --watch --mode development --config webpack.config.js",
-        "postinstall": "node ./node_modules/vscode/bin/install",
         "test": "npm run compile && node ./node_modules/vscode/bin/test",
         "docs:dev": "vuepress dev docs",
         "docs:build": "vuepress build docs"
