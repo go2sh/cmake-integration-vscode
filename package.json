@@ -162,12 +162,13 @@
                 "cmake.cmakeAPI": {
                     "type": "string",
                     "title": "CMake API",
-                    "description": "Choose CMake API to use (CMake File API is 3.14+)",
+                    "description": "Choose CMake API to use. Override 'Auto' with care.",
                     "enum": [
+                        "Auto",
                         "Server",
                         "File API"
                     ],
-                    "default": "Server",
+                    "default": "Auto",
                     "scope": "resource"
                 },
                 "cmake.configureArguments": {

@@ -17,6 +17,7 @@
  * Configuration helpers
  */
 import * as vscode from "vscode";
+import { getCMakeVersion } from "./cmake";
 
 const argsRegex = /(".*?"|\S+)/g;
 
@@ -26,7 +27,7 @@ export function buildArgs(uri: vscode.Uri, section: string): string[] {
     .getConfiguration("cmake", uri)
     .get<string>(section, "")
     .match(argsRegex);
-    
+
   if (matches) {
     for (const match of matches) {
       args.push(match);
@@ -34,4 +35,33 @@ export function buildArgs(uri: vscode.Uri, section: string): string[] {
   }
 
   return args;
+}
+
+export async function getCMakeApi(
+  uri: vscode.Uri
+): Promise<"Server" | "File API"> {
+  let version = await getCMakeVersion();
+  let [major, minor] = version.split(".", 2).map(e => parseInt(e));
+  let config = vscode.workspace
+    .getConfiguration("cmake", uri)
+    .get<"Auto" | "Server" | "File API">("cmakeAPI");
+
+  if (major >= 3 && minor >= 14) {
+    if (config === "Server") {
+      if (major > 3 || minor > 15) {
+        throw Error(`CMake Server is unsupported in CMake version ${version}.`);
+      } else {
+        return "Server";
+      }
+    } else {
+      return "File API";
+    }
+  } else if (major >= 3 && minor >= 7) {
+    if (config === "File API") {
+      throw Error(`CMake File API is unsupported in CMake version ${version}.`);
+    }
+    return "Server";
+  } else {
+    throw Error(`Unsupported CMake Version ${version}.`);
+  }
 }

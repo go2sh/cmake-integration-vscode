@@ -29,6 +29,7 @@ import { CMakeClient } from './cmake/cmake';
 import { CMakeFileAPIClient } from './cmake/fileAPIClient';
 import { CMakeServerClient } from './cmake/serverClient';
 import { Project, Target } from './cmake/model';
+import { getCMakeApi } from './helpers/config';
 
 export class WorkspaceManager implements vscode.Disposable {
 
@@ -239,7 +240,7 @@ export class WorkspaceManager implements vscode.Disposable {
 
         let client: CMakeClient;
         try {
-            if (vscode.workspace.getConfiguration("cmake", uri).get<"Server"|"File API">("cmakeAPI", "Server") === "Server") {
+            if (await getCMakeApi(uri) === "Server") {
                 client = new CMakeServerClient(sourceFolder, workspaceFolder!, this._context);
             } else {
                 client = new CMakeFileAPIClient(sourceFolder, workspaceFolder!, this._context);
