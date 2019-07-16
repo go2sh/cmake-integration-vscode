@@ -568,6 +568,7 @@ abstract class CMakeClient implements vscode.Disposable {
   protected selectContext() {
     this._projectTargets.clear();
     this._targetProject.clear();
+    this._targets = [];
 
     this._projects.forEach((project) => {
       this._targets.splice(this._targets.length, 0, ...project.targets);

@@ -253,8 +253,15 @@ class CMakeFileAPIClient extends CMakeClient {
             target.compileGroups.push(modeCg);
           }
         }
-        this._targets.push(target);
         project.targets.push(target);
+      }
+      for (const util of ["all", "install"]) {
+        project.targets.push({
+          name: util,
+          type: "UTILITY",
+          sourceDirectory: codeModel.paths.source,
+          compileGroups: []
+        });
       }
       this._projects.push(project);
     }

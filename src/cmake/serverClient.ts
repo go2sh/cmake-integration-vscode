@@ -272,6 +272,16 @@ export class CMakeServerClient extends CMakeClient {
                         })
                 } as model.Project;
             });
+        for (const project of this._projects) {
+            for (const util of ["all", "install"]) {
+                project.targets.push({
+                  name: util,
+                  type: "UTILITY",
+                  sourceDirectory: this.sourcePath,
+                  compileGroups: []
+                });
+              }
+        }
         this.isModelValid = true;
         this.selectContext();
     }
