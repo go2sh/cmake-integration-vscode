@@ -124,6 +124,18 @@ export async function activate(context: vscode.ExtensionContext) {
             async () => await manager.stopBuild(true)
         )
     );
+    disposables.push(
+        vscode.commands.registerCommand(
+            "cmake.installProject",
+            async () => await manager.installProject()
+        )
+    );
+    disposables.push(
+        vscode.commands.registerCommand(
+            "cmake.installCurrentProject",
+            async () => await manager.installProject(true)
+        )
+    );
 
     /* Select commands */
     disposables.push(

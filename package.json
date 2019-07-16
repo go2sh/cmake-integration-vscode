@@ -113,6 +113,16 @@
                 "category": "CMake"
             },
             {
+                "command": "cmake.installProject",
+                "title": "Install a project folder",
+                "category": "CMake"
+            },
+            {
+                "command": "cmake.installCurrentProject",
+                "title": "Install current project",
+                "category": "CMake"
+            },
+            {
                 "command": "cmake.removeBuildDirectory",
                 "title": "Remove build directory",
                 "category": "CMake"

@@ -460,6 +460,26 @@ export class WorkspaceManager implements vscode.Disposable {
         }
     }
 
+    async installProject(current?: boolean) {
+        let client: CMakeClient | undefined;
+        if (current) {
+            client = this.currentClient;
+        } else {
+            client = await pickClient([...this._clients.values()]);
+        }
+        if (client) {
+            try {
+                await client.build("install");
+            } catch (e) {
+                vscode.window.showErrorMessage(
+                    "Failed to install project folder(" + 
+                    client.sourceUri.fsPath + "): " + 
+                    e.message
+                );
+            }
+        }
+    }
+
     async selectProject() {
         let project = await pickProject(this.getProjectContexts());
         if (project) {
