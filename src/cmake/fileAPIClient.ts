@@ -83,7 +83,7 @@ class CMakeFileAPIClient extends CMakeClient {
     args.push("-B");
     args.push(this._buildDirectory);
 
-    this.makeFileApiRequest();
+    await this.makeFileApiRequest();
 
     let buildProc = child_process.execFile(cmakePath, args, {
       cwd: this.workspaceFolder.uri.fsPath,

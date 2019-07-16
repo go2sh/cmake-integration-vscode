@@ -278,6 +278,9 @@ abstract class CMakeClient implements vscode.Disposable {
       vscode.workspace.getConfiguration("cmake", this.sourceUri).get("buildType", "Debug");
     let nextToolchainFile =
       await buildToolchainFile(this.workspaceFolder, config);
+    if (nextToolchainFile) {
+      nextToolchainFile = this.replaceVariables(nextToolchainFile, vars);
+    }
 
     /* Resolve build directory */
     nextBuildDirectory = this.replaceVariables(nextBuildDirectory, vars);
