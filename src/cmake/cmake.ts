@@ -446,6 +446,7 @@ abstract class CMakeClient implements vscode.Disposable {
       (uri) => this.diagnostics.delete(uri[0])
     );
     this._cmakeMatcher.clear();
+    this.diagnostics.clear();
 
     this.mayShowConsole();
 
