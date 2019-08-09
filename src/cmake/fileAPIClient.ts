@@ -29,6 +29,7 @@ import { makeRecursivDirectory } from '../helpers/fs';
 import { IndexFile, CodeModelFile, ClientResponse, ReplyFileReference, TargetFile, CacheFile } from './fileApi';
 import { Target, Project, CacheValue } from './model';
 import { buildArgs } from '../helpers/config';
+import * as fileApi from './fileApi';
 
 const stat = promisify(fs.stat);
 const writeFile = promisify(fs.writeFile);
@@ -37,7 +38,6 @@ const readFile = promisify(fs.readFile);
 const unlink = promisify(fs.unlink);
 
 class CMakeFileAPIClient extends CMakeClient {
-
   constructor(
     sourceFolder: vscode.Uri,
     workspaceFolder: vscode.WorkspaceFolder,
@@ -56,7 +56,9 @@ class CMakeFileAPIClient extends CMakeClient {
   }
 
   async configure(): Promise<void> {
-    let cmakePath = vscode.workspace.getConfiguration("cmake", this.sourceUri).get("cmakePath", "cmake");
+    let cmakePath = vscode.workspace
+      .getConfiguration("cmake", this.sourceUri)
+      .get("cmakePath", "cmake");
     let args: string[] = [];
 
     args.push("-G");
@@ -99,26 +101,28 @@ class CMakeFileAPIClient extends CMakeClient {
     });
 
     this._cmakeMatcher.buildPath = this.sourcePath;
-    this._cmakeMatcher.getDiagnostics().forEach(
-      (uri) => this.diagnostics.delete(uri[0])
-    );
+    this._cmakeMatcher
+      .getDiagnostics()
+      .forEach(uri => this.diagnostics.delete(uri[0]));
     this._cmakeMatcher.clear();
 
     this.mayShowConsole();
 
     return new Promise((resolve, reject) => {
       let error = false;
-      buildProc.on("error", (err) => {
+      buildProc.on("error", err => {
         error = true;
         reject(err);
       });
       buildProc.on("exit", (code, signal) => {
         this.diagnostics.set(this._cmakeMatcher.getDiagnostics());
-        this.readFileApiReply().then(() => {
-          if (!error) {
-            resolve();
-          }
-        }).catch((e) => reject(e));
+        this.readFileApiReply()
+          .then(() => {
+            if (!error) {
+              resolve();
+            }
+          })
+          .catch(e => reject(e));
       });
     });
   }
@@ -132,21 +136,24 @@ class CMakeFileAPIClient extends CMakeClient {
    */
 
   private get requestFolder(): string {
-    return path.join(this._buildDirectory, ".cmake", "api", "v1", "query", "client-integration-vscode");
+    return path.join(
+      this._buildDirectory,
+      ".cmake",
+      "api",
+      "v1",
+      "query",
+      "client-integration-vscode"
+    );
   }
 
   private async makeFileApiRequest() {
-    let requests = [
-      "codemodel-v2",
-      "cache-v2",
-      "cmakeFiles-v1"
-    ];
+    let requests = ["codemodel-v2", "cache-v2", "cmakeFiles-v1"];
     let res = await makeRecursivDirectory(this.requestFolder);
 
     if (!res) {
       let entries = await readdir(this.requestFolder);
       for (const entry of entries) {
-        if (requests.indexOf(entry) === - 1) {
+        if (requests.indexOf(entry) === -1) {
           await unlink(path.join(this.requestFolder, entry));
         }
       }
@@ -154,11 +161,9 @@ class CMakeFileAPIClient extends CMakeClient {
 
     for (const request of requests) {
       let requestPath = path.join(this.requestFolder, request);
-      let result = await stat(requestPath).catch((e) => undefined);
+      let result = await stat(requestPath).catch(e => undefined);
       if (!result) {
-        await writeFile(
-          requestPath, "", { flag: "w" }
-        );
+        await writeFile(requestPath, "", { flag: "w" });
       }
     }
   }
@@ -168,37 +173,47 @@ class CMakeFileAPIClient extends CMakeClient {
   }
 
   private async readFileApiReply() {
-    let res = await stat(this.replyFolder).catch((e) => undefined);
+    let res = await stat(this.replyFolder).catch(e => undefined);
     if (!res || !res.isDirectory) {
       return;
     }
 
     let files = await readdir(this.replyFolder);
-    let indexFile = files.filter((value) => {
-      if (value.match(/^index.+\.json$/)) {
-        return value;
-      }
-    }).sort().pop();
+    let indexFile = files
+      .filter(value => {
+        if (value.match(/^index.+\.json$/)) {
+          return value;
+        }
+      })
+      .sort()
+      .pop();
     if (!indexFile) {
       return;
     }
     let index: IndexFile = JSON.parse(
-      await readFile(path.join(this.replyFolder, indexFile), { encoding: 'utf-8' })
+      await readFile(path.join(this.replyFolder, indexFile), {
+        encoding: "utf-8"
+      })
     );
-    let clientResponse: ClientResponse = <ClientResponse>index.reply["client-integration-vscode"];
-    let codeModelFile: ReplyFileReference = <ReplyFileReference>clientResponse["codemodel-v2"];
+    let clientResponse: ClientResponse = <ClientResponse>(
+      index.reply["client-integration-vscode"]
+    );
+    let codeModelFile: ReplyFileReference = <ReplyFileReference>(
+      clientResponse["codemodel-v2"]
+    );
     let codeModel: CodeModelFile = JSON.parse(
-      await readFile(
-        path.join(this.replyFolder, codeModelFile.jsonFile),
-        { encoding: 'utf-8' })
+      await readFile(path.join(this.replyFolder, codeModelFile.jsonFile), {
+        encoding: "utf-8"
+      })
     );
 
-    let cacheFile: ReplyFileReference = <ReplyFileReference>clientResponse["cache-v2"];
+    let cacheFile: ReplyFileReference = <ReplyFileReference>(
+      clientResponse["cache-v2"]
+    );
     let cache: CacheFile = JSON.parse(
-      await readFile(
-        path.join(this.replyFolder, cacheFile.jsonFile),
-        { encoding: 'utf-8' }
-      )
+      await readFile(path.join(this.replyFolder, cacheFile.jsonFile), {
+        encoding: "utf-8"
+      })
     );
 
     this.cache.clear();
@@ -222,39 +237,8 @@ class CMakeFileAPIClient extends CMakeClient {
         targets: []
       };
 
-      for (const index of projectEntry.targetIndexes) {
-        let targetEntry = codeModel.configurations[0].targets[index];
-        let targetFile = JSON.parse(await readFile(path.join(this.replyFolder, targetEntry.jsonFile), { encoding: 'utf-8' })) as TargetFile;
-        let target: Target = {
-          name: targetEntry.name,
-          type: targetFile.type,
-          sourceDirectory: path.join(codeModel.paths.source, targetFile.paths.source),
-          compileGroups: []
-        };
-        if (targetFile.compileGroups) {
-          for (const cg of targetFile.compileGroups) {
-            let modeCg: Target['compileGroups'][0] = {
-              compileFlags: "",
-              compilerPath: "",
-              defines: [],
-              includePaths: [],
-              sysroot: cg.sysroot ? cg.sysroot.path || "" : "",
-              language: cg.language,
-              sources: cg.sourceIndexes.map((index) => targetFile.sources[index].path)
-            };
-            if (cg.defines) {
-              modeCg.defines = cg.defines.map((def) => def.define);
-            }
-            if (cg.includes) {
-              modeCg.includePaths = cg.includes.map((inc) => {
-                return { path: inc.path };
-              });
-            }
-            target.compileGroups.push(modeCg);
-          }
-        }
-        project.targets.push(target);
-      }
+      this.readProjectEntry(codeModel, projectEntry, project);
+
       for (const util of ["all", "install"]) {
         project.targets.push({
           name: util,
@@ -264,6 +248,57 @@ class CMakeFileAPIClient extends CMakeClient {
         });
       }
       this._projects.push(project);
+    }
+  }
+
+  private async readProjectEntry(
+    codeModel: CodeModelFile,
+    projectEntry: fileApi.Project,
+    project: Project
+  ) {
+    if (projectEntry.targetIndexes) {
+      for (const index of projectEntry.targetIndexes) {
+        let targetEntry = codeModel.configurations[0].targets[index];
+        let targetFile = JSON.parse(
+          await readFile(path.join(this.replyFolder, targetEntry.jsonFile), {
+            encoding: "utf-8"
+          })
+        ) as TargetFile;
+        let target: Target = {
+          name: targetEntry.name,
+          type: targetFile.type,
+          sourceDirectory: path.join(
+            codeModel.paths.source,
+            targetFile.paths.source
+          ),
+          compileGroups: []
+        };
+        if (targetFile.compileGroups) {
+          for (const cg of targetFile.compileGroups) {
+            let modeCg: Target["compileGroups"][0] = {
+              compileFlags: "",
+              compilerPath: "",
+              defines: [],
+              includePaths: [],
+              sysroot: cg.sysroot ? cg.sysroot.path || "" : "",
+              language: cg.language,
+              sources: cg.sourceIndexes.map(
+                index => targetFile.sources[index].path
+              )
+            };
+            if (cg.defines) {
+              modeCg.defines = cg.defines.map(def => def.define);
+            }
+            if (cg.includes) {
+              modeCg.includePaths = cg.includes.map(inc => {
+                return { path: inc.path };
+              });
+            }
+            target.compileGroups.push(modeCg);
+          }
+        }
+        project.targets.push(target);
+      }
     }
   }
 }

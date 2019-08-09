@@ -68,7 +68,7 @@ interface ObjectFile {
 interface Project {
   name: string;
   directoryIndexes: number[];
-  targetIndexes: number[];
+  targetIndexes?: number[];
 }
 
 interface Target {
@@ -207,5 +207,6 @@ interface CacheFile extends ObjectFile {
 
 export { 
   StatefuleQueryFile, ClientResponse, ReplyFileReference,
-  IndexFile, CodeModelFile, TargetFile, CacheFile
+  IndexFile, CodeModelFile, TargetFile, CacheFile,
+  Project, Target, Configuration
 };
