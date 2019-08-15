@@ -237,7 +237,7 @@ class CMakeFileAPIClient extends CMakeClient {
         targets: []
       };
 
-      this.readProjectEntry(codeModel, projectEntry, project);
+      await this.readProjectEntry(codeModel, projectEntry, project);
 
       for (const util of ["all", "install"]) {
         project.targets.push({
