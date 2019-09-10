@@ -422,7 +422,8 @@ abstract class CMakeClient implements vscode.Disposable {
     }
     args.push(...buildArgs(this.sourceUri, "buildArguments"));
 
-    this.buildProc = child_process.execFile(cmakePath, args, {
+    this.buildProc = child_process.spawn(cmakePath, args, {
+      cwd: this.buildDirectory,
       env: this._environment
     });
     this.buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
@@ -460,6 +461,9 @@ abstract class CMakeClient implements vscode.Disposable {
         reject(err);
       });
       this.buildProc!.on("exit", (code, signal) => {
+        if (signal !== null) {
+          reject(`Build process stopped unexpectedly. (${signal})`);
+        }
         this.diagnostics.set(
           this._matchers.reduce((previous, current) =>
             previous.concat(current.getDiagnostics()),

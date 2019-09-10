@@ -87,7 +87,7 @@ class CMakeFileAPIClient extends CMakeClient {
 
     await this.makeFileApiRequest();
 
-    let buildProc = child_process.execFile(cmakePath, args, {
+    let buildProc = child_process.spawn(cmakePath, args, {
       cwd: this.workspaceFolder.uri.fsPath,
       env: this._environment
     });
@@ -115,6 +115,9 @@ class CMakeFileAPIClient extends CMakeClient {
         reject(err);
       });
       buildProc.on("exit", (code, signal) => {
+        if (signal !== null) {
+          reject(`Build process stopped unexpectedly. (${signal})`);
+        }
         this.diagnostics.set(this._cmakeMatcher.getDiagnostics());
         this.readFileApiReply()
           .then(() => {
