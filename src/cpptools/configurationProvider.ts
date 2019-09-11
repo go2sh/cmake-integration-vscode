@@ -194,10 +194,15 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     return "clang-x64";
   }
 
-  private static compareStandard(a: SourceFileConfiguration["standard"], b: SourceFileConfiguration["standard"]) {
+  private static compareStandard(
+    a: SourceFileConfiguration["standard"],
+    b: SourceFileConfiguration["standard"]
+  ) {
+    const cppIndex = ["c++98", "c++03", "c++11", "c++14", "c++17"];
+    const cIndex = ["c89", "c99", "c11"];
     if (a.startsWith("c++")) {
       if (b.startsWith("c++")) {
-        if (a > b) {
+        if (cppIndex.indexOf(a) > cppIndex.indexOf(b)) {
           return a;
         } else {
           return b;
@@ -209,7 +214,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
       if (b.startsWith("c++")) {
         return b;
       } else {
-        if (a > b) {
+        if (cIndex.indexOf(a) > cIndex.indexOf(b)) {
           return a;
         } else {
           return b;
