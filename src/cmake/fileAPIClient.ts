@@ -278,8 +278,14 @@ class CMakeFileAPIClient extends CMakeClient {
         };
         if (targetFile.compileGroups) {
           for (const cg of targetFile.compileGroups) {
+            let fragment = "";
+
+            if (cg.compileCommandFragments) {
+              fragment = cg.compileCommandFragments[0].fragment;
+            }
+            
             let modeCg: Target["compileGroups"][0] = {
-              compileFlags: "",
+              compileFlags: fragment,
               compilerPath: "",
               defines: [],
               includePaths: [],
