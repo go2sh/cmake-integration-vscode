@@ -12,19 +12,24 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
 
 /*
  * Configuration provider for cpptools api
  */
-import * as path from 'path';
-import * as os from 'os';
+import * as path from "path";
+import * as os from "os";
 
-import { Uri, Disposable, workspace } from 'vscode';
-import { CancellationToken } from 'vscode-jsonrpc';
-import { CustomConfigurationProvider, SourceFileConfiguration, SourceFileConfigurationItem, WorkspaceBrowseConfiguration } from 'vscode-cpptools';
-import { Target } from '../cmake/model';
-import { CMakeClient } from '../cmake/cmake';
+import { Uri, Disposable, workspace } from "vscode";
+import { CancellationToken } from "vscode-jsonrpc";
+import {
+  CustomConfigurationProvider,
+  SourceFileConfiguration,
+  SourceFileConfigurationItem,
+  WorkspaceBrowseConfiguration
+} from "vscode-cpptools";
+import { Target } from "../cmake/model";
+import { CMakeClient } from "../cmake/cmake";
 
 interface TargetInfo {
   cConfiguration?: SourceFileConfiguration;
@@ -44,7 +49,6 @@ interface ClientInfo {
 }
 
 class ConfigurationProvider implements CustomConfigurationProvider {
-
   name: string = "CMake Integration";
   extensionId: string = "go2sh.cmake-integration";
 
@@ -65,7 +69,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
       .get("ignoreCaseInProvider", false);
 
     this.disposables.push(
-      workspace.onDidChangeConfiguration(e => {
+      workspace.onDidChangeConfiguration((e) => {
         if (e.affectsConfiguration("cmake.ignoreCaseInProvider")) {
           this.ignoreCase = workspace
             .getConfiguration("cmake")
@@ -73,7 +77,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
 
           //
           let clients = [...this.clientInfos.keys()];
-          clients.forEach(e => {
+          clients.forEach((e) => {
             this.deleteClient(e);
             this.addClient(e);
           });
@@ -84,14 +88,18 @@ class ConfigurationProvider implements CustomConfigurationProvider {
 
   public get isReady(): boolean {
     return [...this.clientInfos.values()].reduce<boolean>(
-      (old, value) =>
-        old && (value.ready),
-      true);
+      (old, value) => old && value.ready,
+      true
+    );
   }
 
   static gccMatch = /\/?[^/]*(?:gcc|g\+\+|cc|c\+\+)[^/]*$/;
 
-  static getStandard(compiler: string, args: string, language?: "c" | "c++"): SourceFileConfiguration["standard"] {
+  static getStandard(
+    compiler: string,
+    args: string,
+    language?: "c" | "c++"
+  ): SourceFileConfiguration["standard"] {
     let clangMatch = /\/?[^/]*clang(?:\+\+)?[^/]$/;
     let gccStdMatch = /-std=((?:iso9899\:|(?:(?:gnu|c)(?:\+\+)?))\w+)/;
     let gccStdLookup: { [key: string]: SourceFileConfiguration["standard"] } = {
@@ -117,7 +125,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
       "gnu11": "c11",
       "gnu1x": "c11",
       "gnu17": "c11", // Not supported by c/c++ extension
-      "gnu18": "c11",  // Not supported by c/c++ extension
+      "gnu18": "c11", // Not supported by c/c++ extension
       "c++98": "c++98",
       "c++03": "c++03",
       "gnu++98": "c++98",
@@ -146,7 +154,10 @@ class ConfigurationProvider implements CustomConfigurationProvider {
       "c++latest": "c++17" // Not supported by c/c++ extension
     };
 
-    if (ConfigurationProvider.gccMatch.exec(compiler) || clangMatch.exec(compiler)) {
+    if (
+      ConfigurationProvider.gccMatch.exec(compiler) ||
+      clangMatch.exec(compiler)
+    ) {
       let stdResult = gccStdMatch.exec(args);
       if (stdResult) {
         return gccStdLookup[stdResult[1]];
@@ -175,7 +186,9 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     return "c++17";
   }
 
-  private static getIntelliSenseMode(compiler: string): SourceFileConfiguration["intelliSenseMode"] {
+  private static getIntelliSenseMode(
+    compiler: string
+  ): SourceFileConfiguration["intelliSenseMode"] {
     let clMatch = /cl\.exe$/;
     let clangMatch = /\/?[^/]*clang(?:\+\+)?[^/]$/;
 
@@ -253,9 +266,20 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     }
 
     for (const target of client.targets) {
-      this._createTargetConfiguration(clientInfo, target, windowsSdkVersion, cCompiler, cppCompiler);
+      this._createTargetConfiguration(
+        clientInfo,
+        target,
+        windowsSdkVersion,
+        cCompiler,
+        cppCompiler
+      );
     }
-    this._createClientConfiguration(clientInfo, windowsSdkVersion, cCompiler, cppCompiler);
+    this._createClientConfiguration(
+      clientInfo,
+      windowsSdkVersion,
+      cCompiler,
+      cppCompiler
+    );
     this._updateBrowsingConfiguration();
     this.clientInfos.get(client)!.ready = true;
   }
@@ -268,7 +292,12 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   ) {
     let info: TargetInfo = {};
 
-    if (!target.type.match(/(?:STATIC_LIBRARY|MODULE_LIBRARY|SHARED_LIBRARY|OBJECT_LIBRARY|INTERFACE_LIBRARY|EXECUTABLE)/) || !target.compileGroups) {
+    if (
+      !target.type.match(
+        /(?:STATIC_LIBRARY|MODULE_LIBRARY|SHARED_LIBRARY|OBJECT_LIBRARY|INTERFACE_LIBRARY|EXECUTABLE)/
+      ) ||
+      !target.compileGroups
+    ) {
       return;
     }
 
@@ -278,7 +307,8 @@ class ConfigurationProvider implements CustomConfigurationProvider {
       let defines: string[] = [];
       let includePath: string[] = [];
       let standard: SourceFileConfiguration["standard"] = "c++17";
-      let intelliSenseMode: SourceFileConfiguration["intelliSenseMode"] = "clang-x64";
+      let intelliSenseMode: SourceFileConfiguration["intelliSenseMode"] =
+        "clang-x64";
 
       // Find target file group infos
       if (fg.language === "CXX") {
@@ -300,8 +330,14 @@ class ConfigurationProvider implements CustomConfigurationProvider {
       });
 
       if (compilerPath) {
-        standard = ConfigurationProvider.getStandard(compilerPath, fg.compileFlags, language);
-        intelliSenseMode = ConfigurationProvider.getIntelliSenseMode(compilerPath);
+        standard = ConfigurationProvider.getStandard(
+          compilerPath,
+          fg.compileFlags,
+          language
+        );
+        intelliSenseMode = ConfigurationProvider.getIntelliSenseMode(
+          compilerPath
+        );
       } else {
         if (os.platform() === "win32") {
           intelliSenseMode = "msvc-x64";
@@ -344,7 +380,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
           filePath = path.normalize(path.join(target.sourceDirectory, source));
         }
         filePath = filePath
-          .replace(/\w\:\\/, c => c.toUpperCase())
+          .replace(/\w\:\\/, (c) => c.toUpperCase())
           .replace(/\\/g, "/");
         if (this.ignoreCase) {
           filePath = filePath.toLowerCase();
@@ -370,24 +406,35 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     let cppStandard: SourceFileConfiguration["standard"] = "c++98";
     let cppIncludePath: Set<string> = new Set();
     let cppDefines: Set<string> = new Set();
-    let intelliSenseMode: SourceFileConfiguration["intelliSenseMode"] = "clang-x64";
+    let intelliSenseMode: SourceFileConfiguration["intelliSenseMode"] =
+      "clang-x64";
 
     for (const targetInfo of clientInfo.targetInfos.values()) {
       if (targetInfo.cConfiguration) {
         intelliSenseMode = targetInfo.cConfiguration.intelliSenseMode;
         cStandard = ConfigurationProvider.compareStandard(
-          targetInfo.cConfiguration.standard, cStandard
+          targetInfo.cConfiguration.standard,
+          cStandard
         );
-        targetInfo.cConfiguration.defines.forEach((value) => cDefines.add(value));
-        targetInfo.cConfiguration.includePath.forEach((value) => cIncludePath.add(value));
+        targetInfo.cConfiguration.defines.forEach((value) =>
+          cDefines.add(value)
+        );
+        targetInfo.cConfiguration.includePath.forEach((value) =>
+          cIncludePath.add(value)
+        );
       }
       if (targetInfo.cppConfiguration) {
         intelliSenseMode = targetInfo.cppConfiguration.intelliSenseMode;
         cppStandard = ConfigurationProvider.compareStandard(
-          targetInfo.cppConfiguration.standard, cppStandard
+          targetInfo.cppConfiguration.standard,
+          cppStandard
         );
-        targetInfo.cppConfiguration.defines.forEach((value) => cppDefines.add(value));
-        targetInfo.cppConfiguration.includePath.forEach((value) => cppIncludePath.add(value));
+        targetInfo.cppConfiguration.defines.forEach((value) =>
+          cppDefines.add(value)
+        );
+        targetInfo.cppConfiguration.includePath.forEach((value) =>
+          cppIncludePath.add(value)
+        );
       }
     }
 
@@ -419,25 +466,35 @@ class ConfigurationProvider implements CustomConfigurationProvider {
 
     for (const clientInfo of this.clientInfos.values()) {
       if (clientInfo.cppConfiguration) {
-        clientInfo.cppConfiguration.includePath.forEach((value) => includeSet.add(value));
+        clientInfo.cppConfiguration.includePath.forEach((value) =>
+          includeSet.add(value)
+        );
         if (!cppCompilerPath && clientInfo.cppConfiguration.compilerPath) {
           cppCompilerPath = clientInfo.cppConfiguration.compilerPath;
         }
         if (!windowsSdkVersion) {
           windowsSdkVersion = clientInfo.cppConfiguration.windowsSdkVersion;
         }
-        standard = ConfigurationProvider.compareStandard(standard, clientInfo.cppConfiguration.standard);
+        standard = ConfigurationProvider.compareStandard(
+          standard,
+          clientInfo.cppConfiguration.standard
+        );
       }
 
       if (clientInfo.cConfiguration) {
-        clientInfo.cConfiguration.includePath.forEach((value) => includeSet.add(value));
+        clientInfo.cConfiguration.includePath.forEach((value) =>
+          includeSet.add(value)
+        );
         if (!cCompilerPath && clientInfo.cConfiguration.compilerPath) {
           cCompilerPath = clientInfo.cConfiguration.compilerPath;
         }
         if (!windowsSdkVersion) {
           windowsSdkVersion = clientInfo.cConfiguration.windowsSdkVersion;
         }
-        standard = ConfigurationProvider.compareStandard(standard, clientInfo.cConfiguration.standard);
+        standard = ConfigurationProvider.compareStandard(
+          standard,
+          clientInfo.cConfiguration.standard
+        );
       }
     }
 
@@ -473,7 +530,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   async canProvideConfiguration(uri: Uri, token?: CancellationToken) {
     let filePath = uri.fsPath;
     filePath = filePath
-      .replace(/^\w\:\\/, c => c.toUpperCase())
+      .replace(/^\w\:\\/, (c) => c.toUpperCase())
       .replace(/\\/g, "/");
     if (this.ignoreCase) {
       filePath = filePath.toLowerCase();
@@ -483,7 +540,12 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     // Look for other sources
     if (!status) {
       // Match only files with c and cpp based file endings
-      if (!path.extname(filePath).toLowerCase().match(/(?:c|cc|cpp|h|hpp|def|inc)$/)) {
+      if (
+        !path
+          .extname(filePath)
+          .toLowerCase()
+          .match(/(?:c|cc|cpp|h|hpp|def|inc)$/)
+      ) {
         return false;
       }
       for (const client of this.clientInfos.keys()) {
@@ -498,7 +560,8 @@ class ConfigurationProvider implements CustomConfigurationProvider {
           if (filePath.match(/\.[cC]$/)) {
             configuration = clientInfo.cConfiguration;
           } else {
-            configuration = clientInfo.cppConfiguration || clientInfo.cConfiguration;
+            configuration =
+              clientInfo.cppConfiguration || clientInfo.cConfiguration;
           }
         }
 
@@ -515,7 +578,9 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     let items: SourceFileConfigurationItem[] = [];
     for (const uri of uris) {
       let path = uri.fsPath;
-      path = path.replace(/^\w\:\\/, c => c.toUpperCase()).replace(/\\/g, "/");
+      path = path
+        .replace(/^\w\:\\/, (c) => c.toUpperCase())
+        .replace(/\\/g, "/");
       if (this.ignoreCase) {
         path = path.toLowerCase();
       }
@@ -537,7 +602,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   }
 
   dispose() {
-    this.disposables.forEach(e => {
+    this.disposables.forEach((e) => {
       e.dispose();
     });
   }
