@@ -312,7 +312,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
 
       let cpptoolsCompilerPath = compilerPath;
       if (fg.compileFlags) {
-        cpptoolsCompilerPath += fg.compileFlags;
+        cpptoolsCompilerPath += ` ${fg.compileFlags}`;
       }
       if (fg.sysroot) {
         cpptoolsCompilerPath += ` "--sysroot=${fg.sysroot}"`;
