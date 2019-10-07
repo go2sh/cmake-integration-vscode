@@ -220,6 +220,7 @@ export class CMakeServerClient extends CMakeClient {
             value: value.value,
             type: value.type
         }));
+        this.setToolchainFromCache();
 
         this._onModelChange.fire(this);
     }

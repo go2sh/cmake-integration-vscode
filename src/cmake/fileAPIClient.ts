@@ -221,6 +221,7 @@ class CMakeFileAPIClient extends CMakeClient {
     for (const entry of cache.entries) {
       this.cache.set(entry.name, entry as CacheValue);
     }
+    this.setToolchainFromCache();
 
     await this.buildModel(index, codeModel);
     this.selectContext();

@@ -22,7 +22,7 @@ import * as path from 'path';
 import * as util from 'util';
 import * as vscode from 'vscode';
 import * as kill from 'tree-kill';
-import { Project, Target, CacheValue } from './model';
+import { Project, Target, CacheValue, Toolchain } from './model';
 import { CMakeConfiguration, getDefaultConfigurations, buildToolchainFile, loadConfigurations } from './config';
 import { removeDir, makeRecursivDirectory } from '../helpers/fs';
 import { ProblemMatcher, getProblemMatchers, CMakeMatcher } from '../helpers/problemMatcher';
@@ -209,6 +209,27 @@ abstract class CMakeClient implements vscode.Disposable {
    */
   public getCacheValue(key: string): CacheValue | undefined {
     return this.cache.get(key);
+  }
+
+  protected _toolchain : Toolchain = new Toolchain();
+
+  public get toolchain() : Toolchain {
+    return this._toolchain;
+  }
+
+  protected setToolchainFromCache() {
+    let stringOrUndefined = (key : string) : string | undefined =>  {
+      if (this.cache.has(key)) {
+        return this.cache.get(key)!.value;
+      }
+      return undefined;
+    };
+    this._toolchain = new Toolchain({
+      windowsSdkVersion: stringOrUndefined(
+        "CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION"),
+      cCompiler: stringOrUndefined("CMAKE_C_COMPILER"),
+      cppCompiler: stringOrUndefined("CMAKE_CXX_COMPILER")
+    });
   }
 
   /*

@@ -7,12 +7,12 @@ interface Target {
     language: string;
     compilerPath: string;
     compileFlags: string;
-    sysroot: string;
-    sources: string[];
-    defines: string[];
-    includePaths: {
-      path: string;
-    }[];
+  sysroot: string;
+  sources: string[];
+  defines: string[];
+  includePaths: {
+    path: string;
+  }[];
   }[];
 }
 
@@ -27,4 +27,28 @@ interface CacheValue {
   type?: "BOOL" | "FILEPATH" | "PATH" | "STRING" | "INTERNAL";
 }
 
-export { Target, Project, CacheValue };
+class Toolchain {
+  readonly windowsSdkVersion?: string;
+  readonly cCompiler?: string;
+  readonly cppCompiler?: string;
+
+  constructor(init?: Partial<Toolchain>) {
+    if (init) {
+      this.windowsSdkVersion = init.windowsSdkVersion;
+      this.cCompiler = init.cCompiler;
+      this.cppCompiler = init.cppCompiler;
+    }
+  }
+
+  public getCompiler(lang: Language): string | undefined {
+    if (lang == "C") {
+      return this.cCompiler;
+    }
+    if (lang == "CXX") {
+      return this.cppCompiler;
+    }
+    return undefined;
+  }
+}
+
+export { Target, Project, CacheValue, Toolchain };
