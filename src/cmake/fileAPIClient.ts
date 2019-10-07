@@ -27,7 +27,7 @@ import { CMakeClient } from "./cmake";
 import { LineTransform } from '../helpers/stream';
 import { makeRecursivDirectory } from '../helpers/fs';
 import { IndexFile, CodeModelFile, ClientResponse, ReplyFileReference, TargetFile, CacheFile } from './fileApi';
-import { Target, Project, CacheValue } from './model';
+import { Target, Project, CacheValue, CompileGroup } from './model';
 import { buildArgs } from '../helpers/config';
 import * as fileApi from './fileApi';
 
@@ -277,15 +277,14 @@ class CMakeFileAPIClient extends CMakeClient {
         };
         if (targetFile.compileGroups) {
           for (const cg of targetFile.compileGroups) {
-            let fragment = "";
+            let fragment : string[] = [];
 
             if (cg.compileCommandFragments) {
-              fragment = cg.compileCommandFragments[0].fragment;
+              fragment = cg.compileCommandFragments.map((value) => value.fragment);
             }
             
-            let modeCg: Target["compileGroups"][0] = {
+            let modeCg: CompileGroup = {
               compileFlags: fragment,
-              compilerPath: "",
               defines: [],
               includePaths: [],
               sysroot: cg.sysroot ? cg.sysroot.path || "" : "",

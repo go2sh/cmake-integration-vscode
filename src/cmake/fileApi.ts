@@ -1,3 +1,4 @@
+import { Language } from "./model";
 
 interface ObjectVersion {
   major: string;
@@ -130,7 +131,7 @@ interface TargetFile extends ObjectFile {
     }[];
   };
   link?: {
-    language: string;
+    language: Language;
     commandFragments: {
       fragment: string;
       role: "flags" | "libraries" | "libraryPath" | "frameworkPath";
@@ -164,7 +165,7 @@ interface TargetFile extends ObjectFile {
   }[];
   compileGroups?: {
     sourceIndexes: number[];
-    language: string;
+    language: Language;
     compileCommandFragments?: {
       fragment: string;
     }[];

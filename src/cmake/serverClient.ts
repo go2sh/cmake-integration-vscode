@@ -239,6 +239,8 @@ export class CMakeServerClient extends CMakeClient {
         this._state = ClientState.GENERATED;
     }
 
+    static splitShellRegex = /\s+(?=[^"']+$|([^"']*"[^"]*")*[^"']*$|([^'"]*'[^']*')*[^'"]*$)/;
+
     private updateValues() {
         this._projects = this._model!.configurations.find(
             (value) => value.name === this.buildType)!.projects.map((sP) => {
@@ -253,7 +255,7 @@ export class CMakeServerClient extends CMakeClient {
                                 type: st.type,
                                 compileGroups: (st.fileGroups || []).map((sFG) => {
                                     return {
-                                        compileFlags: sFG.compileFlags,
+                                        compileFlags: sFG.compileFlags.split(CMakeServerClient.splitShellRegex),
                                         compilerPath: "",
                                         defines: sFG.defines || [],
                                         sysroot: st.sysroot || "",
