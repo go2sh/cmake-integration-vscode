@@ -54,13 +54,18 @@ class ConfigurationProvider implements CustomConfigurationProvider {
 
   /* Storage of precompiled infos per client */
   private clientInfos: Map<CMakeClient, ClientInfo> = new Map();
+
   /* Fast look up map for Items */
   private sourceFiles: Map<string, SourceFileConfigurationItem> = new Map();
+  /* Fast look up map for per workspace browse configuration */
+  private workspaceBrowseConfigs: Map<
+    string,
+    WorkspaceBrowseConfiguration
+  > = new Map();
   /* Precompiled browseConfig */
   private browseConfig: WorkspaceBrowseConfiguration | undefined;
 
   private ignoreCase: boolean;
-
   private disposables: Disposable[] = [];
 
   constructor() {
@@ -599,6 +604,22 @@ class ConfigurationProvider implements CustomConfigurationProvider {
 
   async provideBrowseConfiguration(token?: CancellationToken) {
     return this.browseConfig!;
+  }
+
+  async canProvideBrowseConfigurationsPerFolder(
+    token?: CancellationToken | undefined
+  ): Promise<boolean> {
+    return this.browseConfig !== undefined;
+  }
+
+  async provideFolderBrowseConfiguration(
+    uri: Uri,
+    token?: CancellationToken | undefined
+  ): Promise<WorkspaceBrowseConfiguration> {
+    if (this.workspaceBrowseConfigs.has(uri.fsPath)) {
+      return this.workspaceBrowseConfigs.get(uri.fsPath)!;
+    }
+    throw Error(`Invalid uri requested: ${uri.fsPath}`);
   }
 
   dispose() {

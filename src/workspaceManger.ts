@@ -104,7 +104,7 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     async registerCppProvider() {
-        this.api = await getCppToolsApi(Version.v2);
+        this.api = await getCppToolsApi(Version.v3);
         if (this.api) {
             this.api.registerCustomConfigurationProvider(this.cppProvider);
         }

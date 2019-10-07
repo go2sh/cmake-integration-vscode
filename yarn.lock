@@ -7327,10 +7327,10 @@ vm-browserify@^1.0.1:
   resolved "https://registry.yarnpkg.com/vm-browserify/-/vm-browserify-1.1.0.tgz#bd76d6a23323e2ca8ffa12028dc04559c75f9019"
   integrity sha512-iq+S7vZJE60yejDYM0ek6zg308+UZsdtPExWP9VZoCFCz1zkJoXFnAX7aZfd/ZwrkidzdUZL0C/ryW+JwAiIGw==
 
-vscode-cpptools@^2.1.2:
-  version "2.1.2"
-  resolved "https://registry.yarnpkg.com/vscode-cpptools/-/vscode-cpptools-2.1.2.tgz#465d42c66850e877ee5a14574c9376ffca151968"
-  integrity sha512-oMx/wsLQM6NggnmWn4t8lIrt1K7Zpl5G34zxNu+J6KHGnCxBzc+NHnxXS1Vu1hLxGWwANAvdxr3mEcA2LMe7hQ==
+vscode-cpptools@^3.0.0:
+  version "3.0.1"
+  resolved "https://registry.yarnpkg.com/vscode-cpptools/-/vscode-cpptools-3.0.1.tgz#35ea986a48ac14eda85f3989ba5eedc64886c0c2"
+  integrity sha512-KAbwWhG36Ahnug9frcCOvWI3dUb3mzWeTqB6NQjIkzAazRTJWT/PiZ7gxpY/+jQIUylbbiU9ezWmzIIm8nP+TQ==
 
 vscode-jsonrpc@^4.0.0:
   version "4.0.0"

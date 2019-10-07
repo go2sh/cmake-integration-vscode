@@ -419,6 +419,6 @@
     "dependencies": {
         "ajv": "^6.9.2",
         "tree-kill": "^1.2.1",
-        "vscode-cpptools": "^2.1.2"
+        "vscode-cpptools": "^3.0.0"
     }
 }
