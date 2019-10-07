@@ -18,7 +18,6 @@
  * Configuration provider for cpptools api
  */
 import * as path from "path";
-import * as os from "os";
 
 import { Uri, Disposable, workspace } from "vscode";
 import { CancellationToken } from "vscode-jsonrpc";
@@ -28,21 +27,12 @@ import {
   SourceFileConfigurationItem,
   WorkspaceBrowseConfiguration
 } from "vscode-cpptools";
-import { Target } from "../cmake/model";
+import { Target, Language } from "../cmake/model";
 import { CMakeClient } from "../cmake/cmake";
 
-interface TargetInfo {
-  cConfiguration?: SourceFileConfiguration;
-  cppConfiguration?: SourceFileConfiguration;
-}
-
 interface ClientInfo {
-  targetInfos: Map<Target, TargetInfo>;
-
   clientFiles: Set<string>;
-
-  cConfiguration?: SourceFileConfiguration;
-  cppConfiguration?: SourceFileConfiguration;
+  client: CMakeClient;
 
   ready: boolean;
   disposables: Disposable[];
@@ -67,6 +57,11 @@ class ConfigurationProvider implements CustomConfigurationProvider {
 
   private ignoreCase: boolean;
   private disposables: Disposable[] = [];
+
+  static DefaultCPPStandard: SourceFileConfiguration["standard"] = "c++20";
+  static DefaultCStandard: SourceFileConfiguration["standard"] = "c11";
+  static DefaultIntelliSenseMode: SourceFileConfiguration["intelliSenseMode"] =
+    "clang-x64";
 
   constructor() {
     this.ignoreCase = workspace
@@ -99,13 +94,13 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   }
 
   static gccMatch = /\/?[^/]*(?:gcc|g\+\+|cc|c\+\+)[^/]*$/;
+  static clMatch = /cl\.exe$/;
+  static clangMatch = /\/?[^/]*clang(?:\+\+)?[^/]$/;
 
   static getStandard(
-    compiler: string,
-    args: string,
-    language?: "c" | "c++"
+    clientInfo: ClientInfo,
+    fg: Target["compileGroups"][0]
   ): SourceFileConfiguration["standard"] {
-    let clangMatch = /\/?[^/]*clang(?:\+\+)?[^/]$/;
     let gccStdMatch = /-std=((?:iso9899\:|(?:(?:gnu|c)(?:\+\+)?))\w+)/;
     let gccStdLookup: { [key: string]: SourceFileConfiguration["standard"] } = {
       "c89": "c89",
@@ -147,27 +142,34 @@ class ConfigurationProvider implements CustomConfigurationProvider {
       "c++1z": "c++17",
       "gnu++17": "c++17",
       "gnu++1z": "c++17",
-      "c++2a": "c++17",
-      "gnu++2a": "c++17" // Not supported by c/c++ extension
+      "c++20": "c++20",
+      "c++2a": "c++20",
+      "gnu++20": "c++20",
+      "gnu++2a": "c++20"
     };
 
-    let clMatch = /cl\.exe$/;
     let clStdMatch = /\/Std\:(c\+\+\w+)/;
     let clStdLookup: { [key: string]: SourceFileConfiguration["standard"] } = {
       "c++14": "c++14",
       "c++17": "c++17",
-      "c++latest": "c++17" // Not supported by c/c++ extension
+      "c++20": "c++20",
+      "c++latest": "c++20"
     };
 
+    let argString: string = fg.compileFlags.join(" ");
+    let compiler = clientInfo.client.toolchain.getCompiler(fg.language);
+
     if (
-      ConfigurationProvider.gccMatch.exec(compiler) ||
-      clangMatch.exec(compiler)
+      compiler &&
+      (ConfigurationProvider.gccMatch.exec(compiler) ||
+        ConfigurationProvider.clangMatch.exec(compiler))
     ) {
-      let stdResult = gccStdMatch.exec(args);
+      let stdResult = gccStdMatch.exec(argString);
       if (stdResult) {
         return gccStdLookup[stdResult[1]];
       } else {
-        if (language === "c") {
+        //TODO: query default standard from compiler
+        if (fg.language === "C") {
           return "c11";
         } else {
           return "c++14";
@@ -175,12 +177,12 @@ class ConfigurationProvider implements CustomConfigurationProvider {
       }
     }
 
-    if (clMatch.exec(compiler)) {
-      let stdResult = clStdMatch.exec(args);
+    if (compiler && ConfigurationProvider.clMatch.exec(compiler)) {
+      let stdResult = clStdMatch.exec(argString);
       if (stdResult) {
         return clStdLookup[stdResult[1]];
       } else {
-        if (language === "c") {
+        if (fg.language === "C") {
           return "c89";
         } else {
           return "c++14";
@@ -188,35 +190,44 @@ class ConfigurationProvider implements CustomConfigurationProvider {
       }
     }
 
-    return "c++17";
+    return workspace
+      .getConfiguration("cmake", clientInfo.client.sourceUri)
+      .get<SourceFileConfiguration["standard"]>("cpptoolStandard", "c++17");
   }
 
   private static getIntelliSenseMode(
-    compiler: string
+    clientInfo: ClientInfo,
+    fg: Target["compileGroups"][0]
   ): SourceFileConfiguration["intelliSenseMode"] {
-    let clMatch = /cl\.exe$/;
-    let clangMatch = /\/?[^/]*clang(?:\+\+)?[^/]$/;
+    let compiler = clientInfo.client.toolchain.getCompiler(fg.language);
 
-    if (compiler.match(ConfigurationProvider.gccMatch)) {
-      return "gcc-x64";
+    if (compiler) {
+      if (compiler.match(ConfigurationProvider.gccMatch)) {
+        return "gcc-x64";
+      }
+
+      if (compiler.match(ConfigurationProvider.clMatch)) {
+        return "msvc-x64";
+      }
+
+      if (compiler.match(ConfigurationProvider.clangMatch)) {
+        return "clang-x64";
+      }
     }
 
-    if (compiler.match(clMatch)) {
-      return "msvc-x64";
-    }
-
-    if (compiler.match(clangMatch)) {
-      return "clang-x64";
-    }
-
-    return "clang-x64";
+    return workspace
+      .getConfiguration("cmake", clientInfo.client.sourceUri)
+      .get<SourceFileConfiguration["intelliSenseMode"]>(
+        "cpptoolintelliSenseMode",
+        "clang-x64"
+      );
   }
 
   private static compareStandard(
     a: SourceFileConfiguration["standard"],
     b: SourceFileConfiguration["standard"]
   ) {
-    const cppIndex = ["c++98", "c++03", "c++11", "c++14", "c++17"];
+    const cppIndex = ["c++98", "c++03", "c++11", "c++14", "c++17", "c++20"];
     const cIndex = ["c89", "c99", "c11"];
     if (a.startsWith("c++")) {
       if (b.startsWith("c++")) {
@@ -243,60 +254,21 @@ class ConfigurationProvider implements CustomConfigurationProvider {
 
   updateClient(client: CMakeClient) {
     let clientInfo: ClientInfo = this.clientInfos.get(client)!;
-    let windowsSdkVersion: string | undefined;
-    let cCompiler: string | undefined;
-    let cppCompiler: string | undefined;
 
     // Remove all previos files from the list
     for (const clientFile of clientInfo.clientFiles.values()) {
       this.sourceFiles.delete(clientFile);
     }
     clientInfo.clientFiles.clear();
-    clientInfo.targetInfos.clear();
-
-    // Determain sdk version
-    let sdk = client.getCacheValue("CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION");
-    if (sdk) {
-      windowsSdkVersion = sdk.value;
-    }
-
-    let cacheC = client.getCacheValue("CMAKE_C_COMPILER");
-    if (cacheC) {
-      cCompiler = cacheC.value;
-    }
-
-    let cacheCPP = client.getCacheValue("CMAKE_CXX_COMPILER");
-    if (cacheCPP) {
-      cppCompiler = cacheCPP.value;
-    }
 
     for (const target of client.targets) {
-      this._createTargetConfiguration(
-        clientInfo,
-        target,
-        windowsSdkVersion,
-        cCompiler,
-        cppCompiler
-      );
+      this._addTarget(clientInfo, target);
     }
-    this._createClientConfiguration(
-      clientInfo,
-      windowsSdkVersion,
-      cCompiler,
-      cppCompiler
-    );
-    this._updateBrowsingConfiguration();
     this.clientInfos.get(client)!.ready = true;
   }
-  private _createTargetConfiguration(
-    clientInfo: ClientInfo,
-    target: Target,
-    windowsSdkVersion: string | undefined,
-    cCompiler: string | undefined,
-    cppCompiler: string | undefined
-  ) {
-    let info: TargetInfo = {};
 
+  private _addTarget(clientInfo: ClientInfo, target: Target) {
+    // Only use actual source targets
     if (
       !target.type.match(
         /(?:STATIC_LIBRARY|MODULE_LIBRARY|SHARED_LIBRARY|OBJECT_LIBRARY|INTERFACE_LIBRARY|EXECUTABLE)/
@@ -307,25 +279,13 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     }
 
     for (const fg of target.compileGroups) {
-      let language: "c" | "c++" = "c";
-      let compilerPath: string | undefined;
       let defines: string[] = [];
       let includePath: string[] = [];
-      let standard: SourceFileConfiguration["standard"] = "c++17";
-      let intelliSenseMode: SourceFileConfiguration["intelliSenseMode"] =
-        "clang-x64";
+      let standard: SourceFileConfiguration["standard"];
+      let intelliSenseMode: SourceFileConfiguration["intelliSenseMode"];
+      let compiler = clientInfo.client.toolchain.getCompiler(fg.language);
 
-      // Find target file group infos
-      if (fg.language === "CXX") {
-        compilerPath = cppCompiler;
-        language = "c++";
-        standard = "c++17";
-      } else if (fg.language === "C") {
-        compilerPath = cCompiler;
-        language = "c";
-        standard = "c11";
-      }
-
+      // Extract information
       fg.includePaths.forEach((value) => {
         let incPath = path.normalize(value.path);
         includePath.push(incPath);
@@ -334,47 +294,24 @@ class ConfigurationProvider implements CustomConfigurationProvider {
         defines.push(value);
       });
 
-      if (compilerPath) {
-        standard = ConfigurationProvider.getStandard(
-          compilerPath,
-          fg.compileFlags,
-          language
-        );
-        intelliSenseMode = ConfigurationProvider.getIntelliSenseMode(
-          compilerPath
-        );
-      } else {
-        if (os.platform() === "win32") {
-          intelliSenseMode = "msvc-x64";
-        } else {
-          intelliSenseMode = "clang-x64";
-        }
-      }
+      standard = ConfigurationProvider.getStandard(clientInfo, fg);
+      intelliSenseMode = ConfigurationProvider.getIntelliSenseMode(
+        clientInfo,
+        fg
+      );
 
-      let cpptoolsCompilerPath = compilerPath;
-      if (fg.compileFlags) {
-        cpptoolsCompilerPath += ` ${fg.compileFlags}`;
-      }
-      if (fg.sysroot) {
-        cpptoolsCompilerPath += ` "--sysroot=${fg.sysroot}"`;
-      }
-
-      // Set config
+      // create config
       let configuration: SourceFileConfiguration = {
-        compilerPath: cpptoolsCompilerPath,
+        compilerPath: compiler,
+        compilerArgs: fg.compileFlags,
         includePath,
         defines,
         intelliSenseMode,
         standard,
-        windowsSdkVersion
+        windowsSdkVersion: clientInfo.client.toolchain.windowsSdkVersion
       };
-      if (fg.language === "C") {
-        info.cConfiguration = configuration;
-      }
-      if (fg.language === "CXX") {
-        info.cppConfiguration = configuration;
-      }
 
+      // Set config for each source file
       fg.sources.forEach((source) => {
         let filePath: string;
         let uri: Uri;
@@ -396,7 +333,6 @@ class ConfigurationProvider implements CustomConfigurationProvider {
         this.sourceFiles.set(filePath, { uri, configuration });
       });
     }
-    clientInfo.targetInfos.set(target, info);
   }
 
   private _createClientConfiguration(
@@ -440,6 +376,15 @@ class ConfigurationProvider implements CustomConfigurationProvider {
         targetInfo.cppConfiguration.includePath.forEach((value) =>
           cppIncludePath.add(value)
         );
+      }
+    }
+
+    if (cCompiler) {
+      if (fg.compileFlags) {
+        cCompiler += ` ${c}`;
+      }
+      if (fg.sysroot) {
+        cCompiler += ` "--sysroot=${fg.sysroot}"`;
       }
     }
 
@@ -513,8 +458,8 @@ class ConfigurationProvider implements CustomConfigurationProvider {
 
   addClient(client: CMakeClient) {
     this.clientInfos.set(client, {
-      targetInfos: new Map(),
       clientFiles: new Set(),
+      client: client,
       ready: false,
       disposables: [client.onModelChange((e) => this.updateClient(e))]
     });
