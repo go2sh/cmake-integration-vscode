@@ -88,6 +88,13 @@ abstract class CMakeClient implements vscode.Disposable {
     let config = this._configs.find((value) => value.name === this.clientContext.currentConfiguration) || this._configs[0];
     this._config = new CMakeConfiguration(config.name, config, this.defaultConfig);
     this._matchers = getProblemMatchers(this.buildDirectory);
+
+    // VSCode config watcher
+    this.disposables.push(
+      vscode.workspace.onDidChangeConfiguration((e) => {
+        this.vscodeConfigurationChange(e);
+      })
+    );
   }
 
   protected sourcePath: string;
@@ -331,6 +338,12 @@ abstract class CMakeClient implements vscode.Disposable {
    */
   public get isConfigurationGenerator(): boolean {
     return this.generator.match(/^(Xcode|Visual Studio)/) !== null;
+  }
+
+  private async vscodeConfigurationChange(event: vscode.ConfigurationChangeEvent) {
+    if (event.affectsConfiguration("cmake", this.sourceUri)) {
+      await this.setConfiguration(this.configuration);
+    }
   }
 
   /*
