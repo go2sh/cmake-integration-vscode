@@ -68,7 +68,7 @@ class CMakeFileAPIClient extends CMakeClient {
     }
     if (this.toolchain) {
       args.push("-D");
-      args.push(`CMAKE_TOOLCHAIN_FILE:FILEPATH=${this.toolchain}`);
+      args.push(`CMAKE_TOOLCHAIN_FILE:FILEPATH=${this.toolchainFile}`);
     }
     for (var cacheEntry of this.cacheEntries) {
       args.push("-D");

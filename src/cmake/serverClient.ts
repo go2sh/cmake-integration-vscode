@@ -166,7 +166,7 @@ export class CMakeServerClient extends CMakeClient {
         }
         if (this.toolchain) {
             args.push("-D");
-            args.push(`CMAKE_TOOLCHAIN_FILE:FILEPATH=${this.toolchain}`);
+            args.push(`CMAKE_TOOLCHAIN_FILE:FILEPATH=${this.toolchainFile}`);
         }
         for (let cacheEntry of this.cacheEntries) {
             args.push("-D");

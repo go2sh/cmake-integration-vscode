@@ -274,7 +274,7 @@ abstract class CMakeClient implements vscode.Disposable {
     return this._config.buildType!;
   }
 
-  public get toolchain(): string | undefined {
+  public get toolchainFile(): string | undefined {
     return this._config.toolchain as string | undefined;
   }
 
