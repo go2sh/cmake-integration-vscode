@@ -44,7 +44,6 @@ class CMakeFileAPIClient extends CMakeClient {
     extensionContext: vscode.ExtensionContext
   ) {
     super(sourceFolder, workspaceFolder, extensionContext);
-    this.readFileApiReply();
   }
 
   /*
@@ -52,7 +51,7 @@ class CMakeFileAPIClient extends CMakeClient {
    */
 
   async regenerateBuildDirectory() {
-    await makeRecursivDirectory(this._buildDirectory);
+    await makeRecursivDirectory(this.buildDirectory);
   }
 
   async configure(): Promise<void> {
@@ -67,11 +66,11 @@ class CMakeFileAPIClient extends CMakeClient {
       args.push("-D");
       args.push(`CMAKE_BUILD_TYPE:STRING=${this.buildType}`);
     }
-    if (this.toolchainFile) {
+    if (this.toolchain) {
       args.push("-D");
-      args.push(`CMAKE_TOOLCHAIN_FILE:FILEPATH=${this.toolchainFile}`);
+      args.push(`CMAKE_TOOLCHAIN_FILE:FILEPATH=${this.toolchain}`);
     }
-    for (var cacheEntry of this._cacheEntries) {
+    for (var cacheEntry of this.cacheEntries) {
       args.push("-D");
       if (cacheEntry.type) {
         args.push(`${cacheEntry.name}:${cacheEntry.type}=${cacheEntry.value}`);
@@ -83,13 +82,13 @@ class CMakeFileAPIClient extends CMakeClient {
     args.push("-S");
     args.push(this.sourceUri.fsPath);
     args.push("-B");
-    args.push(this._buildDirectory);
+    args.push(this.buildDirectory);
 
     await this.makeFileApiRequest();
 
     let buildProc = child_process.spawn(cmakePath, args, {
       cwd: this.workspaceFolder.uri.fsPath,
-      env: this._environment
+      env: this.environment
     });
     buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
       this.console.appendLine(chunk);
@@ -130,6 +129,10 @@ class CMakeFileAPIClient extends CMakeClient {
     });
   }
 
+  public async loadModel() {
+    await this.readFileApiReply();
+  }
+
   public dispose(): void {
     super.dispose();
   }
@@ -140,7 +143,7 @@ class CMakeFileAPIClient extends CMakeClient {
 
   private get requestFolder(): string {
     return path.join(
-      this._buildDirectory,
+      this.buildDirectory,
       ".cmake",
       "api",
       "v1",
@@ -172,7 +175,7 @@ class CMakeFileAPIClient extends CMakeClient {
   }
 
   private get replyFolder(): string {
-    return path.join(this._buildDirectory, ".cmake", "api", "v1", "reply");
+    return path.join(this.buildDirectory, ".cmake", "api", "v1", "reply");
   }
 
   private async readFileApiReply() {

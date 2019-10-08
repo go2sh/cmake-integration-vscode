@@ -260,6 +260,10 @@ export class WorkspaceManager implements vscode.Disposable {
                 } catch (e) {
                     vscode.window.showErrorMessage("Failed to configure project(" + client.name + "): " + e.message);
                 }
+            } else {
+                if (client instanceof CMakeFileAPIClient) {
+                    await client.loadModel();
+                }
             }
         } catch (e) {
             vscode.window.showErrorMessage("Failed to start CMake Client(" + sourceFolder.fsPath + "): " + e.message);
@@ -510,7 +514,7 @@ export class WorkspaceManager implements vscode.Disposable {
         if (this.currentProject) {
             let config = await pickConfiguration(this.currentProject);
             if (config) {
-                await this.currentProject.client.updateConfiguration(config);
+                await this.currentProject.client.setConfiguration(config);
                 if (vscode.workspace.getConfiguration("cmake").get("configureOnStart", true)) {
                     await this.currentProject.client.configure();
                 }
