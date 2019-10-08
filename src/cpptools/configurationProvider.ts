@@ -319,7 +319,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
         if (path.isAbsolute(source)) {
           filePath = source;
         } else {
-          filePath = path.normalize(path.join(target.sourceDirectory, source));
+          filePath = path.normalize(path.join(clientInfo.client.sourceUri.fsPath, source));
         }
         filePath = filePath
           .replace(/\w\:\\/, (c) => c.toUpperCase())
