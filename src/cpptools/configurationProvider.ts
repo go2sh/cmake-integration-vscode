@@ -148,7 +148,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
       "gnu++2a": "c++20"
     };
 
-    let clStdMatch = /\/Std\:(c\+\+\w+)/;
+    let clStdMatch = /[\/\-]Std\:(c\+\+\w+)/i;
     let clStdLookup: { [key: string]: SourceFileConfiguration["standard"] } = {
       "c++14": "c++14",
       "c++17": "c++17",
