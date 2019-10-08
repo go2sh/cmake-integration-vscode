@@ -47,6 +47,7 @@ class ClientContext {
 
 abstract class CMakeClient implements vscode.Disposable {
 
+  protected disposables: vscode.Disposable[] = [];
   /**
    * Create a new CMake client in a given source folder
    *
@@ -59,13 +60,20 @@ abstract class CMakeClient implements vscode.Disposable {
     public readonly workspaceFolder: vscode.WorkspaceFolder,
     protected readonly extensionContext: vscode.ExtensionContext
   ) {
-    this.sourcePath = this.sourceUri.fsPath.replace(/\\/g, "/").replace(/^\w\:\//, (c) => c.toUpperCase());
+    this.sourcePath = this.sourceUri.fsPath
+      .replace(/\\/g, "/").replace(/^\w\:\//, (c) => c.toUpperCase());
+    this.clientContext = this.extensionContext.workspaceState
+      .get(this.name + "-context", new ClientContext());
+    this.configurationsFile = path.join(
+      this.sourceUri.fsPath, ".vscode", "cmake_configurations.json"
+    );
 
+    // Ui elements
     this.console = vscode.window.createOutputChannel(`CMake - ${this.name}`);
     this.diagnostics = vscode.languages.createDiagnosticCollection("cmake-" + this.name);
-
-    this.clientContext = this.extensionContext.workspaceState.get(this.name + "-context", new ClientContext());
-
+    this.disposables.push(this.console, this.diagnostics);
+    
+    // CMake config watcher
     this.configFileWatcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(workspaceFolder, ".vscode/cmake_configurations.json")
     );
@@ -74,10 +82,9 @@ abstract class CMakeClient implements vscode.Disposable {
     );
     this.configFileWatcher.onDidCreate((e) => this.loadConfigurations());
     this.configFileWatcher.onDidDelete((e) => this.loadConfigurations());
-    this.configurationsFile = path.join(
-      this.sourceUri.fsPath, ".vscode", "cmake_configurations.json"
-    );
-
+    this.disposables.push(this.configFileWatcher);
+        
+    // Default config
     let config = this._configs.find((value) => value.name === this.clientContext.currentConfiguration) || this._configs[0];
     this._config = new CMakeConfiguration(config.name, config, this.defaultConfig);
     this._matchers = getProblemMatchers(this.buildDirectory);
@@ -576,9 +583,7 @@ abstract class CMakeClient implements vscode.Disposable {
   }
 
   public dispose() {
-    this.console.dispose();
-    this.diagnostics.dispose();
-    this.configFileWatcher.dispose();
+    this.disposables.forEach((disposable) => disposable.dispose());
   }
 }
 

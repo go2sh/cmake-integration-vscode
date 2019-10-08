@@ -61,6 +61,7 @@ export class CMakeServerClient extends CMakeClient {
         context: vscode.ExtensionContext
     ) {
         super(uri, workspaceFolder, context);
+        this.disposables.push({ dispose: () => this.stop() });
     }
 
     public get extraGenerator(): string | undefined {
@@ -237,10 +238,6 @@ export class CMakeServerClient extends CMakeClient {
         this._state = ClientState.GENERATED;
     }
 
-    dispose() {
-        this.stop();
-    }
-
     private updateValues() {
         this._projects = this._model!.configurations.find(
             (value) => value.name === this.buildType)!.projects.map((sP) => {
@@ -275,12 +272,12 @@ export class CMakeServerClient extends CMakeClient {
         for (const project of this._projects) {
             for (const util of ["all", "install"]) {
                 project.targets.push({
-                  name: util,
-                  type: "UTILITY",
-                  sourceDirectory: this.sourcePath,
-                  compileGroups: []
+                    name: util,
+                    type: "UTILITY",
+                    sourceDirectory: this.sourcePath,
+                    compileGroups: []
                 });
-              }
+            }
         }
         this.isModelValid = true;
         this.selectContext();

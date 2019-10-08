@@ -133,14 +133,9 @@ class CMakeFileAPIClient extends CMakeClient {
     await this.readFileApiReply();
   }
 
-  public dispose(): void {
-    super.dispose();
-  }
-
   /*
    * Private methods
    */
-
   private get requestFolder(): string {
     return path.join(
       this.buildDirectory,
