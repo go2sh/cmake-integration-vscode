@@ -27,7 +27,7 @@ import {
   SourceFileConfigurationItem,
   WorkspaceBrowseConfiguration
 } from "vscode-cpptools";
-import { Target, Language } from "../cmake/model";
+import { Target } from "../cmake/model";
 import { CMakeClient } from "../cmake/cmake";
 
 interface ClientInfo {
