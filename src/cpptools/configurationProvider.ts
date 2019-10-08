@@ -302,13 +302,13 @@ class ConfigurationProvider implements CustomConfigurationProvider {
 
       // create config
       let configuration: SourceFileConfiguration = {
-        compilerPath: compiler,
+        compilerPath: compiler || "${default}",
         compilerArgs: fg.compileFlags,
         includePath,
         defines,
         intelliSenseMode,
         standard,
-        windowsSdkVersion: clientInfo.client.toolchain.windowsSdkVersion
+        windowsSdkVersion: clientInfo.client.toolchain.windowsSdkVersion || "${default}"
       };
 
       // Set config for each source file
