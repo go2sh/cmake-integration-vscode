@@ -30,9 +30,18 @@ import {
 import { Target } from "../cmake/model";
 import { CMakeClient } from "../cmake/cmake";
 
+interface TargetInfo {
+  configurations: SourceFileConfiguration[];
+
+  cConfiguration?: SourceFileConfiguration;
+  cppConfiguration?: SourceFileConfiguration;
+}
+
 interface ClientInfo {
-  clientFiles: Set<string>;
   client: CMakeClient;
+  clientFiles: Set<string>;
+
+  targetInfos: Map<Target, TargetInfo>;
 
   ready: boolean;
   disposables: Disposable[];
@@ -47,11 +56,6 @@ class ConfigurationProvider implements CustomConfigurationProvider {
 
   /* Fast look up map for Items */
   private sourceFiles: Map<string, SourceFileConfigurationItem> = new Map();
-  /* Fast look up map for per workspace browse configuration */
-  private workspaceBrowseConfigs: Map<
-    string,
-    WorkspaceBrowseConfiguration
-  > = new Map();
   /* Precompiled browseConfig */
   private browseConfig: WorkspaceBrowseConfiguration | undefined;
 
@@ -264,7 +268,11 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     for (const target of client.targets) {
       this._addTarget(clientInfo, target);
     }
-    this.clientInfos.get(client)!.ready = true;
+    this._calculateBrowseConfiguration(clientInfo);
+
+    if (!clientInfo.ready) {
+      clientInfo.ready = true;
+    }
   }
 
   private _addTarget(clientInfo: ClientInfo, target: Target) {
@@ -277,6 +285,11 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     ) {
       return;
     }
+
+    let targetInfo :TargetInfo = {
+      configurations: []
+    };
+    clientInfo.targetInfos.set(target, targetInfo);
 
     for (const fg of target.compileGroups) {
       let defines: string[] = [];
@@ -308,7 +321,8 @@ class ConfigurationProvider implements CustomConfigurationProvider {
         defines,
         intelliSenseMode,
         standard,
-        windowsSdkVersion: clientInfo.client.toolchain.windowsSdkVersion || "${default}"
+        windowsSdkVersion:
+          clientInfo.client.toolchain.windowsSdkVersion || "${default}"
       };
 
       // Set config for each source file
@@ -319,7 +333,9 @@ class ConfigurationProvider implements CustomConfigurationProvider {
         if (path.isAbsolute(source)) {
           filePath = source;
         } else {
-          filePath = path.normalize(path.join(clientInfo.client.sourceUri.fsPath, source));
+          filePath = path.normalize(
+            path.join(clientInfo.client.sourceUri.fsPath, source)
+          );
         }
         filePath = filePath
           .replace(/\w\:\\/, (c) => c.toUpperCase())
@@ -332,134 +348,20 @@ class ConfigurationProvider implements CustomConfigurationProvider {
         clientInfo.clientFiles.add(filePath);
         this.sourceFiles.set(filePath, { uri, configuration });
       });
+
+      targetInfo.configurations.push(configuration);
     }
   }
 
-  private _createClientConfiguration(
-    clientInfo: ClientInfo,
-    windowsSdkVersion: string | undefined,
-    cCompiler: string | undefined,
-    cppCompiler: string | undefined
-  ) {
-    let cStandard: SourceFileConfiguration["standard"] = "c89";
-    let cIncludePath: Set<string> = new Set();
-    let cDefines: Set<string> = new Set();
-    let cppStandard: SourceFileConfiguration["standard"] = "c++98";
-    let cppIncludePath: Set<string> = new Set();
-    let cppDefines: Set<string> = new Set();
-    let intelliSenseMode: SourceFileConfiguration["intelliSenseMode"] =
-      "clang-x64";
-
-    for (const targetInfo of clientInfo.targetInfos.values()) {
-      if (targetInfo.cConfiguration) {
-        intelliSenseMode = targetInfo.cConfiguration.intelliSenseMode;
-        cStandard = ConfigurationProvider.compareStandard(
-          targetInfo.cConfiguration.standard,
-          cStandard
-        );
-        targetInfo.cConfiguration.defines.forEach((value) =>
-          cDefines.add(value)
-        );
-        targetInfo.cConfiguration.includePath.forEach((value) =>
-          cIncludePath.add(value)
-        );
-      }
-      if (targetInfo.cppConfiguration) {
-        intelliSenseMode = targetInfo.cppConfiguration.intelliSenseMode;
-        cppStandard = ConfigurationProvider.compareStandard(
-          targetInfo.cppConfiguration.standard,
-          cppStandard
-        );
-        targetInfo.cppConfiguration.defines.forEach((value) =>
-          cppDefines.add(value)
-        );
-        targetInfo.cppConfiguration.includePath.forEach((value) =>
-          cppIncludePath.add(value)
-        );
-      }
-    }
-
-    if (cCompiler) {
-      if (fg.compileFlags) {
-        cCompiler += ` ${c}`;
-      }
-      if (fg.sysroot) {
-        cCompiler += ` "--sysroot=${fg.sysroot}"`;
-      }
-    }
-
-    clientInfo.cConfiguration = {
-      standard: cStandard,
-      compilerPath: cCompiler,
-      includePath: Array.from(cIncludePath.values()),
-      defines: Array.from(cDefines.values()),
-      intelliSenseMode: intelliSenseMode,
-      windowsSdkVersion: windowsSdkVersion
-    };
-
-    clientInfo.cppConfiguration = {
-      standard: cppStandard,
-      compilerPath: cppCompiler,
-      includePath: Array.from(cppIncludePath.values()),
-      defines: Array.from(cppDefines.values()),
-      intelliSenseMode: intelliSenseMode,
-      windowsSdkVersion: windowsSdkVersion
-    };
-  }
-
-  private _updateBrowsingConfiguration() {
-    let includeSet = new Set<string>();
-    let cCompilerPath: string | undefined;
-    let cppCompilerPath: string | undefined;
-    let standard: WorkspaceBrowseConfiguration["standard"] = "c89";
-    let windowsSdkVersion: string | undefined;
-
-    for (const clientInfo of this.clientInfos.values()) {
-      if (clientInfo.cppConfiguration) {
-        clientInfo.cppConfiguration.includePath.forEach((value) =>
-          includeSet.add(value)
-        );
-        if (!cppCompilerPath && clientInfo.cppConfiguration.compilerPath) {
-          cppCompilerPath = clientInfo.cppConfiguration.compilerPath;
-        }
-        if (!windowsSdkVersion) {
-          windowsSdkVersion = clientInfo.cppConfiguration.windowsSdkVersion;
-        }
-        standard = ConfigurationProvider.compareStandard(
-          standard,
-          clientInfo.cppConfiguration.standard
-        );
-      }
-
-      if (clientInfo.cConfiguration) {
-        clientInfo.cConfiguration.includePath.forEach((value) =>
-          includeSet.add(value)
-        );
-        if (!cCompilerPath && clientInfo.cConfiguration.compilerPath) {
-          cCompilerPath = clientInfo.cConfiguration.compilerPath;
-        }
-        if (!windowsSdkVersion) {
-          windowsSdkVersion = clientInfo.cConfiguration.windowsSdkVersion;
-        }
-        standard = ConfigurationProvider.compareStandard(
-          standard,
-          clientInfo.cConfiguration.standard
-        );
-      }
-    }
-
-    this.browseConfig = {
-      browsePath: Array.from(includeSet),
-      compilerPath: cppCompilerPath || cCompilerPath,
-      standard: standard,
-      windowsSdkVersion: windowsSdkVersion
-    };
+  private _calculateBrowseConfiguration(clientInfo: ClientInfo) {
+    ConfigurationProvider.compareStandard("c++03", "c++03");
   }
 
   addClient(client: CMakeClient) {
     this.clientInfos.set(client, {
-      clientFiles: new Set(),
       client: client,
+      clientFiles: new Set(),
+      targetInfos: new Map(),
       ready: false,
       disposables: [client.onModelChange((e) => this.updateClient(e))]
     });
@@ -474,7 +376,6 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     info.disposables.map((d) => d.dispose());
     // Remove from cache
     this.clientInfos.delete(client);
-    this._updateBrowsingConfiguration();
   }
 
   async canProvideConfiguration(uri: Uri, token?: CancellationToken) {
@@ -489,36 +390,49 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     let status = this.sourceFiles.has(filePath);
     // Look for other sources
     if (!status) {
-      // Match only files with c and cpp based file endings
-      if (
-        !path
-          .extname(filePath)
-          .toLowerCase()
-          .match(/(?:c|cc|cpp|h|hpp|def|inc)$/)
-      ) {
-        return false;
-      }
-      for (const client of this.clientInfos.keys()) {
-        let clientInfo = this.clientInfos.get(client)!;
-        let configuration: SourceFileConfiguration | undefined;
-        let clientPath = client.sourceUri.fsPath;
-        if (this.ignoreCase) {
-          clientPath = clientPath.toLowerCase();
-        }
+      const fileExt = path.extname(filePath);
+      const isCSourceFile = fileExt.match(/(?:c|h|def|inc)/i);
+      const isCPPSourceFile = fileExt.match(/(?:cc|cpp|hpp)/i);
 
-        if (filePath.startsWith(clientPath)) {
-          if (filePath.match(/\.[cC]$/)) {
-            configuration = clientInfo.cConfiguration;
-          } else {
-            configuration =
-              clientInfo.cppConfiguration || clientInfo.cConfiguration;
+      let sourceInfo:
+        | { clientInfo: ClientInfo; target: Target; targetInfo: TargetInfo }
+        | undefined;
+
+      this.clientInfos.forEach((clientInfo, client) => {
+        const isClientFile = filePath.startsWith(client.sourceUri.fsPath);
+        if (isClientFile) {
+          const shouldGuess = workspace
+            .getConfiguration("cmake", client.sourceUri)
+            .get("guessSourceFileConfiguration", true);
+          if (shouldGuess) {
+            clientInfo.targetInfos.forEach((targetInfo, target) => {
+              if (filePath.startsWith(target.sourceDirectory)) {
+                sourceInfo = { clientInfo, target, targetInfo };
+              }
+            });
           }
         }
+      });
 
-        if (configuration) {
-          this.sourceFiles.set(filePath, { uri, configuration });
-          return true;
-        }
+      if (!sourceInfo) {
+        return false;
+      }
+
+      if (isCSourceFile && sourceInfo.targetInfo.cConfiguration) {
+        this.sourceFiles.set(filePath, {
+          uri,
+          configuration: sourceInfo.targetInfo.cConfiguration
+        });
+        sourceInfo.clientInfo.clientFiles.add(filePath);
+        return true;
+      }
+      if (isCPPSourceFile && sourceInfo.targetInfo.cppConfiguration) {
+        this.sourceFiles.set(filePath, {
+          uri,
+          configuration: sourceInfo.targetInfo.cppConfiguration
+        });
+        sourceInfo.clientInfo.clientFiles.add(filePath);
+        return true;
       }
     }
     return status;
@@ -561,9 +475,6 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     uri: Uri,
     token?: CancellationToken | undefined
   ): Promise<WorkspaceBrowseConfiguration> {
-    if (this.workspaceBrowseConfigs.has(uri.fsPath)) {
-      return this.workspaceBrowseConfigs.get(uri.fsPath)!;
-    }
     throw Error(`Invalid uri requested: ${uri.fsPath}`);
   }
 
