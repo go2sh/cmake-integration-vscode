@@ -66,7 +66,7 @@ class CMakeFileAPIClient extends CMakeClient {
       args.push("-D");
       args.push(`CMAKE_BUILD_TYPE:STRING=${this.buildType}`);
     }
-    if (this.toolchain) {
+    if (this.toolchainFile) {
       args.push("-D");
       args.push(`CMAKE_TOOLCHAIN_FILE:FILEPATH=${this.toolchainFile}`);
     }
