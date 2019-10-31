@@ -62,10 +62,10 @@ class Toolchain {
   }
 
   public getCompiler(lang: Language): string | undefined {
-    if (lang == "C") {
+    if (lang === "C") {
       return this.cCompiler;
     }
-    if (lang == "CXX") {
+    if (lang === "CXX") {
       return this.cppCompiler;
     }
     return undefined;

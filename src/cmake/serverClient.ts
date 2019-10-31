@@ -114,8 +114,8 @@ export class CMakeServerClient extends CMakeClient {
             return;
         }
         await new Promise((resolve, reject) => {
-            if (!this._process || this._state === ClientState.STOPPED) {
-                return Promise.resolve();
+            if (this._process === undefined || this._state === ClientState.STOPPED) {
+                resolve();
             }
 
             let killTimer = setTimeout(() => reject(
@@ -125,11 +125,11 @@ export class CMakeServerClient extends CMakeClient {
                 } as Error
             ), 5000);
 
-            this._process.once('exit', () => {
+            this._process!.once('exit', () => {
                 clearTimeout(killTimer);
                 resolve();
             });
-            this._process.kill();
+            this._process!.kill();
         });
         try {
             if (os.platform() !== "win32") {
@@ -366,7 +366,8 @@ export class CMakeServerClient extends CMakeClient {
             });
         });
     }
-    private onProgress(progress: protocol.Progress): void {
+
+    private onProgress(_progress: protocol.Progress): void {
 
     }
 

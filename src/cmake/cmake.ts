@@ -77,11 +77,9 @@ abstract class CMakeClient implements vscode.Disposable {
     this.configFileWatcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(workspaceFolder, ".vscode/cmake_configurations.json")
     );
-    this.configFileWatcher.onDidChange(
-      (e) => this.loadConfigurations()
-    );
-    this.configFileWatcher.onDidCreate((e) => this.loadConfigurations());
-    this.configFileWatcher.onDidDelete((e) => this.loadConfigurations());
+    this.configFileWatcher.onDidChange(() => this.loadConfigurations());
+    this.configFileWatcher.onDidCreate(() => this.loadConfigurations());
+    this.configFileWatcher.onDidDelete(() => this.loadConfigurations());
     this.disposables.push(this.configFileWatcher);
         
     // Default config
@@ -475,7 +473,7 @@ abstract class CMakeClient implements vscode.Disposable {
         error = true;
         reject(err);
       });
-      this.buildProc!.on("exit", (code, signal) => {
+      this.buildProc!.on("exit", (_code, signal) => {
         if (signal !== null) {
           reject(`Build process stopped unexpectedly. (${signal})`);
         }
@@ -529,7 +527,7 @@ abstract class CMakeClient implements vscode.Disposable {
    * @return true if directory exists
    */
   public async hasBuildDirectory(): Promise<boolean> {
-    let result = await stat(this.buildDirectory).catch((e) => undefined);
+    let result = await stat(this.buildDirectory).catch(() => undefined);
     if (result) {
       if (result.isDirectory) {
         return true;

@@ -113,7 +113,7 @@ class CMakeFileAPIClient extends CMakeClient {
         error = true;
         reject(err);
       });
-      buildProc.on("exit", (code, signal) => {
+      buildProc.on("exit", (_code, signal) => {
         if (signal !== null) {
           reject(`Build process stopped unexpectedly. (${signal})`);
         }
@@ -162,7 +162,7 @@ class CMakeFileAPIClient extends CMakeClient {
 
     for (const request of requests) {
       let requestPath = path.join(this.requestFolder, request);
-      let result = await stat(requestPath).catch(e => undefined);
+      let result = await stat(requestPath).catch(() => undefined);
       if (!result) {
         await writeFile(requestPath, "", { flag: "w" });
       }
@@ -174,18 +174,14 @@ class CMakeFileAPIClient extends CMakeClient {
   }
 
   private async readFileApiReply() {
-    let res = await stat(this.replyFolder).catch(e => undefined);
+    let res = await stat(this.replyFolder).catch(() => undefined);
     if (!res || !res.isDirectory) {
       return;
     }
 
     let files = await readdir(this.replyFolder);
     let indexFile = files
-      .filter(value => {
-        if (value.match(/^index.+\.json$/)) {
-          return value;
-        }
-      })
+      .filter((value) => value.match(/^index.+\.json$/) !== null)
       .sort()
       .pop();
     if (!indexFile) {
@@ -223,13 +219,13 @@ class CMakeFileAPIClient extends CMakeClient {
     }
     this.setToolchainFromCache();
 
-    await this.buildModel(index, codeModel);
+    await this.buildModel(codeModel);
     this.selectContext();
     this.isModelValid = true;
     this._onModelChange.fire(this);
   }
 
-  private async buildModel(indexFile: IndexFile, codeModel: CodeModelFile) {
+  private async buildModel(codeModel: CodeModelFile) {
     this._projects = [];
     this._targets = [];
 

@@ -53,9 +53,6 @@ export class WorkspaceManager implements vscode.Disposable {
         this._events.push(vscode.workspace.onDidChangeWorkspaceFolders((event) => {
             this.onWorkspaceFolderChange(event);
         }));
-        this._events.push(vscode.window.onDidChangeActiveTextEditor((event) => {
-            this.onChangeActiveEditor(event);
-        }));
 
         // Create a server for files that are already there
         if (vscode.workspace.workspaceFolders) {
@@ -278,10 +275,6 @@ export class WorkspaceManager implements vscode.Disposable {
             this.cppProvider.deleteClient(client);
         }
         this.updateStatusBar();
-    }
-
-    private onChangeActiveEditor(event: vscode.TextEditor | undefined) {
-
     }
 
     async configureWorkspace() {
@@ -589,7 +582,7 @@ export class WorkspaceManager implements vscode.Disposable {
 
     dispose(): void {
         this._events.forEach((item) => item.dispose());
-        this._clients.forEach((value, key) => value.dispose());
+        this._clients.forEach((value) => value.dispose());
         for (const watcher of this._workspaceWatcher.values()) {
             watcher.dispose();
         }
