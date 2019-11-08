@@ -370,6 +370,53 @@
                             "project"
                         ]
                     }
+                },
+                "cmake.cpptools.globalBrowseTargets": {
+                    "type": "array",
+                    "title": "Global Browse Configuration Targets and Projects",
+                    "description": "Projects and targets to include in the global Browse Configuration",
+                    "scope": "window",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "project": {
+                                "type": "string"
+                            },
+                            "target": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "project"
+                        ]
+                    }
+                },
+                "cmake.cpptools.browseTargets": {
+                    "type": "array",
+                    "title": "Workspace Browse Configuration Targets and Projects",
+                    "description": "Projects and targets to include in the workspace browse configuration",
+                    "scope": "resource",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "project": {
+                                "type": "string"
+                            },
+                            "target": {
+                                "type": "string"
+                }
+                        },
+                        "required": [
+                            "project"
+                        ]
+            }
+        },
+                "cmake.cpptools.guessSourceFileConfigurations": {
+                    "title": "Guess Source File Configurations",
+                    "description": "Try to guess Source File Configurations based on target paths",
+                    "type": "boolean",
+                    "default": "true",
+                    "scope": "resource"
                 }
             }
         },

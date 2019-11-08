@@ -104,6 +104,7 @@ export class WorkspaceManager implements vscode.Disposable {
         this.api = await getCppToolsApi(Version.v3);
         if (this.api) {
             this.api.registerCustomConfigurationProvider(this.cppProvider);
+            this.api.notifyReady(this.cppProvider);
         }
     }
 
@@ -168,11 +169,8 @@ export class WorkspaceManager implements vscode.Disposable {
         this.updateStatusBar();
         if (this.api) {
             this.cppProvider.updateClient(e);
-            if (this.cppProvider.isReady) {
-                this.api.notifyReady(this.cppProvider);
-            }
-            // this.api.didChangeCustomBrowseConfiguration(this.cppProvider);
-            // this.api.didChangeCustomConfiguration(this.cppProvider);
+            this.api.didChangeCustomBrowseConfiguration(this.cppProvider);
+            this.api.didChangeCustomConfiguration(this.cppProvider);
         }
     }
 
