@@ -29,18 +29,18 @@ export class LineTransform extends Transform {
 
   _transform(
     chunk: Buffer | string | any,
-    encoding: string,
+    _encoding: string,
     callback: (error?: any, data?: any) => void
   ) {
     if (chunk instanceof Buffer) {
-      this._value = this._value + chunk.toString(encoding);
+      this._value = this._value + chunk.toString("utf8");
     }
     if (typeof chunk === "string") {
       this._value = this._value + chunk;
     }
     let lines = this._value.split(/\r?\n/);
     for (let i = 0; i < lines.length - 1; i++) {
-      this.push(lines[i]);
+      this.push(lines[i], "utf8");
     }
     this._value = lines[lines.length - 1];
     callback();

@@ -113,9 +113,9 @@ class CMakeFileAPIClient extends CMakeClient {
         error = true;
         reject(err);
       });
-      buildProc.on("exit", (_code, signal) => {
+      buildProc.on("exit", (code, signal) => {
         if (signal !== null) {
-          reject(`Build process stopped unexpectedly. (${signal})`);
+          reject(new Error(`CMake process stopped unexpectedly with ${signal}`));
         }
         this.diagnostics.set(this._cmakeMatcher.getDiagnostics());
         this.readFileApiReply()

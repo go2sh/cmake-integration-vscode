@@ -475,7 +475,7 @@ abstract class CMakeClient implements vscode.Disposable {
       });
       this.buildProc!.on("exit", (_code, signal) => {
         if (signal !== null) {
-          reject(`Build process stopped unexpectedly. (${signal})`);
+          reject(`CMake process stopped unexpectedly with ${signal}`);
         }
         this.diagnostics.set(
           this._matchers.reduce((previous, current) =>
@@ -529,7 +529,7 @@ abstract class CMakeClient implements vscode.Disposable {
   public async hasBuildDirectory(): Promise<boolean> {
     let result = await stat(this.buildDirectory).catch(() => undefined);
     if (result) {
-      if (result.isDirectory) {
+      if (result.isDirectory()) {
         return true;
       } else {
         throw new Error("Build directory (" + this.buildDirectory + ") exists, but is not a directory.");
