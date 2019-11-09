@@ -62,7 +62,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
 
   private readyPromise: Promise<void> = Promise.resolve();
   private readyResolve: () => void = () => {};
-  private readyPending: Promise<void | void[]>[] = [];
+  private readyPending: CMakeClient[] = [];
 
   constructor() {
     this.ignoreCase = workspace
@@ -87,8 +87,8 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     );
   }
 
-  private setNotReady(result: Promise<void | void[]>) {
-    this.readyPending.push(result);
+  private setNotReady(client: CMakeClient) {
+    this.readyPending.push(client);
     if (this.readyPending.length === 1) {
       this.readyPromise = new Promise((resolve) => {
         this.readyResolve = resolve;
@@ -96,11 +96,11 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     }
   }
 
-  private setReady(result: Promise<void | void[]>) {
+  private setReady(client: CMakeClient) {
     if (this.readyPending.length === 1) {
       this.readyResolve();
     }
-    this.readyPending = this.readyPending.filter((val) => val !== result);
+    this.readyPending = this.readyPending.filter((val) => val !== client);
   }
 
   private becomeReady(token?: CancellationToken): Promise<void> {
@@ -191,8 +191,10 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     return false;
   }
 
-  updateClient(client: CMakeClient) {
+  private async processClient(client: CMakeClient): Promise<void> {
     let clientInfo: ClientInfo = this.clientInfos.get(client)!;
+
+    this.setNotReady(client);
 
     // Remove all previos files from the list
     for (const clientFile of clientInfo.clientFiles.values()) {
@@ -200,23 +202,34 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     }
     clientInfo.clientFiles.clear();
 
-    let result: Promise<void | void[]> = Promise.all(
+    await Promise.all(
       client.targets.map((target) => {
         return this._addTarget(clientInfo, target);
       })
-    ).then(() => {
-      let browseSettings = workspace
-        .getConfiguration("cmake.cpptools", client.sourceUri)
-        .get<{ project: string; target?: string }[]>("browseTargets", []);
-      if (browseSettings.length > 0) {
-        clientInfo.setBrowseConfiguration(browseSettings);
-      } else {
-        clientInfo.makeReducedBrowseConfiguration();
-      }
-      this.makeGlobalBrowseConfiguration();
-      this.setReady(result);
-    });
-    this.setNotReady(result);
+    );
+    let browseSettings = workspace
+      .getConfiguration("cmake.cpptools", client.sourceUri)
+      .get<{ project: string; target?: string }[]>("browseTargets", []);
+    if (browseSettings.length > 0) {
+      clientInfo.setBrowseConfiguration(browseSettings);
+    } else {
+      clientInfo.makeReducedBrowseConfiguration();
+    }
+    this.setReady(client);
+  }
+
+  async updateClients() {
+    await Promise.all(
+      Array.from(this.clientInfos.keys()).map((client) =>
+        this.processClient(client)
+      )
+    );
+    this.makeGlobalBrowseConfiguration();
+  }
+
+  async updateClient(client: CMakeClient) {
+    await this.processClient(client);
+    this.makeGlobalBrowseConfiguration();
   }
 
   private makeGlobalBrowseConfiguration() {

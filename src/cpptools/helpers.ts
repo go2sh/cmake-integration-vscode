@@ -10,9 +10,9 @@ import { ClientInfo } from "./infos";
 import { CompileGroup } from "../cmake/model";
 import { LineTransform } from "../helpers/stream";
 
-const gccMatch = /\/?[^/]*(?:gcc|g\+\+|cc|c\+\+)[^/]*$/;
+const gccMatch = /(?:gcc|g\+\+|cc|c\+\+)[^/\\]*$/;
 const clMatch = /cl\.exe$/;
-const clangMatch = /\/?[^/]*clang(?:\+\+)?[^/]$/;
+const clangMatch = /clang(?:\+\+)?[^/\\]*$/;
 
 const gccStdMatch = /-std=((?:iso9899\:|(?:(?:gnu|c)(?:\+\+)?))\w+)/;
 const gccStdLookup: { [key: string]: SourceFileConfiguration["standard"] } = {
@@ -197,10 +197,10 @@ function getIntelliSenseMode(
   }
 
   return workspace
-    .getConfiguration("cmake", clientInfo.client.sourceUri)
+    .getConfiguration("cmake.cpptools", clientInfo.client.sourceUri)
     .get<SourceFileConfiguration["intelliSenseMode"]>(
-      "cpptoolsintelliSenseMode",
-      "clang-x64"
+      "intelliSenseMode",
+      "gcc-x64"
     );
 }
 

@@ -34,7 +34,7 @@ import { getCMakeApi } from './helpers/config';
 export class WorkspaceManager implements vscode.Disposable {
 
     private _context: vscode.ExtensionContext;
-    private _events: vscode.Disposable[] = [];
+    private disposables: vscode.Disposable[] = [];
     private _clients: Map<string, CMakeClient> = new Map<string, CMakeClient>();
     private _workspaceWatcher: Map<vscode.WorkspaceFolder, vscode.FileSystemWatcher> = new Map();
 
@@ -50,7 +50,7 @@ export class WorkspaceManager implements vscode.Disposable {
 
     constructor(context: vscode.ExtensionContext) {
         this._context = context;
-        this._events.push(vscode.workspace.onDidChangeWorkspaceFolders((event) => {
+        this.disposables.push(vscode.workspace.onDidChangeWorkspaceFolders((event) => {
             this.onWorkspaceFolderChange(event);
         }));
 
@@ -81,6 +81,16 @@ export class WorkspaceManager implements vscode.Disposable {
         this._buildItem.tooltip = "Build current CMake target";
 
         this.cppProvider = new ConfigurationProvider();
+        this.disposables.push(
+            vscode.workspace.onDidChangeConfiguration((e) => {
+                if (e.affectsConfiguration("cmake.cpptools") && this.api) {
+                    this.cppProvider.updateClients().then(() => {
+                        this.api!.didChangeCustomBrowseConfiguration(this.cppProvider);
+                        this.api!.didChangeCustomConfiguration(this.cppProvider);
+                    });
+                }
+            })
+        )
     }
 
     private get currentProject() {
@@ -579,7 +589,7 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     dispose(): void {
-        this._events.forEach((item) => item.dispose());
+        this.disposables.forEach((item) => item.dispose());
         this._clients.forEach((value) => value.dispose());
         for (const watcher of this._workspaceWatcher.values()) {
             watcher.dispose();
