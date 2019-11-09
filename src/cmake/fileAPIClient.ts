@@ -113,7 +113,7 @@ class CMakeFileAPIClient extends CMakeClient {
         error = true;
         reject(err);
       });
-      buildProc.on("exit", (code, signal) => {
+      buildProc.on("exit", (_code, signal) => {
         if (signal !== null) {
           reject(new Error(`CMake process stopped unexpectedly with ${signal}`));
         }
