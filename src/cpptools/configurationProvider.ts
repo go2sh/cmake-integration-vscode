@@ -259,17 +259,23 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     const configs: TargetConfigurations = new TargetConfigurations();
 
     for (const fg of target.compileGroups) {
+      const fileConfig = workspace.getConfiguration(
+        "cmake.cpptools",
+        clientInfo.client.sourceUri
+      );
       // create config
       let configuration: SourceFileConfiguration = {
         compilerPath:
-          clientInfo.client.toolchain.getCompiler(fg.language) || "${default}",
+          clientInfo.client.toolchain.getCompiler(fg.language) ||
+          fileConfig.get("compilerPath"),
         compilerArgs: getCompileFlags(fg),
         includePath: fg.includePaths.map((value) => path.normalize(value.path)),
         defines: fg.defines,
         intelliSenseMode: getIntelliSenseMode(clientInfo, fg),
         standard: await getStandard(clientInfo, fg),
         windowsSdkVersion:
-          clientInfo.client.toolchain.windowsSdkVersion || "${default}"
+          clientInfo.client.toolchain.windowsSdkVersion ||
+          fileConfig.get("windowsSdkVersion")
       };
       configs[fg.language].push(configuration);
 
