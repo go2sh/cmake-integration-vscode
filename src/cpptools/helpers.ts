@@ -1,13 +1,10 @@
 import { spawn } from "child_process";
-
-import { workspace } from "vscode";
 import {
   SourceFileConfiguration,
   WorkspaceBrowseConfiguration
 } from "vscode-cpptools";
 
-import { ClientInfo } from "./infos";
-import { CompileGroup } from "../cmake/model";
+import { CompileGroup, Language } from "../cmake/model";
 import { LineTransform } from "../helpers/stream";
 
 const gccMatch = /(?:gcc|g\+\+|cc|c\+\+)[^/\\]*$/;
@@ -138,10 +135,11 @@ async function getCPPStandardFromGCC(
 }
 
 async function getStandard(
-  clientInfo: ClientInfo,
-  fg: CompileGroup
+  compilerPath: string | undefined,
+  compilerArgs: string[],
+  language: Language
 ): Promise<SourceFileConfiguration["standard"]> {
-  let argString: string = fg.compileFlags.join(" ");
+  let argString: string = compilerArgs.join(" ");
 
   let stdResult = gccStdMatch.exec(argString);
   if (stdResult) {
@@ -153,35 +151,32 @@ async function getStandard(
     return clStdLookup[stdResult[1]];
   }
 
-  let compiler = clientInfo.client.toolchain.getCompiler(fg.language);
-  if (compiler && (gccMatch.exec(compiler) || clangMatch.exec(compiler))) {
+  if (
+    compilerPath &&
+    (gccMatch.exec(compilerPath) || clangMatch.exec(compilerPath))
+  ) {
     try {
-      if (fg.language === "C") {
-        return await getCStandardFromGCC(compiler);
+      if (language === "C") {
+        return await getCStandardFromGCC(compilerPath);
       } else {
-        return await getCPPStandardFromGCC(compiler);
+        return await getCPPStandardFromGCC(compilerPath);
       }
     } catch (e) {}
   }
-  if (compiler && clMatch.exec(compiler)) {
-    if (fg.language === "C") {
+  if (compilerPath && clMatch.exec(compilerPath)) {
+    if (language === "C") {
       return "c89";
     } else {
       return "c++14";
     }
   }
 
-  return workspace
-    .getConfiguration("cmake", clientInfo.client.sourceUri)
-    .get<SourceFileConfiguration["standard"]>("cpptoolsStandard", "c++17");
+  return "c++17";
 }
 
 function getIntelliSenseMode(
-  clientInfo: ClientInfo,
-  fg: CompileGroup
+  compiler: string | undefined
 ): SourceFileConfiguration["intelliSenseMode"] {
-  let compiler = clientInfo.client.toolchain.getCompiler(fg.language);
-
   if (compiler) {
     if (compiler.match(gccMatch)) {
       return "gcc-x64";
@@ -195,13 +190,7 @@ function getIntelliSenseMode(
       return "clang-x64";
     }
   }
-
-  return workspace
-    .getConfiguration("cmake.cpptools", clientInfo.client.sourceUri)
-    .get<SourceFileConfiguration["intelliSenseMode"]>(
-      "intelliSenseMode",
-      "gcc-x64"
-    );
+  return "gcc-x64";
 }
 
 function getCompileFlags(fg: CompileGroup) {

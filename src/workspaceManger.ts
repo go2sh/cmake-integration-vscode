@@ -90,7 +90,7 @@ export class WorkspaceManager implements vscode.Disposable {
                     });
                 }
             })
-        )
+        );
     }
 
     private get currentProject() {

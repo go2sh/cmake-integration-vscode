@@ -422,7 +422,6 @@
                     "title": "Default IntelliSense mode",
                     "description": "IntelliSense mode reported for unknown compiler",
                     "type": "string",
-                    "default": "gcc-x64",
                     "scope": "resource",
                     "enum": [
                         "msvc-x86", 

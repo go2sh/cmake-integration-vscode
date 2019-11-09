@@ -62,7 +62,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
 
   private readyPromise: Promise<void> = Promise.resolve();
   private readyResolve: () => void = () => {};
-  private readyPending: CMakeClient[] = [];
+  private readyPending: Set<CMakeClient> = new Set();
 
   constructor() {
     this.ignoreCase = workspace
@@ -88,19 +88,19 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   }
 
   private setNotReady(client: CMakeClient) {
-    this.readyPending.push(client);
-    if (this.readyPending.length === 1) {
+    if (this.readyPending.size === 0) {
       this.readyPromise = new Promise((resolve) => {
         this.readyResolve = resolve;
       });
     }
+    this.readyPending.add(client);
   }
 
   private setReady(client: CMakeClient) {
-    if (this.readyPending.length === 1) {
+    this.readyPending.delete(client);
+    if (this.readyPending.size === 0) {
       this.readyResolve();
     }
-    this.readyPending = this.readyPending.filter((val) => val !== client);
   }
 
   private becomeReady(token?: CancellationToken): Promise<void> {
@@ -207,6 +207,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
         return this._addTarget(clientInfo, target);
       })
     );
+
     let browseSettings = workspace
       .getConfiguration("cmake.cpptools", client.sourceUri)
       .get<{ project: string; target?: string }[]>("browseTargets", []);
@@ -277,15 +278,22 @@ class ConfigurationProvider implements CustomConfigurationProvider {
         clientInfo.client.sourceUri
       );
       // create config
+      const compilerPath =
+        clientInfo.client.toolchain.getCompiler(fg.language) ||
+        fileConfig.get("compilerPath");
+      const compilerArgs = getCompileFlags(fg);
       let configuration: SourceFileConfiguration = {
-        compilerPath:
-          clientInfo.client.toolchain.getCompiler(fg.language) ||
-          fileConfig.get("compilerPath"),
-        compilerArgs: getCompileFlags(fg),
+        compilerPath: compilerPath,
+        compilerArgs: compilerArgs,
         includePath: fg.includePaths.map((value) => path.normalize(value.path)),
         defines: fg.defines,
-        intelliSenseMode: getIntelliSenseMode(clientInfo, fg),
-        standard: await getStandard(clientInfo, fg),
+        intelliSenseMode:
+          fileConfig.get<SourceFileConfiguration["intelliSenseMode"]>(
+            "intelliSenseMode"
+          ) || getIntelliSenseMode(compilerPath),
+        standard:
+          fileConfig.get<SourceFileConfiguration["standard"]>("standard") ||
+          (await getStandard(compilerPath, compilerArgs, fg.language)),
         windowsSdkVersion:
           clientInfo.client.toolchain.windowsSdkVersion ||
           fileConfig.get("windowsSdkVersion")
