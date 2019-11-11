@@ -30,6 +30,7 @@ import * as util from 'util';
 import * as model from './model';
 import * as protocol from './protocol';
 import { CMakeClient } from './cmake';
+import { getAbsolutePath } from '../helpers/fs';
 
 //const readdir = util.promisify(fs.readdir);
 const lstat = util.promisify(fs.lstat);
@@ -239,7 +240,7 @@ export class CMakeServerClient extends CMakeClient {
         this._state = ClientState.GENERATED;
     }
 
-    static splitShellRegex = /\s+(?=[^"']+$|([^"']*"[^"]*")*[^"']*$|([^'"]*'[^']*')*[^'"]*$)/;
+    static splitShellRegex = /\s+(?=[^"']+$|(?:[^"']*"[^"]*")*[^"']*$|(?:[^'"]*'[^']*')*[^'"]*$)/;
 
     private updateValues() {
         this._projects = this._model!.configurations.find(
@@ -249,13 +250,14 @@ export class CMakeServerClient extends CMakeClient {
                     targets: sP.targets
                         .filter((value) => value.type !== "INTERFACE_LIBRARY")
                         .map((st) => {
+                            const targetSourceDirectory = getAbsolutePath(st.sourceDirectory, sP.sourceDirectory);
                             return {
                                 name: st.name,
-                                sourceDirectory: st.sourceDirectory,
+                                sourceDirectory: targetSourceDirectory,
                                 type: st.type,
-                                compileGroups: (st.fileGroups || []).map((sFG) => {
+                                compileGroups: (st.fileGroups || []).filter((fg) => fg.language !== undefined).map((sFG) => {
                                     return {
-                                        compileFlags: sFG.compileFlags.split(CMakeServerClient.splitShellRegex),
+                                        compileFlags: sFG.compileFlags ? sFG.compileFlags.split(CMakeServerClient.splitShellRegex) : [],
                                         compilerPath: "",
                                         defines: sFG.defines || [],
                                         sysroot: st.sysroot || "",
@@ -265,7 +267,7 @@ export class CMakeServerClient extends CMakeClient {
                                             };
                                         }),
                                         language: sFG.language,
-                                        sources: sFG.sources
+                                        sources: sFG.sources.map((source) => getAbsolutePath(source, targetSourceDirectory))
                                     } as model.Target["compileGroups"][0];
                                 })
                             } as model.Target;
