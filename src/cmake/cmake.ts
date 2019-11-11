@@ -417,25 +417,31 @@ abstract class CMakeClient implements vscode.Disposable {
   private _matchers: ProblemMatcher[];
   private buildProc: child_process.ChildProcess | undefined;
 
-  /**
-   * Build a target
-   *
-   * @param target A target name to build or undefined for all
-   */
-  async build(target?: string): Promise<void> {
-    let cmakePath = vscode.workspace.getConfiguration("cmake", this.sourceUri).get("cmakePath", "cmake");
+  get cmakeExecutable(): string {
+    return vscode.workspace.getConfiguration("cmake", this.sourceUri).get("cmakePath", "cmake");
+  }
+
+  public getBuildArguments(targets?: string[]): string[] {
     let args: string[] = [];
 
     args.push("--build", this.buildDirectory);
-    if (target) {
-      args.push("--target", target);
+    if (targets) {
+      args.push("--target", ...targets);
     }
     if (this.isConfigurationGenerator) {
       args.push("--config", this.buildType);
     }
     args.push(...buildArgs(this.sourceUri, "buildArguments"));
+    return args;
+  }
+  /**
+   * Build a target
+   *
+   * @param target A target name to build or undefined for all
+   */
+  async build(targets?: string[]): Promise<void> {
 
-    this.buildProc = child_process.spawn(cmakePath, args, {
+    this.buildProc = child_process.spawn(this.cmakeExecutable, this.getBuildArguments(targets), {
       cwd: this.buildDirectory,
       env: this.environment
     });

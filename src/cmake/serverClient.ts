@@ -227,7 +227,7 @@ export class CMakeServerClient extends CMakeClient {
     }
 
 
-    async build(target?: string) {
+    async build(targets?: string[]) {
         if (this._state < ClientState.GENERATED) {
             await this.configure();
         }
@@ -236,7 +236,7 @@ export class CMakeServerClient extends CMakeClient {
         }
 
         this._state = ClientState.BUILDING;
-        await super.build(target);
+        await super.build(targets);
         this._state = ClientState.GENERATED;
     }
 

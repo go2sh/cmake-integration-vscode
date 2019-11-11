@@ -333,7 +333,11 @@ export class WorkspaceManager implements vscode.Disposable {
                 await Promise.all(step.map((value) => {
                     let client = this.getClientByProjectName(value.project);
                     if (client) {
-                        client.build(value.target);
+                        if (value.target) {
+                            client.build([value.target]);
+                        } else {
+                            client.build();
+                        }
                     }
                 }));
             }
@@ -371,7 +375,11 @@ export class WorkspaceManager implements vscode.Disposable {
                 await Promise.all(step.map((value) => {
                     let client = this.getClientByProjectName(value.project);
                     if (client) {
-                        client.build(value.target);
+                        if (value.target) {
+                            client.build([value.target]);
+                        } else {
+                            client.build();
+                        }
                     }
                 }));
             }
@@ -408,7 +416,11 @@ export class WorkspaceManager implements vscode.Disposable {
                 await Promise.all(step.map((value) => {
                     let client = this.getClientByProjectName(value.project);
                     if (client) {
-                        client.build(value.target);
+                        if (value.target) {
+                            client.build([value.target]);
+                        } else {
+                            client.build();
+                        }
                     }
                 }));
             }
@@ -438,7 +450,7 @@ export class WorkspaceManager implements vscode.Disposable {
     async cleanWorkspace() {
         try {
             for (const client of this._clients.values()) {
-                await client.build("clean");
+                await client.build(["clean"]);
             }
         } catch (e) {
             vscode.window.showErrorMessage("Failed to clean workspace: " + e.message);
@@ -459,7 +471,7 @@ export class WorkspaceManager implements vscode.Disposable {
         }
 
         try {
-            await client.build("clean");
+            await client.build(["clean"]);
         } catch (e) {
             vscode.window.showErrorMessage("Failed to clean project \"" + client.project + "\": " + e.message);
         }
@@ -474,7 +486,7 @@ export class WorkspaceManager implements vscode.Disposable {
         }
         if (client) {
             try {
-                await client.build("install");
+                await client.build(["install"]);
             } catch (e) {
                 vscode.window.showErrorMessage(
                     "Failed to install project folder(" + 
