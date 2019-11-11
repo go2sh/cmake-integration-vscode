@@ -214,13 +214,6 @@
                     "scope": "window",
                     "default": false
                 },
-                "cmake.ignoreCaseInProvider": {
-                    "type": "boolean",
-                    "title": "Ignore filename case for cpptools provider",
-                    "description": "Ignore the case to workaround limits of case-insensitiv filesystems.",
-                    "scope": "window",
-                    "default": false
-                },
                 "cmake.generator": {
                     "type": "string",
                     "title": "Build System Generator",

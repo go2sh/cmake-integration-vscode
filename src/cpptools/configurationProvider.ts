@@ -57,7 +57,6 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   /* Precompiled browseConfig */
   private browseConfig: WorkspaceBrowseConfiguration = { browsePath: [] };
 
-  private ignoreCase: boolean;
   private disposables: Disposable[] = [];
 
   private readyPromise: Promise<void> = Promise.resolve();
@@ -65,26 +64,6 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   private readyPending: Set<CMakeClient> = new Set();
 
   constructor() {
-    this.ignoreCase = workspace
-      .getConfiguration("cmake")
-      .get("ignoreCaseInProvider", false);
-
-    this.disposables.push(
-      workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration("cmake.ignoreCaseInProvider")) {
-          this.ignoreCase = workspace
-            .getConfiguration("cmake")
-            .get("ignoreCaseInProvider", false);
-
-          //
-          let clients = [...this.clientInfos.keys()];
-          clients.forEach((e) => {
-            this.deleteClient(e);
-            this.addClient(e);
-          });
-        }
-      })
-    );
   }
 
   private setNotReady(client: CMakeClient) {
@@ -118,33 +97,25 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     });
   }
 
-  private getFilePath(filePath: string): string;
-  private getFilePath(uri: Uri): string;
-  private getFilePath(arg: string | Uri): string {
-    let filePath: string;
-
-    if (typeof arg !== "string") {
-      filePath = arg.fsPath;
-    } else {
-      filePath = arg;
-    }
-
-    filePath = filePath
-      .replace(/\w\:\\/, (c) => c.toUpperCase())
-      .replace(/\\/g, "/");
-    if (this.ignoreCase) {
-      filePath = filePath.toLowerCase();
-    }
-
-    return filePath;
-  }
-
   private fileExtensions = {
     C: /(?:c|h|def|inc)$/i,
     CXX: /(?:cc|c\+\+|cpp|cxx|h|h\+\+|hpp|hxx)$/i,
     CUDA: /(?:cu|h|hu)$/i,
     FORTRAN: /^(?:f|for|f90|f95|f03)$/i
   };
+
+  private addSourceFileConfiguration(
+    clientInfo: ClientInfo,
+    filePath: string,
+    configuration: SourceFileConfiguration
+  ) {
+    let uri = Uri.file(filePath);
+    clientInfo.clientFiles.add(uri.fsPath);
+    this.sourceFiles.set(uri.fsPath, {
+      uri: Uri.file(uri.fsPath),
+      configuration: configuration
+    });
+  }
 
   private guessSourceFile(filePath: string): boolean {
     for (const [client, clientInfo] of this.clientInfos) {
@@ -161,7 +132,8 @@ class ConfigurationProvider implements CustomConfigurationProvider {
       }
 
       for (const [target, targetInfo] of clientInfo.targetInfos) {
-        const isTargetFile = filePath.startsWith(target.sourceDirectory);
+        const targetUri = Uri.file(target.sourceDirectory);
+        const isTargetFile = filePath.startsWith(targetUri.fsPath);
         if (!isTargetFile) {
           continue;
         }
@@ -179,11 +151,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
           .map((l) => targetInfo.languageConfiguration[l])[0];
 
         if (configuration) {
-          clientInfo.clientFiles.add(filePath);
-          this.sourceFiles.set(filePath, {
-            uri: Uri.file(filePath),
-            configuration: configuration
-          });
+          this.addSourceFileConfiguration(clientInfo, filePath, configuration);
           return true;
         }
       }
@@ -302,19 +270,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
 
       // Set config for each source file
       fg.sources.forEach((source) => {
-        let filePath: string;
-        // Resolve file path
-        if (path.isAbsolute(source)) {
-          filePath = source;
-        } else {
-          filePath = path.normalize(
-            path.join(clientInfo.client.sourceUri.fsPath, source)
-          );
-        }
-
-        let uri: Uri = Uri.file(this.getFilePath(filePath));
-        clientInfo.clientFiles.add(uri.fsPath);
-        this.sourceFiles.set(uri.fsPath, { uri, configuration });
+        this.addSourceFileConfiguration(clientInfo, source, configuration);
       });
     }
 
@@ -346,12 +302,10 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   }
 
   async canProvideConfiguration(uri: Uri, _token?: CancellationToken) {
-    let filePath = this.getFilePath(uri);
-
-    if (this.sourceFiles.has(filePath)) {
+    if (this.sourceFiles.has(uri.fsPath)) {
       return true;
     } else {
-      return this.guessSourceFile(filePath);
+      return this.guessSourceFile(uri.fsPath);
     }
   }
 
@@ -360,7 +314,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
 
     return uris.reduce(
       (items, uri) => {
-        let item = this.sourceFiles.get(this.getFilePath(uri));
+        let item = this.sourceFiles.get(uri.fsPath);
         if (item) {
           items.push(item);
         }

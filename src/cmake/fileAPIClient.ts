@@ -12,24 +12,31 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
 
 /*
  * CMake Client based on running cmake process with file api
  */
-import * as child_process from 'child_process';
-import * as fs from 'fs';
-import * as path from 'path';
-import { promisify } from 'util';
-import * as vscode from 'vscode';
+import * as child_process from "child_process";
+import * as fs from "fs";
+import * as path from "path";
+import { promisify } from "util";
+import * as vscode from "vscode";
 
 import { CMakeClient } from "./cmake";
-import { LineTransform } from '../helpers/stream';
-import { makeRecursivDirectory } from '../helpers/fs';
-import { IndexFile, CodeModelFile, ClientResponse, ReplyFileReference, TargetFile, CacheFile } from './fileApi';
-import { Target, Project, CacheValue, CompileGroup } from './model';
-import { buildArgs } from '../helpers/config';
-import * as fileApi from './fileApi';
+import { LineTransform } from "../helpers/stream";
+import { makeRecursivDirectory, getAbsolutePath } from "../helpers/fs";
+import {
+  IndexFile,
+  CodeModelFile,
+  ClientResponse,
+  ReplyFileReference,
+  TargetFile,
+  CacheFile
+} from "./fileApi";
+import { Target, Project, CacheValue, CompileGroup } from "./model";
+import { buildArgs } from "../helpers/config";
+import * as fileApi from "./fileApi";
 
 const stat = promisify(fs.stat);
 const writeFile = promisify(fs.writeFile);
@@ -102,20 +109,22 @@ class CMakeFileAPIClient extends CMakeClient {
     this._cmakeMatcher.buildPath = this.sourcePath;
     this._cmakeMatcher
       .getDiagnostics()
-      .forEach(uri => this.diagnostics.delete(uri[0]));
+      .forEach((uri) => this.diagnostics.delete(uri[0]));
     this._cmakeMatcher.clear();
 
     this.mayShowConsole();
 
     return new Promise((resolve, reject) => {
       let error = false;
-      buildProc.on("error", err => {
+      buildProc.on("error", (err) => {
         error = true;
         reject(err);
       });
       buildProc.on("exit", (_code, signal) => {
         if (signal !== null) {
-          reject(new Error(`CMake process stopped unexpectedly with ${signal}`));
+          reject(
+            new Error(`CMake process stopped unexpectedly with ${signal}`)
+          );
         }
         this.diagnostics.set(this._cmakeMatcher.getDiagnostics());
         this.readFileApiReply()
@@ -124,7 +133,7 @@ class CMakeFileAPIClient extends CMakeClient {
               resolve();
             }
           })
-          .catch(e => reject(e));
+          .catch((e) => reject(e));
       });
     });
   }
@@ -265,35 +274,40 @@ class CMakeFileAPIClient extends CMakeClient {
         let target: Target = {
           name: targetEntry.name,
           type: targetFile.type,
-          sourceDirectory: path.join(
-            codeModel.paths.source,
-            targetFile.paths.source
+          sourceDirectory: getAbsolutePath(
+            targetFile.paths.source,
+            codeModel.paths.source
           ),
           compileGroups: []
         };
         if (targetFile.compileGroups) {
           for (const cg of targetFile.compileGroups) {
-            let fragment : string[] = [];
+            let fragment: string[] = [];
 
             if (cg.compileCommandFragments) {
-              fragment = cg.compileCommandFragments.map((value) => value.fragment);
+              fragment = cg.compileCommandFragments.map(
+                (value) => value.fragment
+              );
             }
-            
+
             let modeCg: CompileGroup = {
               compileFlags: fragment,
               defines: [],
               includePaths: [],
               sysroot: cg.sysroot ? cg.sysroot.path || "" : "",
               language: cg.language,
-              sources: cg.sourceIndexes.map(
-                index => targetFile.sources[index].path
+              sources: cg.sourceIndexes.map((index) =>
+                getAbsolutePath(
+                  targetFile.sources[index].path,
+                  codeModel.paths.source
+                )
               )
             };
             if (cg.defines) {
-              modeCg.defines = cg.defines.map(def => def.define);
+              modeCg.defines = cg.defines.map((def) => def.define);
             }
             if (cg.includes) {
-              modeCg.includePaths = cg.includes.map(inc => {
+              modeCg.includePaths = cg.includes.map((inc) => {
                 return { path: inc.path };
               });
             }
