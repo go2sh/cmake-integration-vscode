@@ -45,6 +45,13 @@ export class WorkspaceManager implements vscode.Disposable {
 
     private _currentProject: ProjectContext | undefined;
 
+    private addClientEmitter : vscode.EventEmitter<CMakeClient> = new vscode.EventEmitter();
+    public onAddClient : vscode.Event<CMakeClient> = this.addClientEmitter.event;
+    private deletelientEmitter : vscode.EventEmitter<CMakeClient> = new vscode.EventEmitter();
+    public onDeleteClient : vscode.Event<CMakeClient> = this.deletelientEmitter.event;
+    private changeClientModelEmitter : vscode.EventEmitter<CMakeClient> = new vscode.EventEmitter();
+    public onChangeClientModel : vscode.Event<CMakeClient> = this.changeClientModelEmitter.event;
+
     private cppProvider: ConfigurationProvider;
     private api: CppToolsApi | undefined;
 
@@ -89,7 +96,10 @@ export class WorkspaceManager implements vscode.Disposable {
                         this.api!.didChangeCustomConfiguration(this.cppProvider);
                     });
                 }
-            })
+            }),
+            this.onAddClient(ConfigurationProvider.prototype.addClient, this.cppProvider),
+            this.onDeleteClient(ConfigurationProvider.prototype.deleteClient, this.cppProvider),
+            this.onChangeClientModel(ConfigurationProvider.prototype.updateClient, this.cppProvider)
         );
     }
 
@@ -115,6 +125,7 @@ export class WorkspaceManager implements vscode.Disposable {
         if (this.api) {
             this.api.registerCustomConfigurationProvider(this.cppProvider);
             this.api.notifyReady(this.cppProvider);
+            this.disposables.push(this.api)
         }
     }
 
@@ -136,12 +147,12 @@ export class WorkspaceManager implements vscode.Disposable {
             }));
         }
         if (contexts.length > 0) {
-            this.onModelChange(contexts[0].client);
+            this.modelChanged(contexts[0].client);
         }
         return contexts;
     }
 
-    private onModelChange(e: CMakeClient) {
+    private modelChanged(e: CMakeClient) {
         if (this.currentProject === undefined &&
             [...this._clients.values()].reduce(
                 (ready, client) => ready = ready && client.isModelValid, true
@@ -177,8 +188,8 @@ export class WorkspaceManager implements vscode.Disposable {
             }
         }
         this.updateStatusBar();
+        this.changeClientModelEmitter.fire(e);
         if (this.api) {
-            this.cppProvider.updateClient(e);
             this.api.didChangeCustomBrowseConfiguration(this.cppProvider);
             this.api.didChangeCustomConfiguration(this.cppProvider);
         }
@@ -251,11 +262,11 @@ export class WorkspaceManager implements vscode.Disposable {
                 client = new CMakeFileAPIClient(sourceFolder, workspaceFolder!, this._context);
             }
 
-            client.onModelChange((e) => this.onModelChange(e));
+            client.onModelChange((e) => this.modelChanged(e));
             client.onDidChangeConfiguration(() => this.updateStatusBar());
 
             this._clients.set(uri.fsPath, client);
-            this.cppProvider.addClient(client);
+            this.addClientEmitter.fire(client);
 
             await client.loadConfigurations();
 
@@ -278,9 +289,9 @@ export class WorkspaceManager implements vscode.Disposable {
     private deleteServer(uri: vscode.Uri) {
         let client = this._clients.get(uri.fsPath);
         if (client) {
-            client.dispose();
+            this.deletelientEmitter.fire(client);
             this._clients.delete(uri.fsPath);
-            this.cppProvider.deleteClient(client);
+            client.dispose();
         }
         this.updateStatusBar();
     }
