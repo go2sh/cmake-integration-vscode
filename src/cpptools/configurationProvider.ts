@@ -151,12 +151,10 @@ class CMakeConfigurationProvider implements CustomConfigurationProvider {
     clientInfo.clientFiles.clear();
 
     await clientInfo.updateCompilerInformation();
-    
-    await Promise.all(
-      client.targets.map((target) => {
-        return this._addTarget(clientInfo, target);
-      })
-    );
+
+    client.targets.forEach((target) => {
+      this.addConfigurationsFromTarget(clientInfo, target)
+    });
 
     let browseSettings = workspace
       .getConfiguration("cmake.cpptools", client.sourceUri)
@@ -210,7 +208,7 @@ class CMakeConfigurationProvider implements CustomConfigurationProvider {
     this.browseConfig = getWorkspaceBrowseConfiguration(configs);
   }
 
-  private async _addTarget(clientInfo: ClientInfo, target: Target) {
+  private addConfigurationsFromTarget(clientInfo: ClientInfo, target: Target) {
     // Only use actual source targets
     if (
       !target.type.match(
