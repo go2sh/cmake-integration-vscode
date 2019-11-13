@@ -134,11 +134,40 @@ async function getCPPStandardFromGCC(
   });
 }
 
-async function getStandard(
-  compilerPath: string | undefined,
-  compilerArgs: string[],
+async function getStandardFromCompiler(
+  compilerPath: string,
   language: Language
 ): Promise<SourceFileConfiguration["standard"]> {
+  const isGCC =
+    (gccMatch.exec(compilerPath) || clangMatch.exec(compilerPath)) !== null;
+  const isMSVC = clMatch.exec(compilerPath) !== null;
+  if (language === "CXX") {
+    if (isGCC) {
+      return getCPPStandardFromGCC(compilerPath);
+    } else if (isMSVC) {
+      return "c++14";
+    } else {
+      return "c++20";
+    }
+  } else if (language === "C") {
+    if (isGCC) {
+      return getCStandardFromGCC(compilerPath);
+    } else if (isMSVC) {
+      return "c89";
+    } else {
+      return "c11";
+    }
+  } else if (language === "CUDA") {
+    return "c++14";
+  } else {
+    return "c++20";
+  }
+}
+function getStandardFromArgs(
+  compilerArgs: string[],
+  compilerStandard: SourceFileConfiguration["standard"],
+  _language: Language
+): SourceFileConfiguration["standard"] {
   let argString: string = compilerArgs.join(" ");
 
   let stdResult = gccStdMatch.exec(argString);
@@ -151,27 +180,7 @@ async function getStandard(
     return clStdLookup[stdResult[1]];
   }
 
-  if (
-    compilerPath &&
-    (gccMatch.exec(compilerPath) || clangMatch.exec(compilerPath))
-  ) {
-    try {
-      if (language === "C") {
-        return await getCStandardFromGCC(compilerPath);
-      } else {
-        return await getCPPStandardFromGCC(compilerPath);
-      }
-    } catch (e) {}
-  }
-  if (compilerPath && clMatch.exec(compilerPath)) {
-    if (language === "C") {
-      return "c89";
-    } else {
-      return "c++14";
-    }
-  }
-
-  return "c++17";
+  return compilerStandard;
 }
 
 function getIntelliSenseMode(
@@ -194,13 +203,10 @@ function getIntelliSenseMode(
 }
 
 function getCompileFlags(fg: CompileGroup) {
-  return fg.compileFlags.reduce(
-    (flags, flag) => {
-      flags.push(...flag.split(/\s+/));
-      return flags;
-    },
-    [] as string[]
-  );
+  return fg.compileFlags.reduce((flags, flag) => {
+    flags.push(...flag.split(/\s+/));
+    return flags;
+  }, [] as string[]);
 }
 
 function compareStandard(
@@ -372,7 +378,8 @@ function convertToBrowseConfiguration(
 }
 
 export {
-  getStandard,
+  getStandardFromCompiler,
+  getStandardFromArgs,
   getIntelliSenseMode,
   getCompileFlags,
   getSourceFileConfiguration,

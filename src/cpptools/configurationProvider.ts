@@ -37,12 +37,11 @@ import {
   LanguageConfiguration
 } from "./infos";
 import {
-  getIntelliSenseMode,
-  getStandard,
   getSourceFileConfiguration,
   getWorkspaceBrowseConfiguration,
   convertToBrowseConfiguration,
-  getCompileFlags
+  getCompileFlags,
+  getStandardFromArgs
 } from "./helpers";
 
 class ConfigurationProvider implements CustomConfigurationProvider {
@@ -170,6 +169,8 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     }
     clientInfo.clientFiles.clear();
 
+    await clientInfo.updateCompilerInformation();
+    
     await Promise.all(
       client.targets.map((target) => {
         return this._addTarget(clientInfo, target);
@@ -241,30 +242,19 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     const configs: TargetConfigurations = new TargetConfigurations();
 
     for (const fg of target.compileGroups) {
-      const fileConfig = workspace.getConfiguration(
-        "cmake.cpptools",
-        clientInfo.client.sourceUri
-      );
-      // create config
-      const compilerPath =
-        clientInfo.client.toolchain.getCompiler(fg.language) ||
-        fileConfig.get("compilerPath");
       const compilerArgs = getCompileFlags(fg);
       let configuration: SourceFileConfiguration = {
-        compilerPath: compilerPath,
+        compilerPath: clientInfo.compilers[fg.language].path,
         compilerArgs: compilerArgs,
         includePath: fg.includePaths.map((value) => path.normalize(value.path)),
         defines: fg.defines,
-        intelliSenseMode:
-          fileConfig.get<SourceFileConfiguration["intelliSenseMode"]>(
-            "intelliSenseMode"
-          ) || getIntelliSenseMode(compilerPath),
-        standard:
-          fileConfig.get<SourceFileConfiguration["standard"]>("standard") ||
-          (await getStandard(compilerPath, compilerArgs, fg.language)),
-        windowsSdkVersion:
-          clientInfo.client.toolchain.windowsSdkVersion ||
-          fileConfig.get("windowsSdkVersion")
+        intelliSenseMode: clientInfo.compilers[fg.language].intelliSenseMode,
+        standard: getStandardFromArgs(
+          fg.compileFlags,
+          clientInfo.compilers[fg.language].standard,
+          fg.language
+        ),
+        windowsSdkVersion: clientInfo.windowsSdkVersion
       };
       configs[fg.language].push(configuration);
 

@@ -1,14 +1,16 @@
-import { Disposable } from "vscode";
+import { Disposable, workspace } from "vscode";
 import {
   SourceFileConfiguration,
   WorkspaceBrowseConfiguration
 } from "vscode-cpptools";
 
-import { Target, Project } from "../cmake/model";
+import { Target, Project, Language } from "../cmake/model";
 import { CMakeClient } from "../cmake/cmake";
 import {
   convertToBrowseConfiguration,
-  getSourceFileConfiguration
+  getSourceFileConfiguration,
+  getIntelliSenseMode,
+  getStandardFromCompiler
 } from "./helpers";
 
 class TargetConfigurations implements Iterable<SourceFileConfiguration> {
@@ -76,10 +78,25 @@ class ClientInfo {
     this.browseConfig = {
       browsePath: []
     };
+    this.compilers = {
+      CXX: { path: "", standard: "c++20", intelliSenseMode: "gcc-x64" },
+      C: { path: "", standard: "c11", intelliSenseMode: "gcc-x64" },
+      CUDA: { path: "", standard: "c++20", intelliSenseMode: "gcc-x64" },
+      FORTRAN: { path: "", standard: "c++20", intelliSenseMode: "gcc-x64" }
+    };
     this.disposables = [];
   }
   client: CMakeClient;
   clientFiles: Set<string>;
+
+  compilers: {
+    [key in Language]: {
+      path: string;
+      standard: SourceFileConfiguration["standard"];
+      intelliSenseMode: SourceFileConfiguration["intelliSenseMode"];
+    };
+  };
+  windowsSdkVersion: string | undefined;
 
   projectInfos: Map<Project, ProjectInfo>;
   targetInfos: Map<Target, TargetInfo>;
@@ -87,6 +104,33 @@ class ClientInfo {
   browseConfig: WorkspaceBrowseConfiguration;
 
   disposables: Disposable[];
+
+  async updateCompilerInformation() {
+    for (const key of <Language[]>Object.keys(this.compilers)) {
+      const clientConfig = workspace.getConfiguration(
+        `cmake.cpptools.${key}`,
+        this.client.sourceUri
+      );
+      const compilerPath: string =
+        clientConfig.get("compilerPath") ||
+        this.client.toolchain.getCompiler(key) ||
+        "";
+      this.compilers[key] = {
+        path: compilerPath,
+        standard:
+          clientConfig.get<SourceFileConfiguration["standard"]>("standard") ||
+          (await getStandardFromCompiler(compilerPath, key)),
+        intelliSenseMode:
+          clientConfig.get<SourceFileConfiguration["intelliSenseMode"]>(
+            "intelliSenseMode"
+          ) || getIntelliSenseMode(compilerPath)
+      };
+    }
+    this.windowsSdkVersion =
+      workspace
+        .getConfiguration("cmake.cpptools", this.client.sourceUri)
+        .get("windowsSdkVersion") || this.client.toolchain.windowsSdkVersion;
+  }
 
   getBrowseConfiguration(browseSettings: {
     project: string;
@@ -115,16 +159,13 @@ class ClientInfo {
   getSourceFileConfigurations(
     browseSettings: { project: string; target?: string }[]
   ): SourceFileConfiguration[] {
-    return browseSettings.reduce(
-      (configs, setting) => {
-        let config = this.getBrowseConfiguration(setting);
-        if (config) {
-          configs.push(config);
-        }
-        return configs;
-      },
-      [] as SourceFileConfiguration[]
-    );
+    return browseSettings.reduce((configs, setting) => {
+      let config = this.getBrowseConfiguration(setting);
+      if (config) {
+        configs.push(config);
+      }
+      return configs;
+    }, [] as SourceFileConfiguration[]);
   }
 
   setBrowseConfiguration(
