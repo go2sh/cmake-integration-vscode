@@ -22,9 +22,6 @@ import * as path from 'path';
 import { ProjectContext, pickProject, pickTarget, pickClient, pickConfiguration } from './helpers/quickPick';
 import { Dependency, DependencySpecification, DependencyResolver } from './helpers/dependencyResolver';
 
-import { CppToolsApi, Version, getCppToolsApi } from 'vscode-cpptools';
-import { ConfigurationProvider } from './cpptools/configurationProvider';
-
 import { CMakeClient } from './cmake/cmake';
 import { CMakeFileAPIClient } from './cmake/fileAPIClient';
 import { CMakeServerClient } from './cmake/serverClient';
@@ -51,9 +48,6 @@ export class WorkspaceManager implements vscode.Disposable {
     public onDeleteClient : vscode.Event<CMakeClient> = this.deletelientEmitter.event;
     private changeClientModelEmitter : vscode.EventEmitter<CMakeClient> = new vscode.EventEmitter();
     public onChangeClientModel : vscode.Event<CMakeClient> = this.changeClientModelEmitter.event;
-
-    private cppProvider: ConfigurationProvider;
-    private api: CppToolsApi | undefined;
 
     constructor(context: vscode.ExtensionContext) {
         this._context = context;
@@ -86,21 +80,6 @@ export class WorkspaceManager implements vscode.Disposable {
         this._targetItem.tooltip = "Current CMake target";
         this._configItem.tooltip = "Current CMake configuration";
         this._buildItem.tooltip = "Build current CMake target";
-
-        this.cppProvider = new ConfigurationProvider();
-        this.disposables.push(
-            vscode.workspace.onDidChangeConfiguration((e) => {
-                if (e.affectsConfiguration("cmake.cpptools") && this.api) {
-                    this.cppProvider.updateClients().then(() => {
-                        this.api!.didChangeCustomBrowseConfiguration(this.cppProvider);
-                        this.api!.didChangeCustomConfiguration(this.cppProvider);
-                    });
-                }
-            }),
-            this.onAddClient(ConfigurationProvider.prototype.addClient, this.cppProvider),
-            this.onDeleteClient(ConfigurationProvider.prototype.deleteClient, this.cppProvider),
-            this.onChangeClientModel(ConfigurationProvider.prototype.updateClient, this.cppProvider)
-        );
     }
 
     private get currentProject() {
@@ -118,15 +97,6 @@ export class WorkspaceManager implements vscode.Disposable {
             return this.currentProject.client;
         }
         return undefined;
-    }
-
-    async registerCppProvider() {
-        this.api = await getCppToolsApi(Version.v3);
-        if (this.api) {
-            this.api.registerCustomConfigurationProvider(this.cppProvider);
-            this.api.notifyReady(this.cppProvider);
-            this.disposables.push(this.api)
-        }
     }
 
     getClientByProjectName(project: string): CMakeClient | undefined {
@@ -189,10 +159,6 @@ export class WorkspaceManager implements vscode.Disposable {
         }
         this.updateStatusBar();
         this.changeClientModelEmitter.fire(e);
-        if (this.api) {
-            this.api.didChangeCustomBrowseConfiguration(this.cppProvider);
-            this.api.didChangeCustomConfiguration(this.cppProvider);
-        }
     }
 
     private updateStatusBar() {

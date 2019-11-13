@@ -19,8 +19,8 @@
  */
 import * as path from "path";
 
-import { Uri, Disposable, workspace } from "vscode";
-import { CancellationToken } from "vscode-jsonrpc";
+import { Uri, Disposable, workspace, EventEmitter } from "vscode";
+import { CancellationToken, Event } from "vscode-jsonrpc";
 import {
   CustomConfigurationProvider,
   SourceFileConfiguration,
@@ -44,7 +44,7 @@ import {
   getStandardFromArgs
 } from "./helpers";
 
-class ConfigurationProvider implements CustomConfigurationProvider {
+class CMakeConfigurationProvider implements CustomConfigurationProvider {
   name: string = "CMake Integration";
   extensionId: string = "go2sh.cmake-integration";
 
@@ -58,42 +58,25 @@ class ConfigurationProvider implements CustomConfigurationProvider {
 
   private disposables: Disposable[] = [];
 
-  private readyPromise: Promise<void> = Promise.resolve();
-  private readyResolve: () => void = () => {};
-  private readyPending: Set<CMakeClient> = new Set();
+  private readyEmitter: EventEmitter<
+    CMakeConfigurationProvider
+  > = new EventEmitter();
+  public onReady: Event<CMakeConfigurationProvider> = this.readyEmitter.event;
+  private didChangeConfigurationEmitter: EventEmitter<
+    CMakeConfigurationProvider
+  > = new EventEmitter();
+  public onDidChangeConfiguration: Event<CMakeConfigurationProvider> = this
+    .didChangeConfigurationEmitter.event;
 
   constructor() {
-  }
-
-  private setNotReady(client: CMakeClient) {
-    if (this.readyPending.size === 0) {
-      this.readyPromise = new Promise((resolve) => {
-        this.readyResolve = resolve;
-      });
-    }
-    this.readyPending.add(client);
-  }
-
-  private setReady(client: CMakeClient) {
-    this.readyPending.delete(client);
-    if (this.readyPending.size === 0) {
-      this.readyResolve();
-    }
-  }
-
-  private becomeReady(token?: CancellationToken): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (token) {
-        token.onCancellationRequested(() => {
-          reject();
-        });
-      }
-      this.readyPromise.then(() => {
-        if (!token || !token.isCancellationRequested) {
-          resolve();
+    this.disposables.push(
+      workspace.onDidChangeConfiguration((e) => {
+        if (e.affectsConfiguration("cmake.cpptools")) {
+          this.updateClients();
         }
-      });
-    });
+      })
+    );
+    this.readyEmitter.fire(this);
   }
 
   private fileExtensions = {
@@ -161,8 +144,6 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   private async processClient(client: CMakeClient): Promise<void> {
     let clientInfo: ClientInfo = this.clientInfos.get(client)!;
 
-    this.setNotReady(client);
-
     // Remove all previos files from the list
     for (const clientFile of clientInfo.clientFiles.values()) {
       this.sourceFiles.delete(clientFile);
@@ -185,7 +166,6 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     } else {
       clientInfo.makeReducedBrowseConfiguration();
     }
-    this.setReady(client);
   }
 
   async updateClients() {
@@ -195,11 +175,13 @@ class ConfigurationProvider implements CustomConfigurationProvider {
       )
     );
     this.makeGlobalBrowseConfiguration();
+    this.didChangeConfigurationEmitter.fire(this);
   }
 
   async updateClient(client: CMakeClient) {
     await this.processClient(client);
     this.makeGlobalBrowseConfiguration();
+    this.didChangeConfigurationEmitter.fire();
   }
 
   private makeGlobalBrowseConfiguration() {
@@ -299,9 +281,7 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     }
   }
 
-  async provideConfigurations(uris: Uri[], token?: CancellationToken) {
-    await this.becomeReady(token);
-
+  async provideConfigurations(uris: Uri[], _token?: CancellationToken) {
     return uris.reduce(
       (items, uri) => {
         let item = this.sourceFiles.get(uri.fsPath);
@@ -319,10 +299,8 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   }
 
   async provideBrowseConfiguration(
-    token?: CancellationToken
+    _token?: CancellationToken
   ): Promise<WorkspaceBrowseConfiguration> {
-    await this.becomeReady(token);
-
     return this.browseConfig;
   }
 
@@ -336,8 +314,6 @@ class ConfigurationProvider implements CustomConfigurationProvider {
     uri: Uri,
     _token?: CancellationToken | undefined
   ): Promise<WorkspaceBrowseConfiguration> {
-    await this.becomeReady();
-
     for (const [client, info] of this.clientInfos) {
       if (client.workspaceFolder.uri.toString() === uri.toString()) {
         return info.browseConfig;
@@ -355,4 +331,4 @@ class ConfigurationProvider implements CustomConfigurationProvider {
   }
 }
 
-export { ConfigurationProvider };
+export { CMakeConfigurationProvider };
