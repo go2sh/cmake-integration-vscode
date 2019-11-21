@@ -106,30 +106,41 @@ class ClientInfo {
   disposables: Disposable[];
 
   async updateCompilerInformation() {
+    const cpptoolsConfig = workspace.getConfiguration("cmake.cpptools");
+    const defaultCompiler: string | undefined = cpptoolsConfig.get(
+      "compilerPath"
+    );
+    const defaultMode:
+      | SourceFileConfiguration["intelliSenseMode"]
+      | undefined = cpptoolsConfig.get("intelliSenseMode");
+    const defaultStandard:
+      | SourceFileConfiguration["standard"]
+      | undefined = cpptoolsConfig.get("standard");
+
     for (const key of <Language[]>Object.keys(this.compilers)) {
-      const clientConfig = workspace.getConfiguration(
-        `cmake.cpptools.${key}`,
-        this.client.sourceUri
+      const languageConfig = workspace.getConfiguration(
+        `cmake.cpptools.languageConfiguration.${key}`
       );
       const compilerPath: string =
-        clientConfig.get("compilerPath") ||
+        languageConfig.get("compilerPath") ||
+        defaultCompiler || 
         this.client.toolchain.getCompiler(key) ||
         "";
       this.compilers[key] = {
         path: compilerPath,
-        standard:
-          clientConfig.get<SourceFileConfiguration["standard"]>("standard") ||
+        standard: 
+          languageConfig.get<SourceFileConfiguration["standard"]>("standard") ||
+          defaultStandard || 
           (await getStandardFromCompiler(compilerPath, key)),
         intelliSenseMode:
-          clientConfig.get<SourceFileConfiguration["intelliSenseMode"]>(
+          languageConfig.get<SourceFileConfiguration["intelliSenseMode"]>(
             "intelliSenseMode"
-          ) || getIntelliSenseMode(compilerPath)
+          ) || defaultMode || getIntelliSenseMode(compilerPath)
       };
     }
     this.windowsSdkVersion =
-      workspace
-        .getConfiguration("cmake.cpptools", this.client.sourceUri)
-        .get("windowsSdkVersion") || this.client.toolchain.windowsSdkVersion;
+      cpptoolsConfig.get("windowsSdkVersion") ||
+      this.client.toolchain.windowsSdkVersion;
   }
 
   getBrowseConfiguration(browseSettings: {
@@ -159,13 +170,16 @@ class ClientInfo {
   getSourceFileConfigurations(
     browseSettings: { project: string; target?: string }[]
   ): SourceFileConfiguration[] {
-    return browseSettings.reduce((configs, setting) => {
-      let config = this.getBrowseConfiguration(setting);
-      if (config) {
-        configs.push(config);
-      }
-      return configs;
-    }, [] as SourceFileConfiguration[]);
+    return browseSettings.reduce(
+      (configs, setting) => {
+        let config = this.getBrowseConfiguration(setting);
+        if (config) {
+          configs.push(config);
+        }
+        return configs;
+      },
+      [] as SourceFileConfiguration[]
+    );
   }
 
   setBrowseConfiguration(

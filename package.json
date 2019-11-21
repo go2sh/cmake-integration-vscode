@@ -411,9 +411,15 @@
                     "default": "true",
                     "scope": "resource"
                 },
+                "cmake.cpptools.compilerPath": {
+                    "title": "Compiler path",
+                    "description": "Compiler path reported to cpptools. Leave empty for auto detect.",
+                    "type": "string",
+                    "scope": "resource"
+                },
                 "cmake.cpptools.intelliSenseMode": {
-                    "title": "Default IntelliSense mode",
-                    "description": "IntelliSense mode reported for unknown compiler",
+                    "title": "IntelliSense mode",
+                    "description": "IntelliSense mode reported to cpptools. Leave empty to auto detect.",
                     "type": "string",
                     "scope": "resource",
                     "enum": [
@@ -425,17 +431,82 @@
                         "clang-x64"
                     ]
                 },
-                "cmake.cpptools.compilerPath": {
-                    "title": "Default compiler path",
-                    "description": "Compiler path reported for unknown compiler",
+                "cmake.cpptools.windowsSdkVersion": {
+                    "title": "Windows SDK Version",
+                    "description": "Windows SDK version reported to cpptools. Leave empty to auto detect.",
                     "type": "string",
                     "scope": "resource"
                 },
-                "cmake.cpptools.windowsSdkVersion": {
-                    "title": "Default Windows SDK Version",
-                    "description": "Windows SDK version reported for unknown compiler",
-                    "type": "string",
-                    "scope": "resource"
+                "cmake.cpptools.languageConfiguration.CXX": {
+                    "type": "object",
+                    "title": "C++ Language Configuration",
+                    "description": "C++ specific configuration. Leave empty for auto detect.",
+                    "scope": "resource",
+                    "properties": {
+                        "compilerPath": {
+                            "type": "string",
+                            "title": "Compiler path"
+                        },
+                        "intelliSenseMode": {
+                            "type": "string",
+                            "title": "IntelliSense mode",
+                            "enum": [
+                                "msvc-x86", 
+                                "msvc-x64", 
+                                "gcc-x86", 
+                                "gcc-x64", 
+                                "clang-x86", 
+                                "clang-x64"
+                            ]
+                        }
+                    }
+                },
+                "cmake.cpptools.languageConfiguration.C": {
+                    "type": "object",
+                    "title": "C Language Configuration",
+                    "description": "C specific configuration. Leave empty for auto detect.",
+                    "scope": "resource",
+                    "properties": {
+                        "compilerPath": {
+                            "type": "string",
+                            "title": "Compiler path"
+                        },
+                        "intelliSenseMode": {
+                            "type": "string",
+                            "title": "IntelliSense mode",
+                            "enum": [
+                                "msvc-x86", 
+                                "msvc-x64", 
+                                "gcc-x86", 
+                                "gcc-x64", 
+                                "clang-x86", 
+                                "clang-x64"
+                            ]
+                        }
+                    }
+                },
+                "cmake.cpptools.languageConfiguration.CUDA": {
+                    "type": "object",
+                    "title": "CUDA Language Configuration",
+                    "description": "CUDA specific configuration. Leave empty for auto detect.",
+                    "properties": {
+                        "compilerPath": {
+                            "type": "string",
+                            "title": "Compiler path"
+                        },
+                        "intelliSenseMode": {
+                            "title": "IntelliSense mode",
+                            "type": "string",
+                            "enum": [
+                                "msvc-x86", 
+                                "msvc-x64", 
+                                "gcc-x86", 
+                                "gcc-x64", 
+                                "clang-x86", 
+                                "clang-x64"
+                            ]
+                        }
+                    }
                 }
             }
         },
