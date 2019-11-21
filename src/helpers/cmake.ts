@@ -4,7 +4,7 @@ import * as vscode from "vscode";
 
 const exec = util.promisify(child_process.exec);
 
-const versionRegex = /^cmake version (\d+\.\d+\.\d+)/;
+const versionRegex = /^\w+ version (\d+\.\d+\.\d+)/;
 
 export async function getCMakeVersion(): Promise<string> {
   const cmake = vscode.workspace
