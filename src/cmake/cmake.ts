@@ -264,6 +264,18 @@ abstract class CMakeClient implements vscode.Disposable {
     return this._config.generator!;
   }
 
+  protected get extraGenerator(): string | undefined {
+    return this._config.extraGenerator;
+  }
+
+  protected get generatorString(): string {
+    if (this.extraGenerator) {
+      return `${this.extraGenerator} - ${this.generator}`;
+    } else {
+      return this.generator;
+    }
+  }
+
   public get buildDirectory(): string {
     return this._config.buildDirectory!;
   }
@@ -327,6 +339,7 @@ abstract class CMakeClient implements vscode.Disposable {
         "buildDirectory",
         "${workspaceFolder}/build/"),
       generator: configSection.get("generator", "Ninja"),
+      extraGenerator: configSection.get("extraGenerator"),
       env: { ...process.env, ...configSection.get("env") },
       cacheEntries: configSection.get("cacheEntries", [] as CacheValue[])
     };

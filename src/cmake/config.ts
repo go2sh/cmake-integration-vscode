@@ -36,6 +36,7 @@ class CMakeConfiguration {
   readonly buildType?: string;
   readonly buildDirectory?: string;
   readonly generator?: string;
+  readonly extraGenerator?: string;
   readonly toolchain?: string | { readonly [key: string]: string };
   readonly env?: { readonly [key: string]: string | undefined };
   readonly cacheEntries?: ReadonlyArray<CacheValue>;
@@ -51,6 +52,7 @@ class CMakeConfiguration {
       this.buildType = options.buildType;
       this.buildDirectory = options.buildDirectory;
       this.generator = options.generator;
+      this.extraGenerator = options.extraGenerator;
       this.toolchain = options.toolchain;
       this.env = options.env;
       this.cacheEntries = options.cacheEntries;
@@ -60,6 +62,7 @@ class CMakeConfiguration {
       this.buildType = this.buildType || defaults.buildType;
       this.buildDirectory = this.buildDirectory || defaults.buildDirectory;
       this.generator = this.generator || defaults.generator;
+      this.extraGenerator = this.extraGenerator || defaults.extraGenerator;
       this.toolchain = this.toolchain || defaults.toolchain;
       this.env = this.env || defaults.env;
       this.cacheEntries = this.cacheEntries || defaults.cacheEntries;
@@ -128,6 +131,7 @@ class CMakeConfiguration {
       buildType: this.buildType,
       buildDirectory: newBuildDirectory,
       generator: this.generator,
+      extraGenerator: this.extraGenerator,
       toolchain: newToolchain,
       env: newEnv,
       cacheEntries: newCacheEntries

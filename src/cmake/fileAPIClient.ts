@@ -68,7 +68,7 @@ class CMakeFileAPIClient extends CMakeClient {
     let args: string[] = [];
 
     args.push("-G");
-    args.push(this.generator);
+    args.push(this.generatorString);
     if (!this.isConfigurationGenerator) {
       args.push("-D");
       args.push(`CMAKE_BUILD_TYPE:STRING=${this.buildType}`);

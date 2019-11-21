@@ -142,6 +142,18 @@
             "Green Hills MULTI"
           ]
         },
+        "extraGenerator": {
+          "type": "string",
+          "title": "Extra Generator",
+          "description": "Extra generator for an auxiliary IDE tool.",
+          "enum": [
+            "CodeBlocks",
+            "CodeLite",
+            "Eclipse CDT4",
+            "Kate",
+            "Sublime Text 2"
+          ]
+        },
         "buildType": {
           "type": "string",
           "description": "The CMake build type (see CMAKE_BUILD_TYPE)",

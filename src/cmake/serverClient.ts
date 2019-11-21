@@ -65,16 +65,18 @@ export class CMakeServerClient extends CMakeClient {
         this.disposables.push({ dispose: () => this.stop() });
     }
 
-    public get extraGenerator(): string | undefined {
-        return vscode.workspace.getConfiguration("cmake", this.sourceUri).get("extraGenerator");
-    }
-
     public get generatorPlatform(): string | undefined {
-        return vscode.workspace.getConfiguration("cmake", this.sourceUri).get("generatorPlatform");
+        if (typeof this.configuration.toolchain === "object") {
+            return this.configuration.toolchain["CMAKE_GENERATOR_PLATFORM"];
+        }
+        return undefined;
     }
 
     public get generatorToolset(): string | undefined {
-        return vscode.workspace.getConfiguration("cmake", this.sourceUri).get("generatorToolset");
+        if (typeof this.configuration.toolchain === "object") {
+            return this.configuration.toolchain["CMAKE_GENERATOR_TOOLSET"];
+        }
+        return undefined;
     }
 
     private get pipeName(): string {
