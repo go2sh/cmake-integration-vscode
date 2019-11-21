@@ -12,18 +12,18 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
 /*
  * CMake configuration handling
  */
-import * as vscode from 'vscode';
-import * as fs from 'fs';
-import * as path from 'path';
-import Ajv from 'ajv';
-import { promisify } from 'util';
-import { CacheValue } from './model';
-import { default as schema } from '../../schema/cmake_configurations.json';
-import { equals } from '../helpers/equals';
+import * as vscode from "vscode";
+import * as fs from "fs";
+import * as path from "path";
+import Ajv from "ajv";
+import { promisify } from "util";
+import { CacheValue } from "./model";
+import { default as schema } from "../../schema/cmake_configurations.json";
+import { equals } from "../helpers/equals";
 
 const lstat = promisify(fs.lstat);
 const open = promisify(fs.open);
@@ -31,7 +31,6 @@ const write = promisify(fs.write);
 const readFile = promisify(fs.readFile);
 
 class CMakeConfiguration {
-
   readonly name: string;
   readonly description?: string;
   readonly buildType?: string;
@@ -41,7 +40,11 @@ class CMakeConfiguration {
   readonly env?: { readonly [key: string]: string | undefined };
   readonly cacheEntries?: ReadonlyArray<CacheValue>;
 
-  constructor(name: string, options?: Partial<CMakeConfiguration>, defaults?: Partial<CMakeConfiguration>) {
+  constructor(
+    name: string,
+    options?: Partial<CMakeConfiguration>,
+    defaults?: Partial<CMakeConfiguration>
+  ) {
     this.name = name;
     if (options) {
       this.description = options.description;
@@ -63,7 +66,9 @@ class CMakeConfiguration {
     }
   }
 
-  public createResolved(vars: Map<string, string | undefined>): CMakeConfiguration {
+  public createResolved(
+    vars: Map<string, string | undefined>
+  ): CMakeConfiguration {
     const varPattern = /(?<=(?:^|[^\$]))\${((?:\w+\:)?\w+)}/g;
     const escaptePattern = /\$(\${(?:\w+\:)?\w+})/g;
 
@@ -75,27 +80,14 @@ class CMakeConfiguration {
       if (!value) {
         return value;
       }
-      value = value.replace(
-        varPattern,
-        (substring: string, ...args: any[]) => {
-          return vars.get(args[0]) || "";
-        }
-      );
-      value = value.replace(escaptePattern, (substring: string, ...args: any[]) => {
+      value = value.replace(varPattern, (_: string, ...args: any[]) => {
+        return vars.get(args[0]) || "";
+      });
+      value = value.replace(escaptePattern, (_: string, ...args: any[]) => {
         return args[0];
       });
       return value;
-    }
-
-    let newBuildDirectory = replaceVariables(this.buildDirectory)!;
-    if (!path.isAbsolute(newBuildDirectory)) {
-      newBuildDirectory = path.join(vars.get("workspaceFolder")!, newBuildDirectory);
-    }
-
-    let newToolchain: CMakeConfiguration["toolchain"] = this.toolchain;
-    if (this.toolchain && typeof this.toolchain === "string") {
-      newToolchain = replaceVariables(this.toolchain);
-    }
+    };
 
     let newEnv: { [key: string]: string | undefined } = {};
     for (let key in this.env) {
@@ -104,10 +96,30 @@ class CMakeConfiguration {
       newEnv[key] = value;
     }
 
+    let newBuildDirectory = replaceVariables(this.buildDirectory);
+    if (newBuildDirectory) {
+      if (!path.isAbsolute(newBuildDirectory)) {
+        newBuildDirectory = path.join(
+          vars.get("workspaceFolder")!,
+          newBuildDirectory
+        );
+      }
+      newBuildDirectory = path.normalize(newBuildDirectory);
+    }
+
+    let newToolchain: CMakeConfiguration["toolchain"] = this.toolchain;
+    if (this.toolchain && typeof this.toolchain === "string") {
+      newToolchain = replaceVariables(this.toolchain);
+    }
+
     let newCacheEntries: CacheValue[] = [];
     if (this.cacheEntries) {
       for (let cacheEntry of this.cacheEntries) {
-        newCacheEntries.push({ name: cacheEntry.name, type: cacheEntry.type, value: replaceVariables(cacheEntry.value) || "" });
+        newCacheEntries.push({
+          name: cacheEntry.name,
+          type: cacheEntry.type,
+          value: replaceVariables(cacheEntry.value) || ""
+        });
       }
     }
 
@@ -121,20 +133,30 @@ class CMakeConfiguration {
       cacheEntries: newCacheEntries
     });
   }
+
   mustRegenerateBuildDirectory(config: CMakeConfiguration): boolean {
-    return !equals(this.toolchain, config.toolchain) || this.generator !== config.generator || this.buildDirectory !== config.buildDirectory;
+    return (
+      !equals(this.toolchain, config.toolchain) ||
+      this.generator !== config.generator ||
+      this.buildDirectory !== config.buildDirectory
+    );
   }
 
   mustRemoveBuildDirectory(config: CMakeConfiguration): boolean {
-    return (!equals(this.toolchain, config.toolchain) || this.generator !== config.generator) && this.buildDirectory === config.buildDirectory;
+    return (
+      (!equals(this.toolchain, config.toolchain) ||
+        this.generator !== config.generator) &&
+      this.buildDirectory === config.buildDirectory
+    );
   }
 
   equals(config: CMakeConfiguration): boolean {
-    let basicEqual = this.name === config.name
-      && this.buildDirectory === config.buildDirectory
-      && this.buildType === config.buildType
-      && this.generator === config.generator
-      && this.description === config.description;
+    let basicEqual =
+      this.name === config.name &&
+      this.buildDirectory === config.buildDirectory &&
+      this.buildType === config.buildType &&
+      this.generator === config.generator &&
+      this.description === config.description;
     if (!basicEqual) {
       return false;
     }
@@ -166,16 +188,22 @@ async function buildToolchainFile(
 ): Promise<string | undefined> {
   if (!config.toolchain) {
     return undefined;
-  } else if (typeof (config.toolchain) === "string") {
+  } else if (typeof config.toolchain === "string") {
     return config.toolchain;
   } else {
     let fileName = path.join(
       workspaceFolder.uri.fsPath,
-      config.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, "_") + "_toolchain.cmake"
+      config.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, "_") +
+        "_toolchain.cmake"
     );
     let file = await open(fileName, "w");
     for (const key in config.toolchain) {
-      await write(file, "set(" + key + " " + config.toolchain[key] + ")\n", undefined, "utf-8");
+      await write(
+        file,
+        "set(" + key + " " + config.toolchain[key] + ")\n",
+        undefined,
+        "utf-8"
+      );
     }
     return fileName;
   }
@@ -188,12 +216,16 @@ class ConfigurationSchemaError extends Error {
   public message: string;
   constructor(errors: Array<Ajv.ErrorObject> | null | undefined) {
     super();
-    this.message = errors!.map((value) => value.dataPath + ": " + value.message).join(" ");
+    this.message = errors!
+      .map((value) => value.dataPath + ": " + value.message)
+      .join(" ");
   }
 }
 
-async function loadConfigurations(configFile: string): Promise<CMakeConfiguration[] | undefined> {
-  let res = await lstat(configFile).catch((e) => undefined);
+async function loadConfigurations(
+  configFile: string
+): Promise<CMakeConfiguration[] | undefined> {
+  let res = await lstat(configFile).catch(() => undefined);
   if (!res || !res.isFile) {
     return undefined;
   }
@@ -208,6 +240,8 @@ async function loadConfigurations(configFile: string): Promise<CMakeConfiguratio
 }
 
 export {
-  CMakeConfiguration, getDefaultConfigurations, buildToolchainFile,
+  CMakeConfiguration,
+  getDefaultConfigurations,
+  buildToolchainFile,
   loadConfigurations
 };

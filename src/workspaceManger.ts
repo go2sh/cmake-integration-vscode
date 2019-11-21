@@ -22,9 +22,6 @@ import * as path from 'path';
 import { ProjectContext, pickProject, pickTarget, pickClient, pickConfiguration } from './helpers/quickPick';
 import { Dependency, DependencySpecification, DependencyResolver } from './helpers/dependencyResolver';
 
-import { CppToolsApi, Version, getCppToolsApi } from 'vscode-cpptools';
-import { ConfigurationProvider } from './cpptools/configurationProvider';
-
 import { CMakeClient } from './cmake/cmake';
 import { CMakeFileAPIClient } from './cmake/fileAPIClient';
 import { CMakeServerClient } from './cmake/serverClient';
@@ -34,7 +31,7 @@ import { getCMakeApi } from './helpers/config';
 export class WorkspaceManager implements vscode.Disposable {
 
     private _context: vscode.ExtensionContext;
-    private _events: vscode.Disposable[] = [];
+    private disposables: vscode.Disposable[] = [];
     private _clients: Map<string, CMakeClient> = new Map<string, CMakeClient>();
     private _workspaceWatcher: Map<vscode.WorkspaceFolder, vscode.FileSystemWatcher> = new Map();
 
@@ -45,16 +42,17 @@ export class WorkspaceManager implements vscode.Disposable {
 
     private _currentProject: ProjectContext | undefined;
 
-    private cppProvider: ConfigurationProvider;
-    private api: CppToolsApi | undefined;
+    private addClientEmitter : vscode.EventEmitter<CMakeClient> = new vscode.EventEmitter();
+    public onAddClient : vscode.Event<CMakeClient> = this.addClientEmitter.event;
+    private deletelientEmitter : vscode.EventEmitter<CMakeClient> = new vscode.EventEmitter();
+    public onDeleteClient : vscode.Event<CMakeClient> = this.deletelientEmitter.event;
+    private changeClientModelEmitter : vscode.EventEmitter<CMakeClient> = new vscode.EventEmitter();
+    public onChangeClientModel : vscode.Event<CMakeClient> = this.changeClientModelEmitter.event;
 
     constructor(context: vscode.ExtensionContext) {
         this._context = context;
-        this._events.push(vscode.workspace.onDidChangeWorkspaceFolders((event) => {
+        this.disposables.push(vscode.workspace.onDidChangeWorkspaceFolders((event) => {
             this.onWorkspaceFolderChange(event);
-        }));
-        this._events.push(vscode.window.onDidChangeActiveTextEditor((event) => {
-            this.onChangeActiveEditor(event);
         }));
 
         // Create a server for files that are already there
@@ -82,8 +80,6 @@ export class WorkspaceManager implements vscode.Disposable {
         this._targetItem.tooltip = "Current CMake target";
         this._configItem.tooltip = "Current CMake configuration";
         this._buildItem.tooltip = "Build current CMake target";
-
-        this.cppProvider = new ConfigurationProvider();
     }
 
     private get currentProject() {
@@ -101,13 +97,6 @@ export class WorkspaceManager implements vscode.Disposable {
             return this.currentProject.client;
         }
         return undefined;
-    }
-
-    async registerCppProvider() {
-        this.api = await getCppToolsApi(Version.v2);
-        if (this.api) {
-            this.api.registerCustomConfigurationProvider(this.cppProvider);
-        }
     }
 
     getClientByProjectName(project: string): CMakeClient | undefined {
@@ -128,12 +117,12 @@ export class WorkspaceManager implements vscode.Disposable {
             }));
         }
         if (contexts.length > 0) {
-            this.onModelChange(contexts[0].client);
+            this.modelChanged(contexts[0].client);
         }
         return contexts;
     }
 
-    private onModelChange(e: CMakeClient) {
+    private modelChanged(e: CMakeClient) {
         if (this.currentProject === undefined &&
             [...this._clients.values()].reduce(
                 (ready, client) => ready = ready && client.isModelValid, true
@@ -169,14 +158,7 @@ export class WorkspaceManager implements vscode.Disposable {
             }
         }
         this.updateStatusBar();
-        if (this.api) {
-            this.cppProvider.updateClient(e);
-            if (this.cppProvider.isReady) {
-                this.api.notifyReady(this.cppProvider);
-            }
-            // this.api.didChangeCustomBrowseConfiguration(this.cppProvider);
-            // this.api.didChangeCustomConfiguration(this.cppProvider);
-        }
+        this.changeClientModelEmitter.fire(e);
     }
 
     private updateStatusBar() {
@@ -246,11 +228,11 @@ export class WorkspaceManager implements vscode.Disposable {
                 client = new CMakeFileAPIClient(sourceFolder, workspaceFolder!, this._context);
             }
 
-            client.onModelChange((e) => this.onModelChange(e));
+            client.onModelChange((e) => this.modelChanged(e));
             client.onDidChangeConfiguration(() => this.updateStatusBar());
 
             this._clients.set(uri.fsPath, client);
-            this.cppProvider.addClient(client);
+            this.addClientEmitter.fire(client);
 
             await client.loadConfigurations();
 
@@ -273,15 +255,11 @@ export class WorkspaceManager implements vscode.Disposable {
     private deleteServer(uri: vscode.Uri) {
         let client = this._clients.get(uri.fsPath);
         if (client) {
-            client.dispose();
+            this.deletelientEmitter.fire(client);
             this._clients.delete(uri.fsPath);
-            this.cppProvider.deleteClient(client);
+            client.dispose();
         }
         this.updateStatusBar();
-    }
-
-    private onChangeActiveEditor(event: vscode.TextEditor | undefined) {
-
     }
 
     async configureWorkspace() {
@@ -332,7 +310,11 @@ export class WorkspaceManager implements vscode.Disposable {
                 await Promise.all(step.map((value) => {
                     let client = this.getClientByProjectName(value.project);
                     if (client) {
-                        client.build(value.target);
+                        if (value.target) {
+                            client.build([value.target]);
+                        } else {
+                            client.build();
+                        }
                     }
                 }));
             }
@@ -370,7 +352,11 @@ export class WorkspaceManager implements vscode.Disposable {
                 await Promise.all(step.map((value) => {
                     let client = this.getClientByProjectName(value.project);
                     if (client) {
-                        client.build(value.target);
+                        if (value.target) {
+                            client.build([value.target]);
+                        } else {
+                            client.build();
+                        }
                     }
                 }));
             }
@@ -407,7 +393,11 @@ export class WorkspaceManager implements vscode.Disposable {
                 await Promise.all(step.map((value) => {
                     let client = this.getClientByProjectName(value.project);
                     if (client) {
-                        client.build(value.target);
+                        if (value.target) {
+                            client.build([value.target]);
+                        } else {
+                            client.build();
+                        }
                     }
                 }));
             }
@@ -437,7 +427,7 @@ export class WorkspaceManager implements vscode.Disposable {
     async cleanWorkspace() {
         try {
             for (const client of this._clients.values()) {
-                await client.build("clean");
+                await client.build(["clean"]);
             }
         } catch (e) {
             vscode.window.showErrorMessage("Failed to clean workspace: " + e.message);
@@ -458,7 +448,7 @@ export class WorkspaceManager implements vscode.Disposable {
         }
 
         try {
-            await client.build("clean");
+            await client.build(["clean"]);
         } catch (e) {
             vscode.window.showErrorMessage("Failed to clean project \"" + client.project + "\": " + e.message);
         }
@@ -473,7 +463,7 @@ export class WorkspaceManager implements vscode.Disposable {
         }
         if (client) {
             try {
-                await client.build("install");
+                await client.build(["install"]);
             } catch (e) {
                 vscode.window.showErrorMessage(
                     "Failed to install project folder(" + 
@@ -588,8 +578,8 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     dispose(): void {
-        this._events.forEach((item) => item.dispose());
-        this._clients.forEach((value, key) => value.dispose());
+        this.disposables.forEach((item) => item.dispose());
+        this._clients.forEach((value) => value.dispose());
         for (const watcher of this._workspaceWatcher.values()) {
             watcher.dispose();
         }

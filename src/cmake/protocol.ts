@@ -19,6 +19,7 @@
  */
 
 import {createConnection, Connection} from './connection';
+import { Language } from './model';
 
 interface Version {
     major: number;
@@ -71,7 +72,7 @@ interface Path {
 }
 
 interface FileGroup {
-    language: string;
+    language: Language;
     compileFlags: string;
     includePath?: Path[];
     defines?: string[];

@@ -1,41 +1,49 @@
 //@ts-check
 
-'use strict';
+"use strict";
 
-const path = require('path');
+const path = require("path");
 
 /**@type {import('webpack').Configuration}*/
 const config = {
-  target: 'node',
+  target: "node",
 
-  entry: './src/extension.ts',
+  entry: "./src/extension.ts",
   output: {
-    path: path.resolve(__dirname, 'dist'),
-    filename: 'extension.js',
+    path: path.resolve(__dirname, "dist"),
+    filename: "extension.js",
     libraryTarget: "commonjs2",
-    devtoolModuleFilenameTemplate: "../[resource-path]",
+    devtoolModuleFilenameTemplate: "../[resource-path]"
   },
-  devtool: 'source-map',
+  devtool: "source-map",
   externals: {
     vscode: "commonjs vscode"
   },
   resolve: {
-    extensions: ['.ts', '.js']
+    extensions: [".ts", ".js"]
   },
   module: {
-    rules: [{
-      test: /\.ts$/,
-      exclude: /node_modules/,
-      use: [{
-        loader: 'ts-loader',
-        options: {
-          compilerOptions: {
-            "module": "es6" // override `tsconfig.json` so that TypeScript emits native JavaScript modules.
+    rules: [
+      {
+        test: /\.ts$/,
+        exclude: /node_modules/,
+        use: [
+          {
+            loader: "ts-loader",
+            options: {
+              compilerOptions: {
+                module: "es6"
+              }
+            }
           }
-        }
-      }]
-    }]
-  },
-}
+        ]
+      },
+      {
+        test: /\.node$/,
+        use: "node-loader"
+      }
+    ]
+  }
+};
 
 module.exports = config;

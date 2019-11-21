@@ -22,7 +22,7 @@ import * as path from 'path';
 import * as util from 'util';
 import * as vscode from 'vscode';
 import * as kill from 'tree-kill';
-import { Project, Target, CacheValue } from './model';
+import { Project, Target, CacheValue, Toolchain } from './model';
 import { CMakeConfiguration, getDefaultConfigurations, buildToolchainFile, loadConfigurations } from './config';
 import { removeDir, makeRecursivDirectory } from '../helpers/fs';
 import { ProblemMatcher, getProblemMatchers, CMakeMatcher } from '../helpers/problemMatcher';
@@ -77,11 +77,9 @@ abstract class CMakeClient implements vscode.Disposable {
     this.configFileWatcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(workspaceFolder, ".vscode/cmake_configurations.json")
     );
-    this.configFileWatcher.onDidChange(
-      (e) => this.loadConfigurations()
-    );
-    this.configFileWatcher.onDidCreate((e) => this.loadConfigurations());
-    this.configFileWatcher.onDidDelete((e) => this.loadConfigurations());
+    this.configFileWatcher.onDidChange(() => this.loadConfigurations());
+    this.configFileWatcher.onDidCreate(() => this.loadConfigurations());
+    this.configFileWatcher.onDidDelete(() => this.loadConfigurations());
     this.disposables.push(this.configFileWatcher);
         
     // Default config
@@ -211,6 +209,27 @@ abstract class CMakeClient implements vscode.Disposable {
     return this.cache.get(key);
   }
 
+  protected _toolchain : Toolchain = new Toolchain();
+
+  public get toolchain() : Toolchain {
+    return this._toolchain;
+  }
+
+  protected setToolchainFromCache() {
+    let stringOrUndefined = (key : string) : string | undefined =>  {
+      if (this.cache.has(key)) {
+        return this.cache.get(key)!.value;
+      }
+      return undefined;
+    };
+    this._toolchain = new Toolchain({
+      windowsSdkVersion: stringOrUndefined(
+        "CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION"),
+      cCompiler: stringOrUndefined("CMAKE_C_COMPILER"),
+      cppCompiler: stringOrUndefined("CMAKE_CXX_COMPILER")
+    });
+  }
+
   /*
    * Configuration
    */
@@ -253,7 +272,7 @@ abstract class CMakeClient implements vscode.Disposable {
     return this._config.buildType!;
   }
 
-  public get toolchain(): string | undefined {
+  public get toolchainFile(): string | undefined {
     return this._config.toolchain as string | undefined;
   }
 
@@ -398,25 +417,31 @@ abstract class CMakeClient implements vscode.Disposable {
   private _matchers: ProblemMatcher[];
   private buildProc: child_process.ChildProcess | undefined;
 
-  /**
-   * Build a target
-   *
-   * @param target A target name to build or undefined for all
-   */
-  async build(target?: string): Promise<void> {
-    let cmakePath = vscode.workspace.getConfiguration("cmake", this.sourceUri).get("cmakePath", "cmake");
+  get cmakeExecutable(): string {
+    return vscode.workspace.getConfiguration("cmake", this.sourceUri).get("cmakePath", "cmake");
+  }
+
+  public getBuildArguments(targets?: string[]): string[] {
     let args: string[] = [];
 
     args.push("--build", this.buildDirectory);
-    if (target) {
-      args.push("--target", target);
+    if (targets) {
+      args.push("--target", ...targets);
     }
     if (this.isConfigurationGenerator) {
       args.push("--config", this.buildType);
     }
     args.push(...buildArgs(this.sourceUri, "buildArguments"));
+    return args;
+  }
+  /**
+   * Build a target
+   *
+   * @param target A target name to build or undefined for all
+   */
+  async build(targets?: string[]): Promise<void> {
 
-    this.buildProc = child_process.spawn(cmakePath, args, {
+    this.buildProc = child_process.spawn(this.cmakeExecutable, this.getBuildArguments(targets), {
       cwd: this.buildDirectory,
       env: this.environment
     });
@@ -454,9 +479,9 @@ abstract class CMakeClient implements vscode.Disposable {
         error = true;
         reject(err);
       });
-      this.buildProc!.on("exit", (code, signal) => {
+      this.buildProc!.on("exit", (_code, signal) => {
         if (signal !== null) {
-          reject(`Build process stopped unexpectedly. (${signal})`);
+          reject(`CMake process stopped unexpectedly with ${signal}`);
         }
         this.diagnostics.set(
           this._matchers.reduce((previous, current) =>
@@ -508,9 +533,9 @@ abstract class CMakeClient implements vscode.Disposable {
    * @return true if directory exists
    */
   public async hasBuildDirectory(): Promise<boolean> {
-    let result = await stat(this.buildDirectory).catch((e) => undefined);
+    let result = await stat(this.buildDirectory).catch(() => undefined);
     if (result) {
-      if (result.isDirectory) {
+      if (result.isDirectory()) {
         return true;
       } else {
         throw new Error("Build directory (" + this.buildDirectory + ") exists, but is not a directory.");

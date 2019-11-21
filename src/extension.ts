@@ -22,6 +22,8 @@ import * as vscode from 'vscode';
 import { WorkspaceManager } from './workspaceManger';
 import { checkForUpdate } from './helpers/update';
 import * as pkg from '../package.json';
+import { getCppToolsApi, Version } from 'vscode-cpptools';
+import { CMakeConfigurationProvider } from './cpptools/configurationProvider';
 
 
 let manager: WorkspaceManager;
@@ -179,7 +181,22 @@ export async function activate(context: vscode.ExtensionContext) {
         )
     );
 
-    await manager.registerCppProvider();
+    // Register custom configuration provider
+    const api = await getCppToolsApi(Version.v3);
+    if (api) {
+        const configProvider = new CMakeConfigurationProvider();
+        api.registerCustomConfigurationProvider(configProvider);
+        disposables.push(
+            api,
+            configProvider,
+            configProvider.onReady(api.notifyReady, api),
+            configProvider.onDidChangeConfiguration(api.didChangeCustomBrowseConfiguration, api),
+            configProvider.onDidChangeConfiguration(api.didChangeCustomConfiguration, api),
+            manager.onAddClient(configProvider.addClient, configProvider),
+            manager.onDeleteClient(configProvider.deleteClient, configProvider),
+            manager.onChangeClientModel(configProvider.updateClient, configProvider),
+        );
+    }
 }
 
 // this method is called when your extension is deactivated

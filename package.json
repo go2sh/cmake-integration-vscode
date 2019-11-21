@@ -215,13 +215,6 @@
                     "scope": "window",
                     "default": false
                 },
-                "cmake.ignoreCaseInProvider": {
-                    "type": "boolean",
-                    "title": "Ignore filename case for cpptools provider",
-                    "description": "Ignore the case to work around limits of case-insensitive filesystems.",
-                    "scope": "window",
-                    "default": false
-                },
                 "cmake.generator": {
                     "type": "string",
                     "title": "Build System Generator",
@@ -371,6 +364,150 @@
                             "project"
                         ]
                     }
+                },
+                "cmake.cpptools.globalBrowseTargets": {
+                    "type": "array",
+                    "title": "Global Browse Configuration Targets and Projects",
+                    "description": "Projects and targets to include in the global Browse Configuration",
+                    "scope": "window",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "project": {
+                                "type": "string"
+                            },
+                            "target": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "project"
+                        ]
+                    }
+                },
+                "cmake.cpptools.browseTargets": {
+                    "type": "array",
+                    "title": "Workspace Browse Configuration Targets and Projects",
+                    "description": "Projects and targets to include in the workspace browse configuration",
+                    "scope": "resource",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "project": {
+                                "type": "string"
+                            },
+                            "target": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "project"
+                        ]
+                    }
+                },
+                "cmake.cpptools.guessSourceFileConfigurations": {
+                    "title": "Guess Source File Configurations",
+                    "description": "Try to guess Source File Configurations based on target paths",
+                    "type": "boolean",
+                    "default": "true",
+                    "scope": "resource"
+                },
+                "cmake.cpptools.compilerPath": {
+                    "title": "Compiler path",
+                    "description": "Compiler path reported to cpptools. Leave empty for auto detect.",
+                    "type": "string",
+                    "scope": "resource"
+                },
+                "cmake.cpptools.intelliSenseMode": {
+                    "title": "IntelliSense mode",
+                    "description": "IntelliSense mode reported to cpptools. Leave empty to auto detect.",
+                    "type": "string",
+                    "scope": "resource",
+                    "enum": [
+                        "msvc-x86", 
+                        "msvc-x64", 
+                        "gcc-x86", 
+                        "gcc-x64", 
+                        "clang-x86", 
+                        "clang-x64"
+                    ]
+                },
+                "cmake.cpptools.windowsSdkVersion": {
+                    "title": "Windows SDK Version",
+                    "description": "Windows SDK version reported to cpptools. Leave empty to auto detect.",
+                    "type": "string",
+                    "scope": "resource"
+                },
+                "cmake.cpptools.languageConfiguration.CXX": {
+                    "type": "object",
+                    "title": "C++ Language Configuration",
+                    "description": "C++ specific configuration. Leave empty for auto detect.",
+                    "scope": "resource",
+                    "properties": {
+                        "compilerPath": {
+                            "type": "string",
+                            "title": "Compiler path"
+                        },
+                        "intelliSenseMode": {
+                            "type": "string",
+                            "title": "IntelliSense mode",
+                            "enum": [
+                                "msvc-x86", 
+                                "msvc-x64", 
+                                "gcc-x86", 
+                                "gcc-x64", 
+                                "clang-x86", 
+                                "clang-x64"
+                            ]
+                        }
+                    }
+                },
+                "cmake.cpptools.languageConfiguration.C": {
+                    "type": "object",
+                    "title": "C Language Configuration",
+                    "description": "C specific configuration. Leave empty for auto detect.",
+                    "scope": "resource",
+                    "properties": {
+                        "compilerPath": {
+                            "type": "string",
+                            "title": "Compiler path"
+                        },
+                        "intelliSenseMode": {
+                            "type": "string",
+                            "title": "IntelliSense mode",
+                            "enum": [
+                                "msvc-x86", 
+                                "msvc-x64", 
+                                "gcc-x86", 
+                                "gcc-x64", 
+                                "clang-x86", 
+                                "clang-x64"
+                            ]
+                        }
+                    }
+                },
+                "cmake.cpptools.languageConfiguration.CUDA": {
+                    "type": "object",
+                    "title": "CUDA Language Configuration",
+                    "description": "CUDA specific configuration. Leave empty for auto detect.",
+                    "properties": {
+                        "compilerPath": {
+                            "type": "string",
+                            "title": "Compiler path"
+                        },
+                        "intelliSenseMode": {
+                            "title": "IntelliSense mode",
+                            "type": "string",
+                            "enum": [
+                                "msvc-x86", 
+                                "msvc-x64", 
+                                "gcc-x86", 
+                                "gcc-x64", 
+                                "clang-x86", 
+                                "clang-x64"
+                            ]
+                        }
+                    }
                 }
             }
         },
@@ -396,6 +533,7 @@
         "docs:build": "vuepress build docs"
     },
     "devDependencies": {
+        "@types/chai": "^4.2.3",
         "@types/glob": "^7.1.1",
         "@types/mocha": "^5.2.5",
         "@types/node": "^10.12.0",
@@ -403,11 +541,13 @@
         "@types/vscode": "1.32.0",
         "@types/webpack": "^4.4.25",
         "@vuepress/plugin-blog": "^1.0.0-alpha.44",
+        "chai": "^4.2.0",
         "glob": "^7.1.4",
         "json-loader": "^0.5.7",
         "mocha": "4",
         "sinon": "^7.3.2",
         "ts-loader": "^5.3.3",
+        "ts-node": "^8.4.1",
         "tslint": "^5.12.0",
         "typescript": "^3.2.0",
         "typescript-tslint-plugin": "^0.3.1",
@@ -420,6 +560,6 @@
     "dependencies": {
         "ajv": "^6.9.2",
         "tree-kill": "^1.2.1",
-        "vscode-cpptools": "^2.1.2"
+        "vscode-cpptools": "^3.0.0"
     }
 }

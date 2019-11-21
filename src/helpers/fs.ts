@@ -61,4 +61,13 @@ async function removeDir (dir: string) {
   }));
   await rmdir(dir);
 }
-export {makeRecursivDirectory, removeDir};
+
+function getAbsolutePath(relPath : string, basePath : string) {
+  if (path.isAbsolute(relPath)) {
+    return relPath;
+  } else {
+    return path.resolve(basePath, relPath);
+  }
+}
+
+export {makeRecursivDirectory, removeDir, getAbsolutePath};
