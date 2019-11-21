@@ -74,7 +74,7 @@ class CLMatcher implements ProblemMatcher {
 
 class GCCMatcher implements ProblemMatcher {
 
-    private static DIAG_REGEX = /^([\.\w/].+?):(\d+):(\d+): (error|warning|note): (.+)$/;
+    private static DIAG_REGEX = /^([\.\w/].+?):(\d+):(\d+): (?:fatal )(error|warning|note): (.+)$/;
     private static RANGE_REGEX = /^(\s*)((?:\~+\s*)?\^(?:\s*\~+)?)(\s*)$/;
     private static INCLUDE_START_REGEX = /^In file included from ([\.\w/].+?):(\d+)(?:\,|\:)$/;
     private static INCLUDE_REGEX = /^\s+from ([\.\w/].+?):(\d+)(?:\,|\:)$/;
