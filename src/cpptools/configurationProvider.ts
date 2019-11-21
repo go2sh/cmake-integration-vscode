@@ -223,6 +223,11 @@ class CMakeConfigurationProvider implements CustomConfigurationProvider {
 
     for (const fg of target.compileGroups) {
       const compilerArgs = getCompileFlags(fg);
+
+      if (fg.sysroot) {
+        compilerArgs.push(`--sysroot=${fg.sysroot}`);
+      }
+
       let configuration: SourceFileConfiguration = {
         compilerPath: clientInfo.compilers[fg.language].path,
         compilerArgs: compilerArgs,

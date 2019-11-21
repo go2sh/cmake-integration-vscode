@@ -294,7 +294,7 @@ class CMakeFileAPIClient extends CMakeClient {
               compileFlags: fragment,
               defines: [],
               includePaths: [],
-              sysroot: cg.sysroot ? cg.sysroot.path || "" : "",
+              sysroot: cg.sysroot ? cg.sysroot.path : undefined,
               language: cg.language,
               sources: cg.sourceIndexes.map((index) =>
                 getAbsolutePath(

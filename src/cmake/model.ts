@@ -22,7 +22,7 @@ type Language = "C" | "CXX" | "FORTRAN" | "CUDA";
 interface CompileGroup {
   language: Language;
   compileFlags: string[];
-  sysroot: string;
+  sysroot?: string;
   sources: string[];
   defines: string[];
   includePaths: {

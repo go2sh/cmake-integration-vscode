@@ -92,7 +92,7 @@ interface Target {
     linkLanguageFlags: string[];
     frameworkPath: string;
     linkPath: string;
-    sysroot: string;
+    sysroot?: string;
     fileGroups: FileGroup[];
 }
 

@@ -262,7 +262,7 @@ export class CMakeServerClient extends CMakeClient {
                                         compileFlags: sFG.compileFlags ? sFG.compileFlags.split(CMakeServerClient.splitShellRegex) : [],
                                         compilerPath: "",
                                         defines: sFG.defines || [],
-                                        sysroot: st.sysroot || "",
+                                        sysroot: st.sysroot,
                                         includePaths: (sFG.includePath || []).map((sI) => {
                                             return {
                                                 path: sI.path
