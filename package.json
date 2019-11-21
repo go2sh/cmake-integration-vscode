@@ -1,3 +1,4 @@
+
 {
     "name": "cmake-integration-vscode",
     "displayName": "CMake Integration",
@@ -184,19 +185,19 @@
                 "cmake.configureArguments": {
                     "type": "string",
                     "title": "Additional arguments for configure",
-                    "description": "Add addtional arguments for the CMake configure step",
+                    "description": "Add additional arguments for the CMake configure step.",
                     "scope": "resource"
                 },
                 "cmake.buildArguments": {
                     "type": "string",
                     "title": "Additional arguments for build",
-                    "description": "Add addtional arguments for the CMake build step",
+                    "description": "Add additional arguments for the CMake build step.",
                     "scope": "resource"
                 },
                 "cmake.configureOnStart": {
                     "type": "boolean",
                     "title": "Configure on server start",
-                    "description": "Configure the project on start",
+                    "description": "Configure the project on start.",
                     "scope": "window",
                     "default": true
                 },
@@ -217,7 +218,7 @@
                 "cmake.generator": {
                     "type": "string",
                     "title": "Build System Generator",
-                    "description": "Default build system generator",
+                    "description": "Default build system generator.",
                     "scope": "resource",
                     "enum": [
                         "Ninja",
@@ -266,7 +267,7 @@
                 },
                 "cmake.cacheEntries": {
                     "type": "array",
-                    "description": "Additional CMake cache entries added to the command line",
+                    "description": "Additional CMake cache entries added to the command line.",
                     "scope": "resource",
                     "items": {
                         "type": "object",
@@ -300,7 +301,7 @@
                 "cmake.env": {
                     "type": "object",
                     "title": "CMake Environment",
-                    "description": "Default environment variables for CMake",
+                    "description": "Default environment variables for CMake.",
                     "scope": "resource",
                     "additionalProperties": {
                         "type": "string"
@@ -309,7 +310,7 @@
                 "cmake.targetDependencies": {
                     "type": "array",
                     "title": "Target Dependencies",
-                    "description": "Additional dependencies between diffenrent projects and targets",
+                    "description": "Additional dependencies between different projects and targets.",
                     "scope": "window",
                     "items": {
                         "type": "object",
