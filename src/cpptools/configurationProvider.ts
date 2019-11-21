@@ -179,7 +179,7 @@ class CMakeConfigurationProvider implements CustomConfigurationProvider {
   async updateClient(client: CMakeClient) {
     await this.processClient(client);
     this.makeGlobalBrowseConfiguration();
-    this.didChangeConfigurationEmitter.fire();
+    this.didChangeConfigurationEmitter.fire(this);
   }
 
   private makeGlobalBrowseConfiguration() {
