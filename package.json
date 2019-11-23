@@ -490,6 +490,7 @@
                     "type": "object",
                     "title": "CUDA Language Configuration",
                     "description": "CUDA specific configuration. Leave empty for auto detect.",
+                    "scope": "resource",
                     "properties": {
                         "compilerPath": {
                             "type": "string",

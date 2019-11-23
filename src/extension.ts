@@ -184,12 +184,12 @@ export async function activate(context: vscode.ExtensionContext) {
     // Register custom configuration provider
     const api = await getCppToolsApi(Version.v3);
     if (api) {
-        const configProvider = new CMakeConfigurationProvider();
+        const configProvider = new CMakeConfigurationProvider(context);
         api.registerCustomConfigurationProvider(configProvider);
+        api.notifyReady(configProvider);
         disposables.push(
             api,
             configProvider,
-            configProvider.onReady(api.notifyReady, api),
             configProvider.onDidChangeConfiguration(api.didChangeCustomBrowseConfiguration, api),
             configProvider.onDidChangeConfiguration(api.didChangeCustomConfiguration, api),
             manager.onAddClient(configProvider.addClient, configProvider),

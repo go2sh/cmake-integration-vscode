@@ -67,10 +67,6 @@ class CMakeConfigurationProvider implements CustomConfigurationProvider {
 
   private disposables: Disposable[] = [];
 
-  private readyEmitter: EventEmitter<
-    CMakeConfigurationProvider
-  > = new EventEmitter();
-  public onReady: Event<CMakeConfigurationProvider> = this.readyEmitter.event;
   private didChangeConfigurationEmitter: EventEmitter<
     CMakeConfigurationProvider
   > = new EventEmitter();
@@ -85,7 +81,6 @@ class CMakeConfigurationProvider implements CustomConfigurationProvider {
         }
       })
     );
-    this.readyEmitter.fire(this);
   }
 
   private fileExtensions = {
