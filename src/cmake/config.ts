@@ -54,23 +54,14 @@ interface CMakeConfiguration {
 }
 
 class CMakeConfigurationImpl implements CMakeConfiguration {
-  /** Display name */
   name: string;
-  /** Description */
   description?: string;
-  /** Build type or configuration used in CMake */
   buildType: string;
-  /** Path to the build directory */
   buildDirectory: string;
-  /** Build system to generate */
   generator: string;
-  /** Extra build system to generate */
   extraGenerator: string | undefined;
-  /** Path to a toolchain file or a object containing toolchain settings */
   toolchain: string | { readonly [key: string]: string } | undefined;
-  /** Additional environment variables */
   env: { readonly [key: string]: string | undefined };
-  /** Cache entries to set */
   cacheEntries: ReadonlyArray<CacheValue>;
 
   /**
@@ -96,6 +87,10 @@ class CMakeConfigurationImpl implements CMakeConfiguration {
     this.env = settings.env;
   }
 
+  /**
+   * Replace variable references with values
+   * @param vars Map with values for variable names
+   */
   public resolve(vars: Map<string, string | undefined>) {
     const varPattern = /(?<=(?:^|[^\$]))\${((?:\w+\:)?\w+)}/g;
     const escaptePattern = /\$(\${(?:\w+\:)?\w+})/g;
@@ -158,6 +153,10 @@ class CMakeConfigurationImpl implements CMakeConfiguration {
     this.cacheEntries = newCacheEntries;
   }
 
+  /**
+   * Check if the build directory must be regenerated
+   * @param config Config to compare against
+   */
   mustRegenerateBuildDirectory(config: CMakeConfiguration): boolean {
     return (
       !equals(this.toolchain, config.toolchain) ||
@@ -166,6 +165,10 @@ class CMakeConfigurationImpl implements CMakeConfiguration {
     );
   }
 
+  /**
+   * Check if the build directory must be removed for regeneration
+   * @param config Config to check against
+   */
   mustRemoveBuildDirectory(config: CMakeConfiguration): boolean {
     return (
       (!equals(this.toolchain, config.toolchain) ||
@@ -174,6 +177,10 @@ class CMakeConfigurationImpl implements CMakeConfiguration {
     );
   }
 
+  /**
+   * Check if configurations are equal
+   * @param config Config to compare against
+   */
   equals(config: CMakeConfiguration): boolean {
     let basicEqual =
       this.name === config.name &&
