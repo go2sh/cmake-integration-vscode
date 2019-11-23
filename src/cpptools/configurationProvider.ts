@@ -19,7 +19,15 @@
  */
 import * as path from "path";
 
-import { Uri, Disposable, workspace, EventEmitter } from "vscode";
+import {
+  Uri,
+  Disposable,
+  workspace,
+  EventEmitter,
+  window,
+  commands,
+  ExtensionContext
+} from "vscode";
 import { CancellationToken, Event } from "vscode-jsonrpc";
 import {
   CustomConfigurationProvider,
@@ -41,7 +49,8 @@ import {
   getWorkspaceBrowseConfiguration,
   convertToBrowseConfiguration,
   getCompileFlags,
-  getStandardFromArgs
+  getStandardFromArgs,
+  isMSVC
 } from "./helpers";
 
 class CMakeConfigurationProvider implements CustomConfigurationProvider {
@@ -68,7 +77,7 @@ class CMakeConfigurationProvider implements CustomConfigurationProvider {
   public onDidChangeConfiguration: Event<CMakeConfigurationProvider> = this
     .didChangeConfigurationEmitter.event;
 
-  constructor() {
+  constructor(private context: ExtensionContext) {
     this.disposables.push(
       workspace.onDidChangeConfiguration((e) => {
         if (e.affectsConfiguration("cmake.cpptools")) {
@@ -151,9 +160,10 @@ class CMakeConfigurationProvider implements CustomConfigurationProvider {
     clientInfo.clientFiles.clear();
 
     await clientInfo.updateCompilerInformation();
+    this.checkClientInfo(clientInfo);
 
     client.targets.forEach((target) => {
-      this.addConfigurationsFromTarget(clientInfo, target)
+      this.addConfigurationsFromTarget(clientInfo, target);
     });
 
     let browseSettings = workspace
@@ -255,6 +265,47 @@ class CMakeConfigurationProvider implements CustomConfigurationProvider {
       languageConfiguration: new LanguageConfiguration(configs)
     };
     clientInfo.targetInfos.set(target, targetInfo);
+  }
+
+  private checkClientInfo(clientInfo: ClientInfo) {
+    if (this.context.workspaceState.get("disableClientInfoWarning", false)) {
+      return;
+    }
+
+    const actions = ["Settings", "Don't show again"];
+    let action: Thenable<string | undefined> | undefined;
+
+    if (clientInfo.emptyCompilerPath) {
+      action = window.showWarningMessage(
+        `Compiler path is not detected. ` +
+          `cpptools might not be able to report correct intelliSense results. ` +
+          `Please set the compiler path in the settings.`,
+        ...actions
+      );
+    } else {
+      if (
+        isMSVC(clientInfo.defaultCompiler) &&
+        clientInfo.windowsSdkVersion === ""
+      ) {
+        action = window.showWarningMessage(
+          `Windows Sdk Version is not detected. ` +
+            `cpptools might not be able to report correct intelliSense results. ` +
+            `Please set the Windows Sdk Version in the settings.`,
+          ...actions
+        );
+      }
+    }
+
+    if (action) {
+      action.then((result) => {
+        if (result === actions[0]) {
+          commands.executeCommand("workbench.action.openWorkspaceSettings");
+        }
+        if (result === actions[1]) {
+          this.context.workspaceState.update("disableClientInfoWarning", true);
+        }
+      });
+    }
   }
 
   addClient(client: CMakeClient) {

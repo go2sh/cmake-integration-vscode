@@ -377,6 +377,10 @@ function convertToBrowseConfiguration(
   };
 }
 
+function isMSVC(path : string) : boolean {
+  return path.match(clMatch) !== null;
+}
+
 export {
   getStandardFromCompiler,
   getStandardFromArgs,
@@ -384,5 +388,6 @@ export {
   getCompileFlags,
   getSourceFileConfiguration,
   getWorkspaceBrowseConfiguration,
-  convertToBrowseConfiguration
+  convertToBrowseConfiguration,
+  isMSVC
 };

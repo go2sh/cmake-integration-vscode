@@ -69,6 +69,12 @@ interface ProjectInfo {
   projectConfiguration: SourceFileConfiguration;
 }
 
+interface CompilerInfo {
+  path: string;
+  standard: SourceFileConfiguration["standard"];
+  intelliSenseMode: SourceFileConfiguration["intelliSenseMode"];
+}
+
 class ClientInfo {
   constructor(client: CMakeClient) {
     this.client = client;
@@ -90,11 +96,7 @@ class ClientInfo {
   clientFiles: Set<string>;
 
   compilers: {
-    [key in Language]: {
-      path: string;
-      standard: SourceFileConfiguration["standard"];
-      intelliSenseMode: SourceFileConfiguration["intelliSenseMode"];
-    };
+    [key in Language]: CompilerInfo;
   };
   windowsSdkVersion: string | undefined;
 
@@ -106,7 +108,10 @@ class ClientInfo {
   disposables: Disposable[];
 
   async updateCompilerInformation() {
-    const cpptoolsConfig = workspace.getConfiguration("cmake.cpptools");
+    const cpptoolsConfig = workspace.getConfiguration(
+      "cmake.cpptools",
+      this.client.sourceUri
+    );
     const defaultCompiler: string | undefined = cpptoolsConfig.get(
       "compilerPath"
     );
@@ -119,28 +124,52 @@ class ClientInfo {
 
     for (const key of <Language[]>Object.keys(this.compilers)) {
       const languageConfig = workspace.getConfiguration(
-        `cmake.cpptools.languageConfiguration.${key}`
+        `cmake.cpptools.languageConfiguration.${key}`,
+        this.client.sourceUri
       );
       const compilerPath: string =
         languageConfig.get("compilerPath") ||
-        defaultCompiler || 
+        defaultCompiler ||
         this.client.toolchain.getCompiler(key) ||
         "";
+
       this.compilers[key] = {
         path: compilerPath,
-        standard: 
+        standard:
           languageConfig.get<SourceFileConfiguration["standard"]>("standard") ||
-          defaultStandard || 
+          defaultStandard ||
           (await getStandardFromCompiler(compilerPath, key)),
         intelliSenseMode:
           languageConfig.get<SourceFileConfiguration["intelliSenseMode"]>(
             "intelliSenseMode"
-          ) || defaultMode || getIntelliSenseMode(compilerPath)
+          ) ||
+          defaultMode ||
+          getIntelliSenseMode(compilerPath)
       };
     }
     this.windowsSdkVersion =
       cpptoolsConfig.get("windowsSdkVersion") ||
       this.client.toolchain.windowsSdkVersion;
+  }
+
+  public get emptyCompilerPath(): boolean {
+    return (<CompilerInfo[]>Object.values(this.compilers)).reduce<boolean>(
+      (empty, value) => {
+        if (value.path !== "") {
+          return false;
+        }
+        return empty;
+      },
+      true
+    );
+  }
+
+  public get defaultCompiler() : string {
+    if (this.compilers.CXX.path !== "") {
+      return this.compilers.CXX.path;
+    } else {
+      return this.compilers.C.path;
+    }
   }
 
   getBrowseConfiguration(browseSettings: {
