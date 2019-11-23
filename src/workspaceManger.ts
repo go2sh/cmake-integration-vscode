@@ -504,7 +504,7 @@ export class WorkspaceManager implements vscode.Disposable {
         if (this.currentProject) {
             let config = await pickConfiguration(this.currentProject);
             if (config) {
-                await this.currentProject.client.setConfiguration(config);
+                this.currentProject.client.configuration = config;
                 if (vscode.workspace.getConfiguration("cmake").get("configureOnStart", true)) {
                     await this.currentProject.client.configure();
                 }

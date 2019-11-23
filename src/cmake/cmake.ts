@@ -16,18 +16,27 @@
 /*
  * Base class for all CMake clients
  */
-import * as child_process from 'child_process';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as util from 'util';
-import * as vscode from 'vscode';
-import * as kill from 'tree-kill';
-import { Project, Target, CacheValue, Toolchain } from './model';
-import { CMakeConfiguration, getDefaultConfigurations, buildToolchainFile, loadConfigurations } from './config';
-import { removeDir, makeRecursivDirectory } from '../helpers/fs';
-import { ProblemMatcher, getProblemMatchers, CMakeMatcher } from '../helpers/problemMatcher';
-import { LineTransform } from '../helpers/stream';
-import { buildArgs } from '../helpers/config';
+import * as child_process from "child_process";
+import * as fs from "fs";
+import * as path from "path";
+import * as util from "util";
+import * as vscode from "vscode";
+import * as kill from "tree-kill";
+import { Project, Target, CacheValue, Toolchain } from "./model";
+import {
+  CMakeConfiguration,
+  getDefaultConfigurations,
+  loadConfigurations,
+  CMakeConfigurationImpl
+} from "./config";
+import { removeDir, makeRecursivDirectory } from "../helpers/fs";
+import {
+  ProblemMatcher,
+  getProblemMatchers,
+  CMakeMatcher
+} from "../helpers/problemMatcher";
+import { LineTransform } from "../helpers/stream";
+import { buildArgs } from "../helpers/config";
 
 const stat = util.promisify(fs.stat);
 
@@ -83,8 +92,15 @@ abstract class CMakeClient implements vscode.Disposable {
     this.disposables.push(this.configFileWatcher);
         
     // Default config
-    let config = this._configs.find((value) => value.name === this.clientContext.currentConfiguration) || this._configs[0];
-    this._config = new CMakeConfiguration(config.name, config, this.defaultConfig);
+    this._originalConfig =
+      this._configs.find(
+        (value) => value.name === this.clientContext.currentConfiguration
+      ) || this._configs[0];
+    this._config = new CMakeConfigurationImpl(
+      this._originalConfig.name,
+      this._originalConfig,
+      this.defaultConfig
+    );
     this._matchers = getProblemMatchers(this.buildDirectory);
 
     // VSCode config watcher
@@ -215,16 +231,28 @@ abstract class CMakeClient implements vscode.Disposable {
     return this._toolchain;
   }
 
-  protected setToolchainFromCache() {
-    let stringOrUndefined = (key : string) : string | undefined =>  {
-      if (this.cache.has(key)) {
-        return this.cache.get(key)!.value;
+  protected guessToolchain() {
+    let stringOrUndefined = (
+      cacheKey: string,
+      toolchainKey?: string
+    ): string | undefined => {
+      if (!toolchainKey) {
+        toolchainKey = cacheKey;
+      }
+      const toolchain = this.configuration.toolchain;
+      if (typeof toolchain === "object" && toolchain[toolchainKey]) {
+        return toolchain[toolchainKey];
+      }
+      if (this.cache.has(cacheKey)) {
+        return this.cache.get(cacheKey)!.value;
       }
       return undefined;
     };
     this._toolchain = new Toolchain({
       windowsSdkVersion: stringOrUndefined(
-        "CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION"),
+        "CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION",
+        "CMAKE_SYSTEM_VERSION"
+      ),
       cCompiler: stringOrUndefined("CMAKE_C_COMPILER"),
       cppCompiler: stringOrUndefined("CMAKE_CXX_COMPILER")
     });
@@ -239,7 +267,8 @@ abstract class CMakeClient implements vscode.Disposable {
   public onDidChangeConfiguration: vscode.Event<void> = this.configChangeEvent.event;
   public readonly configurationsFile: string;
   protected _configs: CMakeConfiguration[] = getDefaultConfigurations();
-  protected _config: CMakeConfiguration;
+  private _originalConfig: CMakeConfiguration;
+  protected _config: CMakeConfigurationImpl;
 
   /**
    * Configurations of the client
@@ -250,18 +279,52 @@ abstract class CMakeClient implements vscode.Disposable {
 
   /**
    * The current configuration.
-   *
-   * Note: Use [updateConfiguration](#updateConfiguration) for setting a
-   * new configuration.
-   *
-   * @see updateConfiguration
    */
-  public get configuration(): CMakeConfiguration {
+  public get configuration(): Readonly<CMakeConfiguration> {
     return this._config;
   }
 
+  public set configuration(config: Readonly<CMakeConfiguration>) {
+    const newConfig = new CMakeConfigurationImpl(
+      config.name,
+      config,
+      this.defaultConfig
+    );
+
+    let vars: Map<string, string | undefined> = new Map();
+    vars.set("workspaceFolder", this.workspaceFolder.uri.fsPath);
+    vars.set("sourceFolder", this.sourceUri.fsPath);
+    newConfig.resolve(vars);
+
+    const oldConfig = this._config;
+    this._originalConfig = config;
+    this._config = newConfig;
+
+    this.handleConfigUpdate(oldConfig, newConfig);
+  }
+
+  private async handleConfigUpdate(
+    oldConfig: CMakeConfigurationImpl,
+    newConfig: CMakeConfigurationImpl
+  ) {
+    if (!oldConfig.equals(newConfig)) {
+      let removeBuildDirectory = newConfig.mustRemoveBuildDirectory(oldConfig);
+      let regenerateBuildDirectory = newConfig.mustRegenerateBuildDirectory(
+        oldConfig
+      );
+      if (removeBuildDirectory) {
+        await removeDir(oldConfig.buildDirectory);
+      }
+      if (regenerateBuildDirectory) {
+        await this.regenerateBuildDirectory();
+      }
+      this.updateContext();
+      this.configChangeEvent.fire();
+    }
+  }
+
   protected get generator(): string {
-    return this._config.generator!;
+    return this._config.generator;
   }
 
   protected get extraGenerator(): string | undefined {
@@ -277,15 +340,26 @@ abstract class CMakeClient implements vscode.Disposable {
   }
 
   public get buildDirectory(): string {
-    return this._config.buildDirectory!;
+    return this._config.buildDirectory;
   }
 
   public get buildType(): string {
-    return this._config.buildType!;
+    return this._config.buildType;
   }
 
   public get toolchainFile(): string | undefined {
-    return this._config.toolchain as string | undefined;
+    if (
+      typeof this.configuration.toolchain === "string" ||
+      typeof this.configuration.toolchain === "undefined"
+    ) {
+      return this.configuration.toolchain;
+    } else {
+      return path.join(
+        this.workspaceFolder.uri.fsPath,
+        this.configuration.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, "_") +
+          "_toolchain.cmake"
+      );
+    }
   }
 
   public get environment(): { readonly [key: string]: string | undefined } {
@@ -346,24 +420,6 @@ abstract class CMakeClient implements vscode.Disposable {
     return defaultConfig;
   }
 
-  private async createFullConfig(config : CMakeConfiguration) : Promise<CMakeConfiguration> {
-    let basicConfig = new CMakeConfiguration(
-      config.name,
-      {
-        ...config,
-        env: { ...process.env, ...config.env },
-        toolchain: await buildToolchainFile(this.workspaceFolder, config)
-      },
-      this.defaultConfig
-    );
-
-    /* Create resolved config by replacing variables with its values */
-    let vars: Map<string, string | undefined> = new Map();
-    vars.set("workspaceFolder", this.workspaceFolder.uri.fsPath);
-    vars.set("sourceFolder", this.sourceUri.fsPath);
-    return basicConfig.createResolved(vars);
-  }
-
   /**
    * Wether this client uses a multi configuration generator.
    * (Visual Studio, Xcode)
@@ -372,9 +428,11 @@ abstract class CMakeClient implements vscode.Disposable {
     return this.generator.match(/^(Xcode|Visual Studio)/) !== null;
   }
 
-  private async vscodeConfigurationChange(event: vscode.ConfigurationChangeEvent) {
+  private async vscodeConfigurationChange(
+    event: vscode.ConfigurationChangeEvent
+  ) {
     if (event.affectsConfiguration("cmake", this.sourceUri)) {
-      await this.setConfiguration(this.configuration);
+      this.configuration = this._originalConfig;
     }
   }
 
@@ -410,13 +468,10 @@ abstract class CMakeClient implements vscode.Disposable {
       this._configs = getDefaultConfigurations();
     }
 
-    let config = this._configs.find((value) => value.name === this.clientContext.currentConfiguration);
-    if (config) {
-      this._config = config;
-    } else {
-      this._config = this._configs[0];
-    }
-    await this.setConfiguration(this.configuration);
+    this.configuration =
+      this._configs.find(
+        (value) => value.name === this.clientContext.currentConfiguration
+      ) || this._configs[0];
   }
 
   /**

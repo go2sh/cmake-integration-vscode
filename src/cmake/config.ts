@@ -16,7 +16,6 @@
 /*
  * CMake configuration handling
  */
-import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
 import Ajv from "ajv";
@@ -30,48 +29,74 @@ const open = promisify(fs.open);
 const write = promisify(fs.write);
 const readFile = promisify(fs.readFile);
 
-class CMakeConfiguration {
-  readonly name: string;
-  readonly description?: string;
-  readonly buildType?: string;
-  readonly buildDirectory?: string;
-  readonly generator?: string;
-  readonly extraGenerator?: string;
-  readonly toolchain?: string | { readonly [key: string]: string };
-  readonly env?: { readonly [key: string]: string | undefined };
-  readonly cacheEntries?: ReadonlyArray<CacheValue>;
+/**
+ * A configuration for CMake
+ */
+interface CMakeConfiguration {
+  /** Display name */
+  name: string;
+  /** Description */
+  description?: string;
+  /** Build type or configuration used in CMake */
+  buildType?: string;
+  /** Path to the build directory */
+  buildDirectory?: string;
+  /** Build system to generate */
+  generator?: string;
+  /** Extra build system to generate */
+  extraGenerator: string | undefined;
+  /** Path to a toolchain file or a object containing toolchain settings */
+  toolchain: string | { readonly [key: string]: string } | undefined;
+  /** Additional environment variables */
+  env?: { readonly [key: string]: string | undefined };
+  /** Cache entries to set */
+  cacheEntries?: ReadonlyArray<CacheValue>;
+}
 
+class CMakeConfigurationImpl implements CMakeConfiguration {
+  /** Display name */
+  name: string;
+  /** Description */
+  description?: string;
+  /** Build type or configuration used in CMake */
+  buildType: string;
+  /** Path to the build directory */
+  buildDirectory: string;
+  /** Build system to generate */
+  generator: string;
+  /** Extra build system to generate */
+  extraGenerator: string | undefined;
+  /** Path to a toolchain file or a object containing toolchain settings */
+  toolchain: string | { readonly [key: string]: string } | undefined;
+  /** Additional environment variables */
+  env: { readonly [key: string]: string | undefined };
+  /** Cache entries to set */
+  cacheEntries: ReadonlyArray<CacheValue>;
+
+  /**
+   * Create a new configuration object
+   *
+   * @param name Name of the configuration
+   * @param options Options to set
+   * @param defaults Default values to use if not defined in options
+   */
   constructor(
     name: string,
-    options?: Partial<CMakeConfiguration>,
-    defaults?: Partial<CMakeConfiguration>
+    options: Partial<CMakeConfiguration>,
+    defaults: Required<CMakeConfiguration>
   ) {
+    let settings: Required<CMakeConfiguration> = { ...options, ...defaults };
     this.name = name;
-    if (options) {
-      this.description = options.description;
-      this.buildType = options.buildType;
-      this.buildDirectory = options.buildDirectory;
-      this.generator = options.generator;
-      this.extraGenerator = options.extraGenerator;
-      this.toolchain = options.toolchain;
-      this.env = options.env;
-      this.cacheEntries = options.cacheEntries;
-    }
-    if (defaults) {
-      this.description = this.description || defaults.description;
-      this.buildType = this.buildType || defaults.buildType;
-      this.buildDirectory = this.buildDirectory || defaults.buildDirectory;
-      this.generator = this.generator || defaults.generator;
-      this.extraGenerator = this.extraGenerator || defaults.extraGenerator;
-      this.toolchain = this.toolchain || defaults.toolchain;
-      this.env = this.env || defaults.env;
-      this.cacheEntries = this.cacheEntries || defaults.cacheEntries;
-    }
+    this.buildType = settings.buildType;
+    this.buildDirectory = settings.buildDirectory;
+    this.generator = settings.generator;
+    this.extraGenerator = settings.extraGenerator;
+    this.toolchain = settings.toolchain;
+    this.cacheEntries = settings.cacheEntries;
+    this.env = settings.env;
   }
 
-  public createResolved(
-    vars: Map<string, string | undefined>
-  ): CMakeConfiguration {
+  public resolve(vars: Map<string, string | undefined>) {
     const varPattern = /(?<=(?:^|[^\$]))\${((?:\w+\:)?\w+)}/g;
     const escaptePattern = /\$(\${(?:\w+\:)?\w+})/g;
 
@@ -79,22 +104,23 @@ class CMakeConfiguration {
     vars.set("generator", this.generator!);
     vars.set("buildType", this.buildType!);
 
-    let replaceVariables = (value: string | undefined): string | undefined => {
+    type ReplaceType<T> = T extends undefined ? string | undefined : string;
+    let replaceVariables = <U>(value: ReplaceType<U>): ReplaceType<U> => {
       if (!value) {
         return value;
       }
-      value = value.replace(varPattern, (_: string, ...args: any[]) => {
+      let result = value.replace(varPattern, (_: string, ...args: any[]) => {
         return vars.get(args[0]) || "";
       });
-      value = value.replace(escaptePattern, (_: string, ...args: any[]) => {
+      result = result.replace(escaptePattern, (_: string, ...args: any[]) => {
         return args[0];
       });
-      return value;
+      return result as ReplaceType<U>;
     };
 
     let newEnv: { [key: string]: string | undefined } = {};
     for (let key in this.env) {
-      let value = replaceVariables(this.env[key]);
+      let value = replaceVariables<string | undefined>(this.env[key]);
       vars.set("env:" + key, value);
       newEnv[key] = value;
     }
@@ -121,21 +147,15 @@ class CMakeConfiguration {
         newCacheEntries.push({
           name: cacheEntry.name,
           type: cacheEntry.type,
-          value: replaceVariables(cacheEntry.value) || ""
+          value: replaceVariables(cacheEntry.value)
         });
       }
     }
 
-    return new CMakeConfiguration(this.name, {
-      description: this.description,
-      buildType: this.buildType,
-      buildDirectory: newBuildDirectory,
-      generator: this.generator,
-      extraGenerator: this.extraGenerator,
-      toolchain: newToolchain,
-      env: newEnv,
-      cacheEntries: newCacheEntries
-    });
+    this.buildDirectory = newBuildDirectory;
+    this.toolchain = newToolchain;
+    this.env = newEnv;
+    this.cacheEntries = newCacheEntries;
   }
 
   mustRegenerateBuildDirectory(config: CMakeConfiguration): boolean {
@@ -187,19 +207,10 @@ function getDefaultConfigurations(): CMakeConfiguration[] {
 }
 
 async function buildToolchainFile(
-  workspaceFolder: vscode.WorkspaceFolder,
+  fileName: string,
   config: CMakeConfiguration
-): Promise<string | undefined> {
-  if (!config.toolchain) {
-    return undefined;
-  } else if (typeof config.toolchain === "string") {
-    return config.toolchain;
-  } else {
-    let fileName = path.join(
-      workspaceFolder.uri.fsPath,
-      config.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, "_") +
-        "_toolchain.cmake"
-    );
+): Promise<void> {
+  if (config.toolchain && typeof config.toolchain === "object") {
     let file = await open(fileName, "w");
     for (const key in config.toolchain) {
       await write(
@@ -209,7 +220,6 @@ async function buildToolchainFile(
         "utf-8"
       );
     }
-    return fileName;
   }
 }
 
@@ -245,6 +255,7 @@ async function loadConfigurations(
 
 export {
   CMakeConfiguration,
+  CMakeConfigurationImpl,
   getDefaultConfigurations,
   buildToolchainFile,
   loadConfigurations

@@ -37,6 +37,7 @@ import {
 import { Target, Project, CacheValue, CompileGroup } from "./model";
 import { buildArgs } from "../helpers/config";
 import * as fileApi from "./fileApi";
+import { buildToolchainFile } from "./config";
 
 const stat = promisify(fs.stat);
 const writeFile = promisify(fs.writeFile);
@@ -76,6 +77,7 @@ class CMakeFileAPIClient extends CMakeClient {
     if (this.toolchainFile) {
       args.push("-D");
       args.push(`CMAKE_TOOLCHAIN_FILE:FILEPATH=${this.toolchainFile}`);
+      await buildToolchainFile(this.toolchainFile, this.configuration);
     }
     for (var cacheEntry of this.cacheEntries) {
       args.push("-D");
@@ -226,7 +228,7 @@ class CMakeFileAPIClient extends CMakeClient {
     for (const entry of cache.entries) {
       this.cache.set(entry.name, entry as CacheValue);
     }
-    this.setToolchainFromCache();
+    this.guessToolchain();
 
     await this.buildModel(codeModel);
     this.selectContext();

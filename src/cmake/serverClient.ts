@@ -31,6 +31,7 @@ import * as model from './model';
 import * as protocol from './protocol';
 import { CMakeClient } from './cmake';
 import { getAbsolutePath } from '../helpers/fs';
+import { buildToolchainFile } from './config';
 
 //const readdir = util.promisify(fs.readdir);
 const lstat = util.promisify(fs.lstat);
@@ -170,6 +171,7 @@ export class CMakeServerClient extends CMakeClient {
         if (this.toolchainFile) {
             args.push("-D");
             args.push(`CMAKE_TOOLCHAIN_FILE:FILEPATH=${this.toolchainFile}`);
+            await buildToolchainFile(this.toolchainFile, this.configuration);
         }
         for (let cacheEntry of this.cacheEntries) {
             args.push("-D");
@@ -223,7 +225,7 @@ export class CMakeServerClient extends CMakeClient {
             value: value.value,
             type: value.type
         }));
-        this.setToolchainFromCache();
+        this.guessToolchain();
 
         this._onModelChange.fire(this);
     }
