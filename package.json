@@ -545,7 +545,6 @@
         "@types/sinon": "^7.0.12",
         "@types/vscode": "1.32.0",
         "@types/webpack": "^4.4.25",
-        "@vuepress/plugin-blog": "^1.0.0-alpha.44",
         "chai": "^4.2.0",
         "glob": "^7.1.4",
         "json-loader": "^0.5.7",
@@ -558,7 +557,7 @@
         "typescript-tslint-plugin": "^0.3.1",
         "vscode-jsonrpc": "^4.0.0",
         "vscode-test": "^1.0.0",
-        "vuepress": "^1.0.0-alpha.44",
+        "vuepress": "^1.2.0",
         "webpack": "^4.29.6",
         "webpack-cli": "^3.2.3"
     },
