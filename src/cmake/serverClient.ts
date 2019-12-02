@@ -294,9 +294,7 @@ export class CMakeServerClient extends CMakeClient {
 
     private async spwanCMakeServer() {
         let cmakePath = vscode.workspace.getConfiguration("cmake", this.sourceUri).get("cmakePath", "cmake");
-        let configEnv = vscode.workspace.getConfiguration("cmake", this.sourceUri).get("configurationEnvironment", {});
-        let processEnv = process.env;
-        let env = { ...processEnv, ...configEnv };
+        let env = { ...process.env, ...this.environment };
 
         this._process = child_process.execFile(
             cmakePath,

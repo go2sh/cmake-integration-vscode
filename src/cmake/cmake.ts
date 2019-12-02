@@ -505,7 +505,7 @@ abstract class CMakeClient implements vscode.Disposable {
       this.getBuildArguments(targets),
       {
         cwd: this.buildDirectory,
-        env: this.environment
+        env: { ...process.env, ...this.environment }
       }
     );
     this.buildProc.stdout

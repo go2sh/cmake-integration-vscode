@@ -97,7 +97,7 @@ class CMakeFileAPIClient extends CMakeClient {
 
     let buildProc = child_process.spawn(cmakePath, args, {
       cwd: this.workspaceFolder.uri.fsPath,
-      env: this.environment
+      env: { ...process.env, ...this.environment }
     });
     buildProc.stdout.pipe(new LineTransform()).on("data", (chunk: string) => {
       this.console.appendLine(chunk);
