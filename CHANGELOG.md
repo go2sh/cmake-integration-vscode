@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] 2019-12-02
+### Added
+ - VSCode settings to override missing CMake informations (e.g compiler path)
+ - Compiler based detection for C++ standard
+ - Gethering toolchain information from CMake
+
+### Changed
+ - cpptools API v3 is now used
+ - Reworked Configuration Provider for cpptools
+ - Reworked internal extension design
+ - Using more strict TypeScript settings
+
+### Fixed
+ - Configuration with extra generator is now working
+ - Version detection with no standard executable name
+ - Reported path names for server API
+ - MSVC C++ standard detection
+ - Detection fatal error diagnostic for gcc
+
 ## [0.6.5] 2019-09-11
 ### Fixes
 - Calculate reported C++ version corretly (for cpptools)
