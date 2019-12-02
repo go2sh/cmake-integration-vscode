@@ -291,8 +291,12 @@ export class WorkspaceManager implements vscode.Disposable {
     }
 
     async buildWorkspace() {
-        let workspaceTargets = vscode.workspace.getConfiguration("cmake").get<Dependency[]>("workspaceTargets", []);
-        let targetDependencies = vscode.workspace.getConfiguration("cmake").get<DependencySpecification[]>("targetDependencies", []);
+        const workspaceTargets = vscode.workspace
+            .getConfiguration("cmake.build")
+            .get<Dependency[]>("workspaceTargets", []);
+        const targetDependencies = vscode.workspace
+            .getConfiguration("cmake.build")
+            .get<DependencySpecification[]>("targetDependencies", []);
 
         // If no workspace targets are defined, use all projects
         if (workspaceTargets.length === 0) {
@@ -345,7 +349,9 @@ export class WorkspaceManager implements vscode.Disposable {
         }
 
         try {
-            let targetDependencies = vscode.workspace.getConfiguration("cmake").get<DependencySpecification[]>("targetDependencies", []);
+            const targetDependencies = vscode.workspace
+                .getConfiguration("cmake.build")
+                .get<DependencySpecification[]>("targetDependencies", []);
             let resolver = new DependencyResolver(targetDependencies);
             let buildSteps: Dependency[][] = resolver.resolve({ project: project.name } as Dependency);
             for (const step of buildSteps) {
@@ -386,8 +392,10 @@ export class WorkspaceManager implements vscode.Disposable {
         }
 
         try {
-            let deps = vscode.workspace.getConfiguration("cmake").get<DependencySpecification[]>("targetDependencies", []);
-            let resolver = new DependencyResolver(deps);
+            const targetDependencies = vscode.workspace
+                .getConfiguration("cmake.build")
+                .get<DependencySpecification[]>("targetDependencies", []);
+            let resolver = new DependencyResolver(targetDependencies);
             let buildSteps: Dependency[][] = resolver.resolve({ project: projectContext.project.name, target: target.name });
             for (const step of buildSteps) {
                 await Promise.all(step.map((value) => {

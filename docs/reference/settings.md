@@ -24,11 +24,43 @@ variable substitution). The defaults can be set on a user, workspace (window) or
 folder level. The value in brackets afterwards, show the default value for the
 settings.
 
-  - `cmake.generator`: The default generator (Default: Ninja)
-  - `cmake.extraGenerator`: The default extra generator
-  - `cmake.buildDirectory`: The default build folder 
+  - `cmake.default.generator`: The default generator (Default: Ninja)
+  - `cmake.default.extraGenerator`: The default extra generator
+  - `cmake.default.buildDirectory`: The default build folder 
   (Default: ${workspaceFolder}/build)
-  - `cmake.cacheEntries`: The default cache entries
+  - `cmake.default.cacheEntries`: The default cache entries
+  - `cmake.default.env`: The default environment variables
+
+## Cpptools Integration
+CMake Integration extension provides build information to the cpptools
+Extension for C/C++ Source files to support language services. The
+behaviour of the integration can be customize through the VS Code settings. For
+more information about `BrowseConfiguration` and `SourceFileConfiguration` also
+refer to the cpptools documentation. When no settings are used, the compiler
+path and Windows SDK Version (for MSVC) are guessed from the coresponding 
+CMake cache entries. This is not very reliable as those informations are not
+always written to the cache.
+
+  - `cmake.cpptools.globalBrowseTargets`: Select custom projects or targets to
+  include in the global browse configuration.
+  - `cmake.cpptools.browseTargets`: Select custom projects or targets to include
+  in the workspace browse configuration.
+  - `cmake.cpptools.guessSourceFileConfigurations`: Enable guessing a 
+  SourceFileConfiguration for files unknown to CMake. Configurations are guessed
+  based on paths of targets. (Default: True)
+  - `cmake.cpptools.compilerPath`: Provides the compiler path reported to
+  cpptools. If empty, the compiler path from CMake is used. CMake currently
+  is unreliable and it is a good choice to set the path in the settings.
+  - `cmake.cpptools.intelliSenseMode`: Provide the intelliSense Mode. When
+  not set, the mode is determined by the compiler path.
+  - `cmake.cpptools.windowsSdkVersion`: Provides the Windows SDK Version 
+  reported to cpptools. If empty, the version from CMake is used. CMake currently is unreliable and it is a good choice to set the version in the
+  settings.
+  - `cmake.cpptools.languageConfiguration.CXX`,
+    `cmake.cpptools.languageConfiguration.C`,
+    `cmake.cpptools.languageConfiguration.CUDA`: Language dependend settings for
+    the compilerPath and the intelliSense Mode. This settings have the highest
+    predecence when resolving the path and mode.
 
 ## Build Settings
 The extensions allows you to extended the dependencies management
@@ -45,14 +77,14 @@ or a single target from a project.
 { "project": "cmake", "target": "ctest" }
 ```
 ### Workspace Targets
-With the `cmake.workspaceTargets` setting option, the behaviour of
-the `cmake.buildWorkspace` command can be changed. By default, all
+With the `cmake.build.workspaceTargets` setting option, the behaviour of
+the `cmake.build.buildWorkspace` command can be changed. By default, all
 targets of each project in a workspace will be build. Alternatively,
 the setting allows to specify an array of targets as described above,
 which will be build instead. This includes all dependencies specified
 either by CMake or by this extension.
 ```
-"cmake.workspaceTargets": [
+"cmake.build.workspaceTargets": [
   { "project": "projectA" },
   { "project": "projectB", "target": "commandA" }
 ],
@@ -66,7 +98,7 @@ project, all dependencies will be resolved and build. In case of building
 a project (build all), all dependencies of the project and all dependencies
 of the project targets will be used.
 ```
-"cmake.targetDependencies": [
+"cmake.build.targetDependencies": [
   { 
     "project": "projectB",
     "target": "exeB",

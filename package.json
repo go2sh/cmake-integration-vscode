@@ -215,7 +215,7 @@
                     "scope": "window",
                     "default": false
                 },
-                "cmake.generator": {
+                "cmake.default.generator": {
                     "type": "string",
                     "title": "Build System Generator",
                     "description": "Default build system generator.",
@@ -245,7 +245,7 @@
                     ],
                     "default": "Ninja"
                 },
-                "cmake.extraGenerator": {
+                "cmake.default.extraGenerator": {
                     "type": "string",
                     "title": "Extra Generator",
                     "description": "Default extra generator for an auxiliary IDE tool.",
@@ -258,19 +258,23 @@
                         "Sublime Text 2"
                     ]
                 },
-                "cmake.buildDirectory": {
+                "cmake.default.buildDirectory": {
                     "type": "string",
                     "title": "Build Type",
                     "description": "Default build directory",
                     "scope": "resource",
                     "default": "${workspaceFolder}/build"
                 },
-                "cmake.cacheEntries": {
+                "cmake.default.cacheEntries": {
                     "type": "array",
-                    "description": "Additional CMake cache entries added to the command line.",
+                    "title": "Cache entries",
+                    "description": "Default CMake cache entries added to the command line.",
                     "scope": "resource",
+                    "default": [],
                     "items": {
                         "type": "object",
+                        "title": "Cache entry",
+                        "description": "A CMake cache entry",
                         "properties": {
                             "name": {
                                 "type": "string",
@@ -289,25 +293,25 @@
                                     "PATH",
                                     "STRING",
                                     "INTERNAL"
-                                ],
-                                "required": [
-                                    "name",
-                                    "value"
                                 ]
                             }
-                        }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ]
                     }
                 },
-                "cmake.env": {
+                "cmake.default.env": {
                     "type": "object",
-                    "title": "CMake Environment",
+                    "title": "Environment variables",
                     "description": "Default environment variables for CMake.",
                     "scope": "resource",
                     "additionalProperties": {
                         "type": "string"
                     }
                 },
-                "cmake.targetDependencies": {
+                "cmake.build.targetDependencies": {
                     "type": "array",
                     "title": "Target Dependencies",
                     "description": "Additional dependencies between different projects and targets.",
@@ -345,7 +349,7 @@
                         ]
                     }
                 },
-                "cmake.workspaceTargets": {
+                "cmake.build.workspaceTargets": {
                     "type": "array",
                     "title": "Workspace Targets",
                     "description": "Custom list of targets for build workspace command.",

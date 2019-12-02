@@ -55,15 +55,15 @@ CMake version 3.7 or higher must be installed.
 Most settings are documented well through VSCode settings dialog. The most 
 important settings are:
  
-  * `cmake.generator`: The generator to generate the build system. Set this to
-    an apropriate user default. (See Pitfalls)
+  * `cmake.default.generator`: The generator to generate the build system. 
+    Set this to an apropriate user default. (See Pitfalls)
 
-Options `cmake.workspaceTargets` and `cmake.targetDependencies` can be used
-to configure an andvanced build workflow.
+Options `cmake.build.workspaceTargets` and `cmake.build.targetDependencies`
+can be used to configure an andvanced build workflow.
   
-  * `cmake.workspaceTargets`: A list of targets, that are executed on the
-    `Build workspace` command.
-  * `cmake.targetDependencies`: A list of dependencies between projects
+  * `cmake.build.workspaceTargets`: A list of targets, that are executed 
+    on the `Build workspace` command.
+  * `cmake.build.targetDependencies`: A list of dependencies between projects
     and/or targets, that will be resolved before building. 
     (e.g. Dependency between a library project and an application project using it)
 
@@ -75,7 +75,7 @@ In both cases targets are specified by either a project name
 # Project and target
 { "project": "test", "target": "app" }
 ```
-Additionally `cmake.targetDependencies` object take a `dependencies` array for
+Additionally `cmake.build.targetDependencies` object take a `dependencies` array for
 specifying dependencies for a project or a target.
 ```
 {

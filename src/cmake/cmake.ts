@@ -114,9 +114,10 @@ abstract class CMakeClient implements vscode.Disposable {
 
     // VSCode config watcher
     this.disposables.push(
-      vscode.workspace.onDidChangeConfiguration((e) => {
-        this.vscodeConfigurationChange(e);
-      })
+      vscode.workspace.onDidChangeConfiguration(
+        this.handleConfigurationChange,
+        this
+      )
     );
   }
 
@@ -386,14 +387,14 @@ abstract class CMakeClient implements vscode.Disposable {
 
   private get defaultConfig(): Required<CMakeConfiguration> {
     const configSection = vscode.workspace.getConfiguration(
-      "cmake",
+      "cmake.default",
       this.sourceUri
     );
 
     const defaultConfig: Required<CMakeConfiguration> = {
       name: "",
       description: "",
-      buildType: configSection.get("buildType", "Debug"),
+      buildType: "Debug",
       buildDirectory: configSection.get(
         "buildDirectory",
         "${workspaceFolder}/build/"
@@ -401,7 +402,7 @@ abstract class CMakeClient implements vscode.Disposable {
       generator: configSection.get("generator", "Ninja"),
       extraGenerator: configSection.get("extraGenerator"),
       toolchain: undefined,
-      env: { ...process.env, ...configSection.get("env") },
+      env: configSection.get("env", {}),
       cacheEntries: configSection.get("cacheEntries", [] as CacheValue[])
     };
     return defaultConfig;
@@ -415,10 +416,10 @@ abstract class CMakeClient implements vscode.Disposable {
     return this.generator.match(/^(Xcode|Visual Studio)/) !== null;
   }
 
-  private async vscodeConfigurationChange(
+  private async handleConfigurationChange(
     event: vscode.ConfigurationChangeEvent
   ) {
-    if (event.affectsConfiguration("cmake", this.sourceUri)) {
+    if (event.affectsConfiguration("cmake.default", this.sourceUri)) {
       this.configuration = this._originalConfig;
     }
   }
