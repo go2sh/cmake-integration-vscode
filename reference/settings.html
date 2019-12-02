@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Extension Settings | CMake Integration</title>
+    <meta name="description" content="CMake Integration Extension for Visual Studio Code.">
+    
+    
+    <link rel="preload" href="/cmake-integration-vscode/assets/css/0.styles.a16eb183.css" as="style"><link rel="preload" href="/cmake-integration-vscode/assets/js/app.729eb9cb.js" as="script"><link rel="preload" href="/cmake-integration-vscode/assets/js/3.f55b6acf.js" as="script"><link rel="preload" href="/cmake-integration-vscode/assets/js/2.aed5b76c.js" as="script"><link rel="preload" href="/cmake-integration-vscode/assets/js/11.d713c064.js" as="script"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/10.960d92f4.js"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/12.f924de64.js"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/13.9a8051f1.js"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/14.03b26d71.js"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/15.81241ea0.js"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/4.af5f9d9f.js"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/5.a8eff28d.js"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/6.a24c4b9c.js"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/7.499c1ded.js"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/8.2f889ba1.js"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/9.a0cceea7.js">
+    <link rel="stylesheet" href="/cmake-integration-vscode/assets/css/0.styles.a16eb183.css">
+  </head>
+  <body>
+    <div id="app" data-server-rendered="true"><div class="theme-container"><header class="navbar"><div class="sidebar-button"><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" viewBox="0 0 448 512" class="icon"><path fill="currentColor" d="M436 124H12c-6.627 0-12-5.373-12-12V80c0-6.627 5.373-12 12-12h424c6.627 0 12 5.373 12 12v32c0 6.627-5.373 12-12 12zm0 160H12c-6.627 0-12-5.373-12-12v-32c0-6.627 5.373-12 12-12h424c6.627 0 12 5.373 12 12v32c0 6.627-5.373 12-12 12zm0 160H12c-6.627 0-12-5.373-12-12v-32c0-6.627 5.373-12 12-12h424c6.627 0 12 5.373 12 12v32c0 6.627-5.373 12-12 12z"></path></svg></div> <a href="/cmake-integration-vscode/" class="home-link router-link-active"><!----> <span class="site-name">CMake Integration</span></a> <div class="links"><div class="search-box"><input aria-label="Search" autocomplete="off" spellcheck="false" value=""> <!----></div> <nav class="nav-links can-hide"><div class="nav-item"><a href="/cmake-integration-vscode/" class="nav-link">Home</a></div><div class="nav-item"><a href="/cmake-integration-vscode/start/quickstart.html" class="nav-link">Docs</a></div><div class="nav-item"><a href="https://github.com/go2sh/cmake-integration-vscode" target="_blank" rel="noopener noreferrer" class="nav-link external">
+  Github
+  <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></div> <!----></nav></div></header> <div class="sidebar-mask"></div> <aside class="sidebar"><nav class="nav-links"><div class="nav-item"><a href="/cmake-integration-vscode/" class="nav-link">Home</a></div><div class="nav-item"><a href="/cmake-integration-vscode/start/quickstart.html" class="nav-link">Docs</a></div><div class="nav-item"><a href="https://github.com/go2sh/cmake-integration-vscode" target="_blank" rel="noopener noreferrer" class="nav-link external">
+  Github
+  <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></div> <!----></nav>  <ul class="sidebar-links"><li><section class="sidebar-group depth-0"><a href="/cmake-integration-vscode/start/installation" class="sidebar-heading clickable"><span>Introduction</span> <!----></a> <ul class="sidebar-links sidebar-group-items"><li><a href="/cmake-integration-vscode/start/installation.html" class="sidebar-link">Installation</a></li><li><a href="/cmake-integration-vscode/start/quickstart.html" class="sidebar-link">Quickstart</a></li><li><a href="/cmake-integration-vscode/start/troubleshooting.html" class="sidebar-link">Troubleshooting</a></li></ul></section></li><li><section class="sidebar-group depth-0"><a href="/cmake-integration-vscode/guide/integration" class="sidebar-heading clickable"><span>Guide</span> <!----></a> <ul class="sidebar-links sidebar-group-items"><li><a href="/cmake-integration-vscode/guide/integration.html" class="sidebar-link">Integration</a></li><li><a href="/cmake-integration-vscode/guide/source_structure.html" class="sidebar-link">Source Structure</a></li></ul></section></li><li><section class="sidebar-group depth-0"><a href="/cmake-integration-vscode/reference/commands" class="sidebar-heading clickable open"><span>Reference</span> <!----></a> <ul class="sidebar-links sidebar-group-items"><li><a href="/cmake-integration-vscode/reference/commands.html" class="sidebar-link">Commands</a></li><li><a href="/cmake-integration-vscode/reference/configurations.html" class="sidebar-link">Configurations</a></li><li><a href="/cmake-integration-vscode/reference/settings.html" class="active sidebar-link">Extension Settings</a><ul class="sidebar-sub-headers"><li class="sidebar-sub-header"><a href="/cmake-integration-vscode/reference/settings.html#cmake-options" class="sidebar-link">CMake Options</a></li><li class="sidebar-sub-header"><a href="/cmake-integration-vscode/reference/settings.html#visual-settings" class="sidebar-link">Visual Settings</a></li><li class="sidebar-sub-header"><a href="/cmake-integration-vscode/reference/settings.html#configuration-defaults" class="sidebar-link">Configuration Defaults</a></li><li class="sidebar-sub-header"><a href="/cmake-integration-vscode/reference/settings.html#cpptools-integration" class="sidebar-link">Cpptools Integration</a></li><li class="sidebar-sub-header"><a href="/cmake-integration-vscode/reference/settings.html#build-settings" class="sidebar-link">Build Settings</a></li></ul></li></ul></section></li></ul> </aside> <main class="page"> <div class="theme-default-content content__default"><h1 id="extension-settings"><a href="#extension-settings" class="header-anchor">#</a> Extension Settings</h1> <h2 id="cmake-options"><a href="#cmake-options" class="header-anchor">#</a> CMake Options</h2> <ul><li><code>cmake.cmakePath</code>: Path to the CMake executable</li> <li><code>cmake.cmakeAPI</code>: Choose between CMake Server (depreacted) or File API</li></ul> <h2 id="visual-settings"><a href="#visual-settings" class="header-anchor">#</a> Visual Settings</h2> <ul><li><code>cmake.configureOnStart</code>: Start the configuration process when opening
+a source folder (eg. starting VSCode, adding workspace folder)</li> <li><code>cmake.showConsoleAutomatically</code>: Automatically show the CMake or build output</li> <li><code>cmake.reconfigureOnChange</code>: Start the (re-)configuration process when
+changing CMake files.</li></ul> <h2 id="configuration-defaults"><a href="#configuration-defaults" class="header-anchor">#</a> Configuration Defaults</h2> <p>The following settings describe the default values for configurations, which
+will be used if no value is presend with in the configurations files. All
+settings behave the same as they were specified in the configurations file (e.g
+variable substitution). The defaults can be set on a user, workspace (window) or
+folder level. The value in brackets afterwards, show the default value for the
+settings.</p> <ul><li><code>cmake.default.generator</code>: The default generator (Default: Ninja)</li> <li><code>cmake.default.extraGenerator</code>: The default extra generator</li> <li><code>cmake.default.buildDirectory</code>: The default build folder
+(Default: ${workspaceFolder}/build)</li> <li><code>cmake.default.cacheEntries</code>: The default cache entries</li> <li><code>cmake.default.env</code>: The default environment variables</li></ul> <h2 id="cpptools-integration"><a href="#cpptools-integration" class="header-anchor">#</a> Cpptools Integration</h2> <p>CMake Integration extension provides build information to the cpptools
+Extension for C/C++ Source files to support language services. The
+behaviour of the integration can be customize through the VS Code settings. For
+more information about <code>BrowseConfiguration</code> and <code>SourceFileConfiguration</code> also
+refer to the cpptools documentation. When no settings are used, the compiler
+path and Windows SDK Version (for MSVC) are guessed from the coresponding
+CMake cache entries. This is not very reliable as those informations are not
+always written to the cache.</p> <ul><li><code>cmake.cpptools.globalBrowseTargets</code>: Select custom projects or targets to
+include in the global browse configuration.</li> <li><code>cmake.cpptools.browseTargets</code>: Select custom projects or targets to include
+in the workspace browse configuration.</li> <li><code>cmake.cpptools.guessSourceFileConfigurations</code>: Enable guessing a
+SourceFileConfiguration for files unknown to CMake. Configurations are guessed
+based on paths of targets. (Default: True)</li> <li><code>cmake.cpptools.compilerPath</code>: Provides the compiler path reported to
+cpptools. If empty, the compiler path from CMake is used. CMake currently
+is unreliable and it is a good choice to set the path in the settings.</li> <li><code>cmake.cpptools.intelliSenseMode</code>: Provide the intelliSense Mode. When
+not set, the mode is determined by the compiler path.</li> <li><code>cmake.cpptools.windowsSdkVersion</code>: Provides the Windows SDK Version
+reported to cpptools. If empty, the version from CMake is used. CMake currently is unreliable and it is a good choice to set the version in the
+settings.</li> <li><code>cmake.cpptools.languageConfiguration.CXX</code>,
+<code>cmake.cpptools.languageConfiguration.C</code>,
+<code>cmake.cpptools.languageConfiguration.CUDA</code>: Language dependend settings for
+the compilerPath and the intelliSense Mode. This settings have the highest
+predecence when resolving the path and mode.</li></ul> <h2 id="build-settings"><a href="#build-settings" class="header-anchor">#</a> Build Settings</h2> <p>The extensions allows you to extended the dependencies management
+beyond a single source folder by specifying special workspace
+settings.</p> <h3 id="target-selection"><a href="#target-selection" class="header-anchor">#</a> Target Selection</h3> <p>Target for those special settings can be either a full project
+building all targets of this project</p> <div class="language- extra-class"><pre class="language-text"><code>{ &quot;project&quot;: &quot;cmake&quot; }
+</code></pre></div><p>or a single target from a project.</p> <div class="language- extra-class"><pre class="language-text"><code>{ &quot;project&quot;: &quot;cmake&quot;, &quot;target&quot;: &quot;ctest&quot; }
+</code></pre></div><h3 id="workspace-targets"><a href="#workspace-targets" class="header-anchor">#</a> Workspace Targets</h3> <p>With the <code>cmake.build.workspaceTargets</code> setting option, the behaviour of
+the <code>cmake.build.buildWorkspace</code> command can be changed. By default, all
+targets of each project in a workspace will be build. Alternatively,
+the setting allows to specify an array of targets as described above,
+which will be build instead. This includes all dependencies specified
+either by CMake or by this extension.</p> <div class="language- extra-class"><pre class="language-text"><code>&quot;cmake.build.workspaceTargets&quot;: [
+  { &quot;project&quot;: &quot;projectA&quot; },
+  { &quot;project&quot;: &quot;projectB&quot;, &quot;target&quot;: &quot;commandA&quot; }
+],
+</code></pre></div><h3 id="target-dependencies"><a href="#target-dependencies" class="header-anchor">#</a> Target Dependencies</h3> <p>In addition to the dependency management provided by CMake, the extension
+provides a mechanism to specify dependencies between different CMake
+source folder (or workspace folders). Prio to building a certain target or
+project, all dependencies will be resolved and build. In case of building
+a project (build all), all dependencies of the project and all dependencies
+of the project targets will be used.</p> <div class="language- extra-class"><pre class="language-text"><code>&quot;cmake.build.targetDependencies&quot;: [
+  { 
+    &quot;project&quot;: &quot;projectB&quot;,
+    &quot;target&quot;: &quot;exeB&quot;,
+    &quot;dependencies&quot;: [
+      { &quot;project&quot;: &quot;projectA&quot;, &quot;target&quot;: &quot;libA&quot; }
+    ]
+  }
+]
+</code></pre></div><p>The example shows, how a library in an extra CMake source folder can be build,
+before the executable linking to it.</p></div> <footer class="page-edit"><!----> <!----></footer> <div class="page-nav"><p class="inner"><span class="prev">
+      ←
+      <a href="/cmake-integration-vscode/reference/configurations.html" class="prev">Configurations</a></span> <!----></p></div> </main></div><div class="global-ui"></div></div>
+    <script src="/cmake-integration-vscode/assets/js/app.729eb9cb.js" defer></script><script src="/cmake-integration-vscode/assets/js/3.f55b6acf.js" defer></script><script src="/cmake-integration-vscode/assets/js/2.aed5b76c.js" defer></script><script src="/cmake-integration-vscode/assets/js/11.d713c064.js" defer></script>
+  </body>
+</html>

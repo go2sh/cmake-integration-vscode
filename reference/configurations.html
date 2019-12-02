@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Configurations | CMake Integration</title>
+    <meta name="description" content="CMake Integration Extension for Visual Studio Code.">
+    
+    
+    <link rel="preload" href="/cmake-integration-vscode/assets/css/0.styles.a16eb183.css" as="style"><link rel="preload" href="/cmake-integration-vscode/assets/js/app.729eb9cb.js" as="script"><link rel="preload" href="/cmake-integration-vscode/assets/js/3.f55b6acf.js" as="script"><link rel="preload" href="/cmake-integration-vscode/assets/js/2.aed5b76c.js" as="script"><link rel="preload" href="/cmake-integration-vscode/assets/js/10.960d92f4.js" as="script"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/11.d713c064.js"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/12.f924de64.js"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/13.9a8051f1.js"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/14.03b26d71.js"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/15.81241ea0.js"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/4.af5f9d9f.js"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/5.a8eff28d.js"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/6.a24c4b9c.js"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/7.499c1ded.js"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/8.2f889ba1.js"><link rel="prefetch" href="/cmake-integration-vscode/assets/js/9.a0cceea7.js">
+    <link rel="stylesheet" href="/cmake-integration-vscode/assets/css/0.styles.a16eb183.css">
+  </head>
+  <body>
+    <div id="app" data-server-rendered="true"><div class="theme-container"><header class="navbar"><div class="sidebar-button"><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" viewBox="0 0 448 512" class="icon"><path fill="currentColor" d="M436 124H12c-6.627 0-12-5.373-12-12V80c0-6.627 5.373-12 12-12h424c6.627 0 12 5.373 12 12v32c0 6.627-5.373 12-12 12zm0 160H12c-6.627 0-12-5.373-12-12v-32c0-6.627 5.373-12 12-12h424c6.627 0 12 5.373 12 12v32c0 6.627-5.373 12-12 12zm0 160H12c-6.627 0-12-5.373-12-12v-32c0-6.627 5.373-12 12-12h424c6.627 0 12 5.373 12 12v32c0 6.627-5.373 12-12 12z"></path></svg></div> <a href="/cmake-integration-vscode/" class="home-link router-link-active"><!----> <span class="site-name">CMake Integration</span></a> <div class="links"><div class="search-box"><input aria-label="Search" autocomplete="off" spellcheck="false" value=""> <!----></div> <nav class="nav-links can-hide"><div class="nav-item"><a href="/cmake-integration-vscode/" class="nav-link">Home</a></div><div class="nav-item"><a href="/cmake-integration-vscode/start/quickstart.html" class="nav-link">Docs</a></div><div class="nav-item"><a href="https://github.com/go2sh/cmake-integration-vscode" target="_blank" rel="noopener noreferrer" class="nav-link external">
+  Github
+  <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></div> <!----></nav></div></header> <div class="sidebar-mask"></div> <aside class="sidebar"><nav class="nav-links"><div class="nav-item"><a href="/cmake-integration-vscode/" class="nav-link">Home</a></div><div class="nav-item"><a href="/cmake-integration-vscode/start/quickstart.html" class="nav-link">Docs</a></div><div class="nav-item"><a href="https://github.com/go2sh/cmake-integration-vscode" target="_blank" rel="noopener noreferrer" class="nav-link external">
+  Github
+  <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></div> <!----></nav>  <ul class="sidebar-links"><li><section class="sidebar-group depth-0"><a href="/cmake-integration-vscode/start/installation" class="sidebar-heading clickable"><span>Introduction</span> <!----></a> <ul class="sidebar-links sidebar-group-items"><li><a href="/cmake-integration-vscode/start/installation.html" class="sidebar-link">Installation</a></li><li><a href="/cmake-integration-vscode/start/quickstart.html" class="sidebar-link">Quickstart</a></li><li><a href="/cmake-integration-vscode/start/troubleshooting.html" class="sidebar-link">Troubleshooting</a></li></ul></section></li><li><section class="sidebar-group depth-0"><a href="/cmake-integration-vscode/guide/integration" class="sidebar-heading clickable"><span>Guide</span> <!----></a> <ul class="sidebar-links sidebar-group-items"><li><a href="/cmake-integration-vscode/guide/integration.html" class="sidebar-link">Integration</a></li><li><a href="/cmake-integration-vscode/guide/source_structure.html" class="sidebar-link">Source Structure</a></li></ul></section></li><li><section class="sidebar-group depth-0"><a href="/cmake-integration-vscode/reference/commands" class="sidebar-heading clickable open"><span>Reference</span> <!----></a> <ul class="sidebar-links sidebar-group-items"><li><a href="/cmake-integration-vscode/reference/commands.html" class="sidebar-link">Commands</a></li><li><a href="/cmake-integration-vscode/reference/configurations.html" class="active sidebar-link">Configurations</a><ul class="sidebar-sub-headers"><li class="sidebar-sub-header"><a href="/cmake-integration-vscode/reference/configurations.html#configuration-object" class="sidebar-link">Configuration Object</a></li><li class="sidebar-sub-header"><a href="/cmake-integration-vscode/reference/configurations.html#variable-substitutions" class="sidebar-link">Variable substitutions</a></li></ul></li><li><a href="/cmake-integration-vscode/reference/settings.html" class="sidebar-link">Extension Settings</a></li></ul></section></li></ul> </aside> <main class="page"> <div class="theme-default-content content__default"><h1 id="configurations-for-cmake"><a href="#configurations-for-cmake" class="header-anchor">#</a> Configurations for CMake</h1> <p>Configurations can be used to customize the behaviour of the CMake build and
+can be used to control every aspect of the build process with CMake.
+The extensions comes with a set of default configurations matching the
+integrated build types of CMake
+(<code>Debug</code>,<code>Release</code>, <code>RelWithDebInfo</code>, <code>MinSizeRel</code>). Furthermore, there are
+default values in place for every configuration property. The default values
+are speciefied by the VS Code settings and can be changed through the
+settings editor.</p> <p>To edit the configurations with in VS Code, use the <code>Edit Configurations</code>
+command. This will open the <code>cmake_configurations.json</code> within the <code>.vscode/</code>
+folder. The configurations are seperate for each workspace folder. There is a
+json schema supplied by the extension to guide you through the editing process.
+Changing the configuration file will trigger a validation of the schema and the
+configurations are only changed, if the file is validated sucessfully.
+Afterwards, the build directories are updated to reflect the new configurations.</p> <p>The base structure of the <code>cmake_configurations.json</code> file looks like:</p> <div class="language- extra-class"><pre class="language-text"><code>{
+  configurations: [
+    ...
+  ]
+}
+</code></pre></div><p>The <code>configurations</code> property holds an array of <code>configuration</code> objects.</p> <h2 id="configuration-object"><a href="#configuration-object" class="header-anchor">#</a> Configuration Object</h2> <p>A configuration object has the following properties:</p> <ul><li><a href="#configuration-name"><code>name</code></a></li> <li><a href="#configuration-buildDirectory"><code>buildDirectory</code></a></li> <li><a href="#configuration-generator"><code>generator</code></a></li> <li><a href="#configuration-buildType"><code>buildType</code></a></li> <li><a href="#configuration-toolchain"><code>toolchain</code></a></li> <li><a href="#configuration-env"><code>env</code></a></li> <li><a href="#configuration-cacheentries"><code>cacheEntries</code></a></li></ul> <h3 id="configuration-name"><a href="#configuration-name" class="header-anchor">#</a> configuration.name</h3> <p>Specifies the name of the configuration. Must be a unique within the
+configurations. The name is shown in the status bar and used to the select a new
+configuration.</p> <h3 id="configuration-builddirectory"><a href="#configuration-builddirectory" class="header-anchor">#</a> configuration.buildDirectory</h3> <p>Sets the CMake build directory, where the build system is generated.</p> <h3 id="configuration-generator"><a href="#configuration-generator" class="header-anchor">#</a> configuration.generator</h3> <p>Select the build system generator to use. See the
+<a href="https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html" target="_blank" rel="noopener noreferrer"><code>CMake Documentation</code><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a>
+for a complete list of generators.</p> <h3 id="configuration-buildtype"><a href="#configuration-buildtype" class="header-anchor">#</a> configuration.buildType</h3> <p>Sets the build type for the current build. Depending on the generator, the build type is added as configuration parameter
+(See <a href="https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html" target="_blank" rel="noopener noreferrer"><code>CMAKE_BUILD_TYPE</code><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a>)
+or as build parameter for multi-configuration generators (e.g. Visual Studio).
+(See <a href="https://cmake.org/cmake/help/latest/variable/CMAKE_CONFIGURATION_TYPES.html" target="_blank" rel="noopener noreferrer"><code>CMAKE_CONFIGURATION_TYPES</code><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a>)</p> <h3 id="configuration-toolchain"><a href="#configuration-toolchain" class="header-anchor">#</a> configuration.toolchain</h3> <p>Specifies either a path to a toolchain file as string or an object, which will
+be used to generate a toolchain file. The object keys are used as variable
+names and the string values are used as values for the <code>set</code> command.
+The specified or generated toolchain file will be passed as argument to CMake
+on configuration.
+(See <a href="https://cmake.org/cmake/help/latest/variable/CMAKE_TOOLCHAIN_FILE.html" target="_blank" rel="noopener noreferrer"><code>CMAKE_TOOLCHAIN_FILE</code><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a>)</p> <div class="language- extra-class"><pre class="language-text"><code>  ...
+  toolchain: {
+    &quot;CMAKE_SYSTEM_NAME&quot;: &quot;Linux&quot;,
+    &quot;CMAKE_SYSTEM_PROCESSOR&quot;: &quot;arm&quot;,
+    &quot;triple&quot;: &quot;arm-linux-gnueabihf&quot;,
+    &quot;CMAKE_C_COMPILER&quot;: &quot;clang&quot;,
+    &quot;CMAKE_C_COMPILER_TARGET&quot;: &quot;${triple}&quot;,
+    &quot;CMAKE_CXX_COMPILER&quot;: &quot;clang++&quot;,
+    &quot;CMAKE_CXX_COMPILER_TARGET&quot;: &quot;${triple}&quot;
+  },
+  ...
+</code></pre></div><p>The example above generates the following toolchain file:</p> <div class="language- extra-class"><pre class="language-text"><code>set(CMAKE_SYSTEM_NAME Linux)
+set(CMAKE_SYSTEM_PROCESSOR arm)
+set(triple arm-linux-gnueabihf)
+set(CMAKE_C_COMPILER clang)
+set(CMAKE_C_COMPILER_TARGET ${triple})
+set(CMAKE_CXX_COMPILER clang++)
+set(CMAKE_CXX_COMPILER_TARGET ${triple})
+</code></pre></div><h3 id="configuration-env"><a href="#configuration-env" class="header-anchor">#</a> configuration.env</h3> <p>Allows to set additional environment variables for the configuration and build
+processes. The <code>env</code> object keys speciefy the variable names and the object
+values the variable values.</p> <div class="language- extra-class"><pre class="language-text"><code>  ...
+  env: {
+    &quot;QT_DIR&quot;: &quot;/opt/qt5-dev/&quot;
+  },
+  ...
+</code></pre></div><p>With variable substituations, existing variables can be extended.</p> <div class="language- extra-class"><pre class="language-text"><code>    ...
+    &quot;PATH&quot;: &quot;${env:PATH}:/opt/qt5-dev/bin&quot;,
+    ...
+</code></pre></div><h3 id="configuration-cacheentries"><a href="#configuration-cacheentries" class="header-anchor">#</a> configuration.cacheEntries</h3> <p>Specifies additional CMake cache entries, which will be passed via command line
+argument. It is an array of cache entries, where each entry must have a name
+and a value and can have a type. See the
+<a href="https://cmake.org/cmake/help/latest/command/set.html#set-cache-entry" target="_blank" rel="noopener noreferrer"><code>CMake Documentation</code><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a>
+for additional information on cache entries.</p> <div class="language- extra-class"><pre class="language-text"><code>  ...
+  &quot;cacheEntries&quot;: [
+    {
+      &quot;name&quot;: &quot;BOOST_ROOT&quot;,
+      &quot;value&quot;: &quot;/opt/boost-1.44&quot;,
+      &quot;type&quot;: &quot;PATH&quot;
+    }
+  ],
+  ...
+</code></pre></div><h2 id="variable-substitutions"><a href="#variable-substitutions" class="header-anchor">#</a> Variable substitutions</h2> <p>Values of the configuration fields <code>buildDirectory</code>, <code>toolchain</code>, <code>env</code> and
+<code>cacheEntries</code> may use variable substitution to replace the variable
+specification with the actual variable value. Variables are definied by the
+following pattern: <code>${varName}</code>.</p> <p>The following variables exists:</p> <ul><li><code>sourceFolder</code>: CMAKE_SOURCE_DIR path</li> <li><code>workspaceFolder</code>: Workspace folder path</li> <li><code>name</code>: Configuration name</li> <li><code>buildType</code>: Configuration buildType</li> <li><code>generator</code>: Configuration generator</li> <li><code>env:EnvName</code>: ´Environment variable with the name <code>EnvName</code>.</li></ul></div> <footer class="page-edit"><!----> <!----></footer> <div class="page-nav"><p class="inner"><span class="prev">
+      ←
+      <a href="/cmake-integration-vscode/reference/commands.html" class="prev">Commands</a></span> <span class="next"><a href="/cmake-integration-vscode/reference/settings.html">Extension Settings</a>
+      →
+    </span></p></div> </main></div><div class="global-ui"></div></div>
+    <script src="/cmake-integration-vscode/assets/js/app.729eb9cb.js" defer></script><script src="/cmake-integration-vscode/assets/js/3.f55b6acf.js" defer></script><script src="/cmake-integration-vscode/assets/js/2.aed5b76c.js" defer></script><script src="/cmake-integration-vscode/assets/js/10.960d92f4.js" defer></script>
+  </body>
+</html>
