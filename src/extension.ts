@@ -39,7 +39,7 @@ export async function activate(context: vscode.ExtensionContext) {
     } else {
         firstStart(version);
     }
-    context.globalState.update("version", "0.6.0");
+    context.globalState.update("version", version);
 
     /* Configure commands */
     disposables.push(
