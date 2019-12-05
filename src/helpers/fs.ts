@@ -34,8 +34,14 @@ async function makeRecursivDirectory(dir : string) : Promise<boolean> {
       }
     });
     if (!res) {
-      await mkdir(tempPath);
-      created = true;
+      await mkdir(tempPath).catch((e) => {
+        let fsError = e as NodeJS.ErrnoException;
+        if (fsError.code === "EEXIST") {
+          created = false;
+        } else {
+          throw e;
+        }
+      }).then(() => created = true);
     } else {
       created = false;
     }

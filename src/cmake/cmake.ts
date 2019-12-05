@@ -292,6 +292,9 @@ abstract class CMakeClient implements vscode.Disposable {
     return this._configs;
   }
 
+  protected mustRemoveBuildDir: boolean = false;
+  protected mustRegenerateBuildDir: boolean = false;
+
   /**
    * The current configuration.
    */
@@ -315,26 +318,24 @@ abstract class CMakeClient implements vscode.Disposable {
     this._originalConfig = config;
     this._config = newConfig;
 
-    this.handleConfigUpdate(oldConfig, newConfig);
+    this.mustRemoveBuildDir = newConfig.mustRemoveBuildDirectory(oldConfig);
+    this.mustRegenerateBuildDir = newConfig.mustRegenerateBuildDirectory(
+      oldConfig
+    );
   }
 
-  private async handleConfigUpdate(
-    oldConfig: CMakeConfigurationImpl,
-    newConfig: CMakeConfigurationImpl
-  ) {
-    if (!oldConfig.equals(newConfig)) {
-      let removeBuildDirectory = newConfig.mustRemoveBuildDirectory(oldConfig);
-      let regenerateBuildDirectory = newConfig.mustRegenerateBuildDirectory(
-        oldConfig
-      );
-      if (removeBuildDirectory) {
-        await removeDir(oldConfig.buildDirectory);
-      }
-      if (regenerateBuildDirectory) {
-        await this.regenerateBuildDirectory();
-      }
-      this.updateContext();
-      this.configChangeEvent.fire();
+  protected async configureConfigCheck() {
+    if (this.mustRemoveBuildDir) {
+      this.removeBuildDirectory();
+    }
+    if (this.mustRegenerateBuildDir) {
+      this.regenerateBuildDirectory();
+    }
+  }
+
+  private async buildConfigCheck() {
+    if (this.mustRegenerateBuildDir || this.mustRemoveBuildDir) {
+      await this.configure();
     }
   }
 
@@ -367,7 +368,11 @@ abstract class CMakeClient implements vscode.Disposable {
       typeof this.configuration.toolchain === "string" ||
       typeof this.configuration.toolchain === "undefined"
     ) {
-      return this.configuration.toolchain;
+      if (this.configuration.toolchain) {
+        return path.normalize(this.configuration.toolchain);
+      } else {
+        return undefined;
+      }
     } else {
       return path.join(
         this.workspaceFolder.uri.fsPath,
@@ -378,7 +383,7 @@ abstract class CMakeClient implements vscode.Disposable {
   }
 
   public get environment(): { readonly [key: string]: string | undefined } {
-    return this._config.env!;
+    return this._config.env;
   }
 
   public get cacheEntries(): ReadonlyArray<CacheValue> {
@@ -500,6 +505,8 @@ abstract class CMakeClient implements vscode.Disposable {
    * @param target A target name to build or undefined for all
    */
   async build(targets?: string[]): Promise<void> {
+    await this.buildConfigCheck();
+
     this.buildProc = child_process.spawn(
       this.cmakeExecutable,
       this.getBuildArguments(targets),
