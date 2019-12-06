@@ -59,15 +59,14 @@ class CMakeFileAPIClient extends CMakeClient {
    */
 
   async regenerateBuildDirectory() {
-    await makeRecursivDirectory(this.buildDirectory);
+    await this.createBuildDirectory();
   }
 
   async configure(): Promise<void> {
-    let cmakePath = vscode.workspace
-      .getConfiguration("cmake", this.sourceUri)
-      .get("cmakePath", "cmake");
     let args: string[] = [];
 
+    await this.configureConfigCheck();
+      
     args.push("-G");
     args.push(this.generatorString);
     if (!this.isConfigurationGenerator) {

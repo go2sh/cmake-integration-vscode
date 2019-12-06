@@ -158,12 +158,15 @@ export class CMakeServerClient extends CMakeClient {
     }
 
     async configure() {
+        let args: string[] = [];
+        
         if (!this._connection || this._state < ClientState.RUNNING) {
             vscode.window.showWarningMessage("CMake Server (" + this.name + " is not running.");
             return;
         }
+        
+        this.configureConfigCheck();
 
-        let args: string[] = [];
         if (!this.isConfigurationGenerator) {
             args.push("-D");
             args.push(`CMAKE_BUILD_TYPE:STRING=${this.buildType}`);
