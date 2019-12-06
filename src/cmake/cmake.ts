@@ -370,7 +370,11 @@ abstract class CMakeClient implements vscode.Disposable {
       typeof this.configuration.toolchain === "string" ||
       typeof this.configuration.toolchain === "undefined"
     ) {
-      return this.configuration.toolchain;
+      if (this.configuration.toolchain) {
+        return path.normalize(this.configuration.toolchain);
+      } else {
+        return undefined;
+      }
     } else {
       return path.join(
         this.workspaceFolder.uri.fsPath,

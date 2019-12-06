@@ -76,7 +76,7 @@ class CMakeConfigurationImpl implements CMakeConfiguration {
     options: Partial<CMakeConfiguration>,
     defaults: Required<CMakeConfiguration>
   ) {
-    let settings: Required<CMakeConfiguration> = { ...options, ...defaults };
+    let settings: Required<CMakeConfiguration> = { ...defaults, ...options };
     this.name = name;
     this.buildType = settings.buildType;
     this.buildDirectory = settings.buildDirectory;
@@ -112,6 +112,10 @@ class CMakeConfigurationImpl implements CMakeConfiguration {
       });
       return result as ReplaceType<U>;
     };
+
+    for (const key in process.env) {
+      vars.set(`env:${key}`, process.env[key]);
+    }
 
     let newEnv: { [key: string]: string | undefined } = {};
     for (let key in this.env) {

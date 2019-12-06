@@ -94,7 +94,7 @@ class CMakeFileAPIClient extends CMakeClient {
 
     await this.makeFileApiRequest();
 
-    let buildProc = child_process.spawn(cmakePath, args, {
+    let buildProc = child_process.spawn(this.cmakeExecutable, args, {
       cwd: this.workspaceFolder.uri.fsPath,
       env: { ...process.env, ...this.environment }
     });
