@@ -46,7 +46,7 @@ CMake version 3.7 or higher must be installed.
     Client to be restarted and the build directory to be deleted. Simply use the
     command  `Restart CMake Client (Clean)` and select your project.
   * The extension relies on the project name reported by CMake for some 
-    advancde operations. Multiple projects with the same name are not supported
+    advanced operations. Multiple projects with the same name are not supported
     for those.
 
 
