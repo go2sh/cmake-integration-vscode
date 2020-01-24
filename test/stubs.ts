@@ -21,10 +21,10 @@ import * as vscode from "vscode";
 class TestMemento implements vscode.Memento {
   get<T>(key: string): T | undefined;
   get<T>(key: string, defaultVal: T): T;
-  get<T>(key: string, ex?: T): T | undefined {
+  get<T>({}: string, ex?: T): T | undefined {
     return ex;
   }
-  update(key: string, value: any): Thenable<void> {
+  update({}: string, {}: any): Thenable<void> {
     return Promise.resolve();
   }
 }
@@ -39,7 +39,7 @@ class TestExtensionContext implements vscode.ExtensionContext {
   globalStoragePath: string = "";
   logPath: string = "";
 
-  asAbsolutePath(relativePath: string): string {
+  asAbsolutePath({}: string): string {
     return "";
   }
 }
