@@ -561,7 +561,7 @@
         "webpack-cli": "^3.2.3"
     },
     "dependencies": {
-        "ajv": "^6.9.2",
+        "ajv": "^6.12.3",
         "tree-kill": "^1.2.2",
         "vscode-cpptools": "^3.0.0"
     }
